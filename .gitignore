@@ -14,6 +14,7 @@ mock_community_analysis/data/*
 
 ./scripts/database_development/genome_downloads/gtdb_207/lineage.txt
 ./scripts/database_development/genome_downloads/gtdb_207/pretty_lineage.txt
+./scripts/database_development/genome_downloads/jgi_gold/ref_data/GOLDs5levelEcosystemClassificationPaths.xlsx,205870479,1698783192000,283690,644
 
 # Shiny app files - these will go elsewhere
 shiny_app/
