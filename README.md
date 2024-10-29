@@ -1,4 +1,4 @@
-# Soil Micome Database (SMDB) - a whole-genome reference database with over 50,000 genomes, focused on soil biodiversity 
+# Soil Microbe Database (SMDB) - a whole-genome reference database with over 50,000 genomes, focused on soil biodiversity 
 
 Includes over 20,000 metagenome-assembled genomes (MAGs) from soils, and 1400 fungi from Joint Genome Institute's Mycocosm
 
