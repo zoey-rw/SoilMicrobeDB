@@ -4,14 +4,16 @@ library(ggrepel)
 library(ggallin)
 library(scales)
 library(ggpmisc)
+library(yardstick)
+library(Metrics)
+library(ggpubr)
+
 source("/projectnb/talbot-lab-data/zrwerbin/soil_genome_db/custom_pavian.r")
 source("https://raw.githubusercontent.com/bhattlab/kraken2_classification/master/scripts/process_classification.R")
 source("/projectnb/talbot-lab-data/zrwerbin/soil_genome_db/helper_functions.r")
 
 
 # Get a list of microbes common to PlusPF, to Mycocosm, and to NCBI
-
-
 prokaryote_to_sample <- readRDS("/projectnb/frpmars/soil_microbe_db/mock_community_analysis/data/01_mock_community_input/prokaryote_to_sample.rds")
 fungi_to_sample <- readRDS("/projectnb/frpmars/soil_microbe_db/mock_community_analysis/data/01_mock_community_input/fungi_to_sample.rds")
 fungi_in_any <- readRDS("/projectnb/frpmars/soil_microbe_db/mock_community_analysis/data/01_mock_community_input/fungi_any.rds")
@@ -67,10 +69,11 @@ bracken_mock_filtered_soil_microbe_db = many_files_to_matrix_list(files = bracke
 
 
 
-bracken_gtdb_207_files <- list.files(species_bracken_dir, pattern = "gtdb_207_filtered_kraken_bracken_genuses.kreport", 
+bracken_gtdb_207_files <- list.files(species_bracken_dir, pattern = "gtdb_207_unfiltered_filtered_kraken_bracken_genuses.kreport", 
 																						recursive = T, full.names = T)
 
-names(bracken_gtdb_207_files) = basename(bracken_gtdb_207_files) %>% gsub("_gtdb_207_filtered_kraken_bracken_genuses.kreport","",.)
+names(bracken_gtdb_207_files) = basename(bracken_gtdb_207_files) %>% 
+    gsub("_gtdb_207_unfiltered_filtered_kraken_bracken_genuses.kreport","",.)
 
 bracken_mock_filtered_gtdb_207 = many_files_to_matrix_list(files = bracken_gtdb_207_files, 
 																																	filter.tax.level = "G", 
@@ -154,15 +157,23 @@ eval_df = eval_df %>% mutate(db_name = recode(db_name,
 														pluspfp8 = "PlusPFP8",
 														pluspf = "PlusPF"),
 														readdepth=recode(readdepth,
-																						".1m" = 100000,
-																						"1m" = 1000000,
-																						"5m" = 5000000,
-																						"10m"= 10000000,
-																						"20m" = 20000000),
+																						".1M" = 100000,
+																						".5M" = 500000,
+																						"1M" = 1000000,
+																						"5M" = 5000000,
+																						"10M"= 10000000,
+																						"20M" = 20000000),
 														fungal_proportion=as.numeric(fungal_proportion))
 
+# Estimated at 5% but not in mock community?
+"Bremerella" 
+"Xylanibacter"
 
-ggplot(eval_df %>% filter(samp_name == "fungprop_10_readdepth_5m" & in_mock_community) ,
+# Estimated at 0%
+"Capnocytophaga"
+"Paeniclostridium"
+
+ggplot(eval_df %>% filter(samp_name == "fungprop_10_readdepth_5M" & in_mock_community) ,
 			 aes(y = predicted_abundance, x=db_name, color=fungal)) +
 	#	geom_histogram() +
 	geom_point(#aes(color=fungal),
@@ -207,6 +218,8 @@ ggplot(eval_df %>% filter(!in_fungal_mock_community),
 	ylim(c(0,.01)) #+	
 #	stat_poly_line() +
 #	stat_poly_eq() 
+
+
 
 library(ggridges)
 ggplot(eval_df %>% filter(readdepth != "10m") %>% filter(in_mock_community),
@@ -258,12 +271,69 @@ ggplot(eval_df %>% filter(db_name == "SoilMicrobeDB" & in_fungal_mock_community)
 	geom_hline(yintercept = .005, linetype=2) 
 
 
-library(yardstick)
+
 
 
 rmse_df <- eval_df %>% 
-	group_by(db_name, fungal_proportion, readdepth, fungal) %>% 
-rmse(truth = abundance, estimate = predicted_abundance)
+    # subset to taxa that are either in mock community or predicted 
+    filter(abundance != 0 | predicted_abundance != 0) %>% 
+	group_by(db_name, fungal_proportion, taxon, #readdepth,  
+	         fungal) %>% 
+    yardstick::rmse(truth = abundance, estimate = predicted_abundance) %>% 
+    rename("metric" = ".metric", "value" = ".estimate") %>% mutate(metric="Root mean squared error (RMSE)")
+
+bias_df <- eval_df %>% 
+    # subset to taxa that are either in mock community or predicted 
+    filter(abundance != 0 | predicted_abundance != 0) %>% 
+    group_by(db_name, fungal_proportion, taxon, #readdepth, 
+             fungal) %>% 
+    summarize(value = Metrics::bias(actual = abundance, 
+                                    predicted = predicted_abundance)) %>% 
+    mutate(metric = "Bias")
+
+metrics_to_plot = full_join(rmse_df, bias_df)
+
+fig_3a = ggplot(metrics_to_plot %>% filter(metric == "Bias" &
+                              fungal_proportion==10),
+       aes(y = value, x=db_name, color=fungal)) +
+    geom_point(
+        size=2, alpha=.4, 
+       # position=position_jitter(width = .1, height=0)) +
+    position=position_jitterdodge(jitter.height =0, jitter.width = .1, dodge.width = .8)) +
+    
+    theme_classic(base_size = 18) + 
+    facet_wrap(~fungal, scales="free_x") + 
+    ylab("Bias (simulated community)") + 
+    xlab(NULL) + 
+    geom_hline(yintercept = 0, linetype=2)  +
+    scale_color_discrete(name="") 
+fig_3b = ggplot(metrics_to_plot %>% filter(metric != "Bias" &
+                                               fungal_proportion==10),
+                aes(y = value, x=db_name, color=fungal)) +
+    geom_point(
+        size=2, alpha=.4, 
+        position=position_jitter(width = .1, height=0)) +
+#    position=position_jitterdodge(jitter.height =0, jitter.width = .1, dodge.width = .8)) +
+    
+    theme_classic(base_size = 18) + 
+    facet_wrap(~fungal, scales="free_x") + 
+    ylab("RMSE (simulated community)") + 
+    xlab("Database") + 
+    geom_hline(yintercept = 0, linetype=2)  +
+    scale_color_discrete(name="") + 
+    stat_compare_means(data = metrics_to_plot %>% filter(metric != "Bias" &
+                                                             fungal_proportion==10 & fungal=="Fungi"), inherit.aes = T,
+                       comparisons = list(c("PlusPF","SoilMicrobeDB")), method = "t.test", label = "p.signif")  + 
+    stat_compare_means(data = metrics_to_plot %>% filter(metric != "Bias" &
+                                                             fungal_proportion==10 & fungal !="Fungi"), inherit.aes = T,
+                       comparisons = list(  c("PlusPF","SoilMicrobeDB"),
+                                            c("GTDB 207","SoilMicrobeDB"),
+                                            c("PlusPF","GTDB 207")), method = "t.test", label = "p.signif")
+fig_3a
+fig_3b
+
+ggarrange(fig_3a, fig_3b, nrow = 2, labels = c("A","B"), common.legend = T)
+
 
 rmse_df <- eval_df %>% 
 	group_by(db_name, fungal_proportion, readdepth) %>% 
@@ -305,16 +375,7 @@ library(robCompositions)
 
 aDist
 library(vegan)
-ggplot(rmse_df,
-			 aes(y = .estimate, x=fungal_proportion, color=fungal)) +
-	geom_point(
-		size=2, alpha=.5, 
-		position=position_jitter(width = .1, height=0)) +
-	#position=position_jitterdodge(jitter.height =0.001, jitter.width = .1, dodge.width = 1)) +
-	
-	#	geom_smooth(method="lm") +
-	theme_bw(base_size = 18) + 	#
-	facet_grid(db_name~readdepth, drop=T, scales="free")
+
 
 
 

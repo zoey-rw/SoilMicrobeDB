@@ -6,10 +6,10 @@ library(broom)
 library(ggpubr)
 library(SimplyAgree)
 
-seq_depth_df <- readRDS("/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/seq_depth_df.rds") %>% 
+seq_depth_df <- readRDS("/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/seq_depth_df.rds") %>% 
     dplyr::rename(compositeSampleID = sampleID) %>% select(-c(db_name, identified_reads))
 
-bracken_domain_estimates <- readRDS("/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/bracken_domain_estimates.rds") %>%
+bracken_domain_estimates <- readRDS("/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/bracken_domain_estimates.rds") %>%
     dplyr::rename(compositeSampleID = sampleID) 
 bracken_fb_ratio = bracken_domain_estimates %>%
     mutate(percentage = percentage*.01) %>%
@@ -32,7 +32,10 @@ keep_samples = intersect(bracken_fb_ratio[bracken_fb_ratio$db_name=="pluspf",]$c
 # Supp figure
 ggplot(bracken_fb_ratio %>% 
            filter(db_name %in% c("pluspf","soil_microbe_db") & 
-                      compositeSampleID %in% keep_samples), 
+                      compositeSampleID %in% keep_samples) %>% 
+           mutate(db_name = recode(db_name, "soil_microbe_db" = "SoilMicrobeDB",
+                                   "pluspf" = "PlusPF",
+                                   "gtdb_207" = "GTDB r207")), 
        aes(x=seq_depth, y = Eukaryota, color=db_name)) + 
     geom_point(alpha=.5) +
     theme_bw() +
@@ -40,7 +43,9 @@ ggplot(bracken_fb_ratio %>%
     stat_poly_eq(aes(label = paste(..rr.label.., ..p.value.label.., sep = "*`,`~")), 
                           show.legend = FALSE, size=7)  +
     scale_x_log10() +
-scale_y_log10() + scale_color_discrete(name = "Database")
+    xlab("Sequencing depth (reads)") +
+    ylab("Relative abundance of eukaryota") +
+    scale_y_log10() + scale_color_discrete(name = "Database")
 
 
 # Supp figure

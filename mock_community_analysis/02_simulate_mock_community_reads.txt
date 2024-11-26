@@ -3,34 +3,71 @@
 
 # Step 2: generate mock community 
 
-
-
-/projectnb/frpmars/soil_microbe_db/mock_community_analysis/data/01_mock_community_input/mc_input_fungprop_1_unzipped.txt
-/projectnb/frpmars/soil_microbe_db/mock_community_analysis/data/01_mock_community_input/mc_input_fungprop_3_unzipped.txt
-/projectnb/frpmars/soil_microbe_db/mock_community_analysis/data/01_mock_community_input/mc_input_fungprop_20_unzipped.txt
-/projectnb/frpmars/soil_microbe_db/mock_community_analysis/data/01_mock_community_input/mc_input_fungprop_10_unzipped.txt
-file_list=/projectnb/frpmars/soil_microbe_db/mock_community_analysis/data/01_mock_community_input/mc_input_fungprop_5_unzipped.txt
-
-
 ##### CREATE MOCK COMMUNITY #####
+
+qrsh -pe omp 8 -l mem_per_core=16G
 
 module load miniconda
 conda activate insilicoseq
 
-
-
 cd /projectnb/frpmars/soil_microbe_db/mock_community_analysis/data/01_mock_community_input
 
+
+/projectnb/frpmars/soil_microbe_db/mock_community_analysis/data/01_mock_community_input/mc_input_fungprop_1_unzipped.txt
+/projectnb/frpmars/soil_microbe_db/mock_community_analysis/data/01_mock_community_input/mc_input_fungprop_3_unzipped.txt
+/projectnb/frpmars/soil_microbe_db/mock_community_analysis/data/01_mock_community_input/mc_input_fungprop_8_unzipped.txt
+/projectnb/frpmars/soil_microbe_db/mock_community_analysis/data/01_mock_community_input/mc_input_fungprop_10_unzipped.txt
+/projectnb/frpmars/soil_microbe_db/mock_community_analysis/data/01_mock_community_input/mc_input_fungprop_12_unzipped.txt
+/projectnb/frpmars/soil_microbe_db/mock_community_analysis/data/01_mock_community_input/mc_input_fungprop_15_unzipped.txt
+/projectnb/frpmars/soil_microbe_db/mock_community_analysis/data/01_mock_community_input/mc_input_fungprop_20_unzipped.txt
+
+
+out_dir_path=/projectnb/frpmars/soil_microbe_db/mock_community_analysis/data/02_simulated_reads/
+
+
+# run for each proportion
+
+proportion=fungprop_5
 file_list=$(cat ./mc_input_fungprop_5_unzipped.txt)
+
+proportion=fungprop_10
+file_list=$(cat ./mc_input_fungprop_10_unzipped.txt)
+
+proportion=fungprop_15
+file_list=$(cat ./mc_input_fungprop_15_unzipped.txt)
+
+
+readdepth=.1M
+readdepth=1M
+readdepth=5M
+readdepth=10M
+
+for readdepth in .1M 1M 5M 10M;
+
+do
+MC_OUT_PATH=${out_dir_path}${proportion}_readdepth_${readdepth}
+
+echo $MC_OUT_PATH
+
+iss generate --draft $file_list --model hiseq --output $MC_OUT_PATH --cpus 4 --abundance uniform --n_reads $readdepth
+done
+
+
+
+
+
 
 
 readdepth=.1M
 out_simulated_reads_path=/projectnb/frpmars/soil_microbe_db/mock_community_analysis/data/02_simulated_reads/fungprop_5_readdepth_.1m
 iss generate --draft $file_list --model hiseq --output $out_simulated_reads_path --cpus 4 --abundance uniform --n_reads $readdepth
 
+readdepth=.5M
+out_simulated_reads_path=/projectnb/frpmars/soil_microbe_db/mock_community_analysis/data/02_simulated_reads/fungprop_5_readdepth_.5m
+iss generate --draft $file_list --model hiseq --output $out_simulated_reads_path --cpus 4 --abundance uniform --n_reads $readdepth
 
 readdepth=1M
-out_simulated_reads_path=/projectnb/frpmars/soil_microbe_db/mock_community_analysis/data/02_simulated_reads/fungprop_5_readdepth_1m/
+out_simulated_reads_path=/projectnb/frpmars/soil_microbe_db/mock_community_analysis/data/02_simulated_reads/fungprop_5_readdepth_1m
 iss generate --draft $file_list --model hiseq --output $out_simulated_reads_path --cpus 4 --abundance uniform --n_reads $readdepth
 
 readdepth=5M

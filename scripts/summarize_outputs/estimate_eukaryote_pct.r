@@ -11,7 +11,7 @@ sampleID_pooled_key <- readRDS("/projectnb/talbot-lab-data/zrwerbin/soil_genome_
 pooled_recode_list <- sampleID_pooled_key$genomicsSampleID
 names(pooled_recode_list) <- sampleID_pooled_key$sampleID
 
-soil_sample_dir <- "/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/02_bracken_output"
+soil_sample_dir <- "/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/02_bracken_output"
 
 samp_files <- list.files(soil_sample_dir, recursive=T, pattern = "_filtered_kraken_bracken_domains.kreport", full.names = T)
 samp_names <- gsub("_filtered_kraken_bracken_domains.kreport","",basename(samp_files)) %>% unique()
@@ -31,7 +31,11 @@ domain_output <- domain_in %>%
 domain_output$siteID = substr(domain_output$sampleID, 1, 4)
 
 
-saveRDS(domain_output,"/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/bracken_domain_estimates.rds")
+saveRDS(domain_output,"/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/bracken_domain_estimates.rds")
+
+
+# Create list of all samples from each database
+common_samples <- domain_output %>% distinct(sampleID, db_name) %>% count(sampleID) %>% filter(n > 2) %>% select(sampleID) %>% unlist
 
 
 domain_output %>% filter(db_name %in% c("soil_microbe_db","pluspf")) %>% 
@@ -43,21 +47,33 @@ domain_output %>% filter(db_name %in% c("soil_microbe_db","pluspf")) %>%
 
 
 options(scipen=999)
-ggplot(domain_output %>% filter(db_name %in% c("soil_microbe_db","pluspf")) %>% 
+ggplot(domain_output %>% 
+           mutate(db_name = recode(db_name, "soil_microbe_db" = "SoilMicrobeDB",
+                                               "pluspf" = "PlusPF",
+                                               "gtdb_207" = "GTDB r207")) %>% 
+           filter(sampleID %in% common_samples) %>% 
+           # %>% filter(db_name %in% c("soil_microbe_db","pluspf")) %>% 
 			 #	filter(seq_depth > 5000000) %>%
 			 	filter(taxon %in% c("Archaea","Bacteria","Eukaryota")),
 			 aes(x = db_name, y = percentage, color=db_name)) +
-	geom_violin(draw_quantiles = c(.5)) +
-	geom_jitter( size=3, alpha=.8,
+    geom_violin(color=1, draw_quantiles = c(.5)) +
+	geom_jitter( size=3, alpha=.2,
 						 #position=position_dodge(width = 1)
 	) +
+
 	#geom_smooth(aes(x = seq_depth, y = percentage, color=db_name)) +
-	facet_grid(rows=vars(taxon), scale="free_y")  +
-	theme_linedraw(base_size = 20) +
+	facet_wrap(~taxon, scale="free_y")  +
+	theme_minimal(base_size = 20) +
 	ylab("Estimated abundances") +
-	scale_y_sqrt() +
-	theme(axis.text.x=element_text(angle = 320, vjust=1, hjust = -0.05)) + 
-	stat_compare_means(aes(x = db_name, y = percentage, color=db_name))
+    xlab("Database") +
+#	scale_y_sqrt() +
+	theme(axis.text.x=element_text(angle = 310, vjust=1, hjust = 0)) + 
+    stat_compare_means(method = "t.test", comparisons = list(c("SoilMicrobeDB","PlusPF"),
+                                                          c("SoilMicrobeDB","GTDB r207"),
+                                                          c("GTDB r207","PlusPF")), hide.ns = T) + 
+    guides(color=FALSE)
+
+	#stat_compare_means(aes(x = db_name, y = percentage, color=db_name))
 
 
 ggplot(domain_output %>% filter(db_name %in% c("soil_microbe_db","pluspf")) %>% 

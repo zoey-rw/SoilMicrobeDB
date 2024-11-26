@@ -1,4 +1,4 @@
-
+library(tidyverse)
 
 filter_reads_dir = "/projectnb/frpmars/soil_microbe_db/mock_community_analysis/data/04_architeuthis_output"
 filter_summary_list <- list.files(filter_reads_dir, pattern = "_summary.output", recursive = T, full.names = T)

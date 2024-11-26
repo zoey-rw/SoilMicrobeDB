@@ -10,20 +10,6 @@ architeuthis_dir_path=/projectnb/frpmars/soil_microbe_db/mock_community_analysis
 architeuthis_kraken_dir_path=/projectnb/frpmars/soil_microbe_db/mock_community_analysis/data/05_architeuthis_kraken_output/
 	
 	
-samp_name=fungprop_5_readdepth_5m
-samp_name=fungprop_5_readdepth_1m
-samp_name=fungprop_5_readdepth_.1m
-samp_name=fungprop_5_readdepth_10m
-
-samp_name=fungprop_10_readdepth_.1m
-samp_name=fungprop_10_readdepth_1m
-samp_name=fungprop_10_readdepth_5m
-
-samp_name=fungprop_20_readdepth_5m
-samp_name=fungprop_20_readdepth_.1m
-samp_name=fungprop_20_readdepth_1m
-#samp_name=fungprop_20_readdepth_5m
-
 DBNAME=gtdb_207
 DBDIR=/projectnb/frpmars/soil_microbe_db/databases/gtdb_207_filtered/kraken2
 DB_taxonomy_dir=/projectnb/frpmars/soil_microbe_db/databases/gtdb_207_filtered/kraken2/taxonomy/
@@ -63,11 +49,15 @@ DB_taxo=/projectnb/microbiome/ref_db/taxonomy_db/pluspfp8_kraken2_db/taxo.k2d
 # DB_taxonomy_dir=/projectnb/microbiome/ref_db/taxonomy_db/pluspf_kraken2_db
 
 
-samp_name=fungprop_5_readdepth_1m
+proportion=fungprop_5
+proportion=fungprop_10
+proportion=fungprop_15
 
-for samp_name in fungprop_5_readdepth_1m fungprop_20_readdepth_.1m fungprop_20_readdepth_1m fungprop_20_readdepth_5m fungprop_5_readdepth_.1m fungprop_10_readdepth_.1m fungprop_10_readdepth_1m fungprop_10_readdepth_5m fungprop_5_readdepth_5m fungprop_5_readdepth_10m;
+for readdepth in .1M .5M 1M 5M;
 
 do
+
+samp_name=${proportion}_readdepth_${readdepth}
 echo "$samp_name"
 
 
@@ -88,14 +78,3 @@ cd /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/misc_scripts/mock_communi
 ./kraken2-report $DB_taxo $ARCHITEUTHIS_FILTERED $ARCHITEUTHIS_FILTERED_REPORT
 
 done
-
-cd /projectnb/microbiome/ref_db/NCBI-taxdump/.snapshots
-
-
-cd /projectnb/microbiome/ref_db/taxonomy_db/pluspf_kraken2_db/.snapshots
-
-cd /projectnb/microbiome/ref_db/taxonomy_db/pluspf_kraken2_db/.snapshots
-
-cd /projectnb/microbiome/dgolden/Struo2/custom_dbs/GTDB_release207/.snapshots
-
-cd /projectnb/microbiome/ref_db/GTDB_207_kraken2/.snapshots
