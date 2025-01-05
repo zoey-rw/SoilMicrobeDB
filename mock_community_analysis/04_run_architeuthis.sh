@@ -53,6 +53,11 @@ proportion=fungprop_5
 proportion=fungprop_10
 proportion=fungprop_15
 
+
+proportion=fungprop_1
+proportion=fungprop_3
+proportion=fungprop_20
+
 for readdepth in .1M .5M 1M 5M;
 
 do

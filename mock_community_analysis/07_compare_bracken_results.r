@@ -1,12 +1,7 @@
 library(tidyverse)
 library(pavian)
-library(ggrepel)
-library(ggallin)
 library(scales)
-library(ggpmisc)
-library(yardstick)
-library(Metrics)
-library(ggpubr)
+
 
 source("/projectnb/talbot-lab-data/zrwerbin/soil_genome_db/custom_pavian.r")
 source("https://raw.githubusercontent.com/bhattlab/kraken2_classification/master/scripts/process_classification.R")
@@ -165,6 +160,14 @@ eval_df = eval_df %>% mutate(db_name = recode(db_name,
 																						"20M" = 20000000),
 														fungal_proportion=as.numeric(fungal_proportion))
 
+write.csv(eval_df, "/projectnb/frpmars/soil_microbe_db/mock_community_analysis/data/evaluation_results.csv")
+
+
+
+
+# BELOW THIS LINE IS OLD CODE #
+
+
 # Estimated at 5% but not in mock community?
 "Bremerella" 
 "Xylanibacter"
@@ -274,25 +277,6 @@ ggplot(eval_df %>% filter(db_name == "SoilMicrobeDB" & in_fungal_mock_community)
 
 
 
-rmse_df <- eval_df %>% 
-    # subset to taxa that are either in mock community or predicted 
-    filter(abundance != 0 | predicted_abundance != 0) %>% 
-	group_by(db_name, fungal_proportion, taxon, #readdepth,  
-	         fungal) %>% 
-    yardstick::rmse(truth = abundance, estimate = predicted_abundance) %>% 
-    rename("metric" = ".metric", "value" = ".estimate") %>% mutate(metric="Root mean squared error (RMSE)")
-
-bias_df <- eval_df %>% 
-    # subset to taxa that are either in mock community or predicted 
-    filter(abundance != 0 | predicted_abundance != 0) %>% 
-    group_by(db_name, fungal_proportion, taxon, #readdepth, 
-             fungal) %>% 
-    summarize(value = Metrics::bias(actual = abundance, 
-                                    predicted = predicted_abundance)) %>% 
-    mutate(metric = "Bias")
-
-metrics_to_plot = full_join(rmse_df, bias_df)
-
 fig_3a = ggplot(metrics_to_plot %>% filter(metric == "Bias" &
                               fungal_proportion==10),
        aes(y = value, x=db_name, color=fungal)) +
@@ -331,6 +315,11 @@ fig_3b = ggplot(metrics_to_plot %>% filter(metric != "Bias" &
                                             c("PlusPF","GTDB 207")), method = "t.test", label = "p.signif")
 fig_3a
 fig_3b
+
+
+metrics_to_plot %>% filter(metric == "Bias" &
+                               fungal_proportion==10),
+aes(y = value, x=db_name, color=fungal)) +
 
 ggarrange(fig_3a, fig_3b, nrow = 2, labels = c("A","B"), common.legend = T)
 

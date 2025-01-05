@@ -15,8 +15,9 @@ filter_scores_files <- filter_scores_list %>%
 
 filter_scores1 = data.table::rbindlist(filter_scores_files, idcol = "samp_name", fill = T) 
 
+filter_scores_save = filter_scores1
 
-filter_scores1 = filter_scores1 %>% mutate(pass_filter = ifelse(consistency > .9 &
+filter_scores1 = filter_scores_save %>% mutate(pass_filter = ifelse(consistency > .9 &
 																																	entropy < .1 &
 																																	multiplicity < 2, 
 																																1, 0))
@@ -33,19 +34,30 @@ pass_filter = filter_scores1 %>%
 				 fungal_proportion = as.numeric(gsub("_","",fungal_proportion, fixed=T)),
 				 readdepth = gsub("_","",readdepth, fixed=T),
 	readdepth=recode(readdepth,
-									 ".1m" = 100000,
-									 "1m" = 1000000,
-									 "5m" = 5000000,
-									 "10m"= 10000000,
-									 "20m" = 20000000),
+									 ".1M" = 100000,
+									 "1M" = 1000000,
+									 "5M" = 5000000,
+									 ".5M" = 500000,
+									 "10M"= 10000000,
+									 "20M" = 20000000),
 	percent_classified = n_reads / (readdepth/2),
 	percent_passing = n_pass_filter / (readdepth/2))
 	
 
-pass_filter_long = pass_filter %>% pivot_longer(cols = c(percent_passing, percent_classified), names_to = "metric")
+pass_filter_long = pass_filter %>% 
+    pivot_longer(cols = c(percent_passing, percent_classified), names_to = "metric") %>% 
+    mutate(Database = recode(db_name, 
+                             "soil_microbe_db"="SoilMicrobeDB",
+                             "gtdb_207_unfiltered" = "GTDB r207",
+                             "pluspf" = "PlusPF"))
 
-ggplot(pass_filter_long %>% filter(readdepth != 1e7 & metric == "percent_passing"),
-			 aes(y = value, x=fungal_proportion, color = db_name)) +
+write_csv(pass_filter_long,  "/projectnb/frpmars/soil_microbe_db/mock_community_analysis/data/filter_results.csv")
+
+
+ggplot(pass_filter_long %>% 
+           filter(readdepth != 1e7 & metric == "percent_passing" & 
+                      db_name %in% c("soil_microbe_db","gtdb_207_unfiltered","pluspf")),
+			 aes(y = value, x=fungal_proportion, color = Database)) +
 	geom_point(#aes(color=fungal),
 		size=2, alpha=.4,
 		#position=position_jitter(width = .1, height=0.01)) +

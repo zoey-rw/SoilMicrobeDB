@@ -27,6 +27,12 @@ out_dir_path=/projectnb/frpmars/soil_microbe_db/mock_community_analysis/data/02_
 
 # run for each proportion
 
+proportion=fungprop_1
+file_list=$(cat ./mc_input_fungprop_1_unzipped.txt)
+
+proportion=fungprop_3
+file_list=$(cat ./mc_input_fungprop_3_unzipped.txt)
+
 proportion=fungprop_5
 file_list=$(cat ./mc_input_fungprop_5_unzipped.txt)
 
@@ -35,6 +41,9 @@ file_list=$(cat ./mc_input_fungprop_10_unzipped.txt)
 
 proportion=fungprop_15
 file_list=$(cat ./mc_input_fungprop_15_unzipped.txt)
+
+proportion=fungprop_20
+file_list=$(cat ./mc_input_fungprop_20_unzipped.txt)
 
 
 readdepth=.1M

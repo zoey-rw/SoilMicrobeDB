@@ -41,6 +41,10 @@ DBDIR=/projectnb/microbiome/ref_db/taxonomy_db/pluspfp8_kraken2_db
 proportion=fungprop_5
 proportion=fungprop_10
 proportion=fungprop_15
+proportion=fungprop_20
+proportion=fungprop_1
+proportion=fungprop_3
+
 
 for readdepth in .1M 1M .5M 5M;
 
