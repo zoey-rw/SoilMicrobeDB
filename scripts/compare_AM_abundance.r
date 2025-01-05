@@ -5,7 +5,8 @@ source("/projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/helper_functions.r")
 
 
 # From supplement of Lang et al. 2023
-AM_trees = read_csv("/projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/misc_scripts/AM_fungi/AM_trees_lang.csv")
+AM_trees = read_csv("/projectnb/frpmars/soil_microbe_db/ref_data/AM_trees/AM_trees_lang.csv")
+
 
 
 bracken_genus_estimates <- readRDS("/projectnb/talbot-lab-data/zrwerbin/soil_genome_db/bracken_genus_estimates.rds")

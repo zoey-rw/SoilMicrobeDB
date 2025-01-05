@@ -72,6 +72,8 @@ fungi_unique <-  soil_microbe_db_struo[which(soil_microbe_db_struo$kingdom=="Fun
 # Use lists to label abundance data
 soil_microbe_db_struo$is_MAG = ifelse(soil_microbe_db_struo$ncbi_species_taxid %in% MAG_ids, T, F)
 
+write.csv(soil_microbe_db_struo %>% select(-c(fasta_file_path, tax_id, tax_name)), "/projectnb/frpmars/soil_microbe_db/data/soil_microbe_db_genome_table.csv")
+
 # Sanity check - get counts
 table(soil_microbe_db_struo$is_MAG)/nrow(soil_microbe_db_struo)
 
