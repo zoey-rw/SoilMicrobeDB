@@ -20,8 +20,8 @@ cd /projectnb/frpmars/soil_microbe_db/
 	
 NTHREADS=28
 
-in_dir_path=/projectnb/frpmars/soil_microbe_db/NEON_metagenome_assemblies/metaGEM/workflow/dataset/
-out_dir_path=/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/01_kraken_output
+in_dir_path=/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_assemblies/metaGEM/workflow/dataset/
+out_dir_path=/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/01_kraken_output
 	
 
 
@@ -37,6 +37,8 @@ DBNAME=gtdb_207
 DBDIR=/projectnb/frpmars/soil_microbe_db/databases/gtdb_207_filtered/kraken2
 
 
+DBNAME=gtdb_207_unfiltered
+DBDIR=/projectnb/microbiome/dgolden/Struo2/custom_dbs/GTDB_release207/kraken2
 
 #old_kraken_dir_path=/projectnb/frpmars/soil_microbe_db/kraken2_output/with_refsoil/
 #samp_dir=/projectnb/frpmars/soil_microbe_db/NEON_metagenome_assemblies/metaGEM/workflow/dataset/YELL_052-M-20200709-COMP
@@ -47,7 +49,7 @@ DBDIR=/projectnb/frpmars/soil_microbe_db/databases/gtdb_207_filtered/kraken2
 time_with_seconds=$(date +%T)
 echo "Beginning Kraken2 loop at: $time_with_seconds"
 #for samp_dir in /projectnb/frpmars/soil_microbe_db/NEON_metagenome_assemblies/metaGEM/workflow/hidden/dataset/*; do
-for samp_dir in /projectnb/frpmars/soil_microbe_db/NEON_metagenome_assemblies/metaGEM/workflow/dataset/*; do
+for samp_dir in /projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_assemblies/metaGEM/workflow/dataset/*; do
 
 	samp_name="$(basename -- $samp_dir)"
 	path_samp_prefix=${samp_dir}/${samp_name}
@@ -84,4 +86,8 @@ kraken2 --db $DBDIR --report $REPORT_PATH --output $OUTPUT_PATH --threads $NTHRE
 fi
 
 done
+
+cd /projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/02_bracken_output/
+rm *pluspf_summary.output
+
 

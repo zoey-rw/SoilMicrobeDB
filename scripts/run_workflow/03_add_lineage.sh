@@ -40,6 +40,16 @@ architeuthis lineage $merged_file  --db $DBDIR --data-dir $DB_taxonomy_dir --out
 
 
 
+
+DBNAME=gtdb_207_unfiltered
+DBDIR=/projectnb/microbiome/dgolden/Struo2/custom_dbs/GTDB_release207/kraken2
+# Now merge at species-level for gtdb
+merged_file=/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/summary_files/gtdb_unfiltered_species_merged.csv
+lineage_file=/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/summary_files/gtdb_unfiltered_species_merged_lineage.csv
+architeuthis merge -o $merged_file /projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/02_bracken_output/*gtdb_207_unfiltered.b2
+architeuthis lineage $merged_file  --db $DBDIR --data-dir $DB_taxonomy_dir --out $lineage_file
+
+
 DBNAME=pluspf
 DBDIR=/projectnb/frpmars/soil_microbe_db/databases/pluspf
 DB_taxonomy_dir=/projectnb/microbiome/ref_db/NCBI-taxdump

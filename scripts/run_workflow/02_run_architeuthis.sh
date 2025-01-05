@@ -15,8 +15,8 @@
 module load miniconda
 conda activate struo2
 cd /projectnb/frpmars/soil_microbe_db/
-architeuthis_dir_path=/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/02_bracken_output
-kraken_dir_path=/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/01_kraken_output
+architeuthis_dir_path=/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/02_bracken_output
+kraken_dir_path=/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/01_kraken_output
 
 
 # Change to database before running loop
@@ -38,10 +38,16 @@ DB_taxonomy_dir=/projectnb/frpmars/soil_microbe_db/databases/gtdb_207_filtered/k
 DB_taxo=/projectnb/frpmars/soil_microbe_db/databases/gtdb_207_filtered/kraken2/taxo.k2d
 
 
+DBNAME=gtdb_207_unfiltered
+DBDIR=/projectnb/microbiome/dgolden/Struo2/custom_dbs/GTDB_release207/kraken2
+DB_taxonomy_dir=/projectnb/microbiome/dgolden/Struo2/custom_dbs/GTDB_release207/taxonomy
+DB_taxo=/projectnb/microbiome/dgolden/Struo2/custom_dbs/GTDB_release207/kraken2/taxo.k2d
+
+
 time_with_seconds=$(date +%T)
 echo "Beginning Architeuthis/Bracken loop at: $time_with_seconds"
 
-for samp_file in /projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/01_kraken_output/*.kreport; do
+for samp_file in /projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/01_kraken_output/*.kreport; do
 
 samp_file_basename="$(basename -- $samp_file)"
 
@@ -69,15 +75,23 @@ BRACKEN_OUTPUT_GENUS=${architeuthis_dir_path}/${samp_name}_genus_filtered.b2
 BRACKEN_OUTPUT_DOMAIN=${architeuthis_dir_path}/${samp_name}_domain_filtered.b2
 	
 	# only run if filtering output does not exist
-if test -e $ARCHITEUTHIS_FILTERED_REPORT; then
-echo "$ARCHITEUTHIS_FILTERED_REPORT exists; skipping this run."
+if test -e $ARCHITEUTHIS_SCORES; then
+echo "$ARCHITEUTHIS_SCORES exists; skipping this run."
 
 else
 
 # Run filter
-architeuthis mapping filter $KRAKEN_OUTPUT --db $DBDIR --data-dir $DB_taxonomy_dir --out $ARCHITEUTHIS_FILTERED 
+#architeuthis mapping filter $KRAKEN_OUTPUT --db $DBDIR --data-dir $DB_taxonomy_dir --out $ARCHITEUTHIS_FILTERED 
 #architeuthis mapping summary $KRAKEN_OUTPUT --db $DBDIR --data-dir $DB_taxonomy_dir --out $ARCHITEUTHIS_SUMMARY
-#architeuthis mapping score $KRAKEN_OUTPUT --db $DBDIR --data-dir $DB_taxonomy_dir --out $ARCHITEUTHIS_SCORES
+architeuthis mapping score $KRAKEN_OUTPUT --db $DBDIR --data-dir $DB_taxonomy_dir --out $ARCHITEUTHIS_SCORES
+
+fi
+
+	# only run if filtering output does not exist
+if test -e $ARCHITEUTHIS_FILTERED_REPORT; then
+echo "$ARCHITEUTHIS_FILTERED_REPORT exists; skipping this run."
+
+else
 
 # Convert back to Kraken output
 cd /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/misc_scripts/mock_community/kraken2_report/daydream-boost-kraken2-e533c50/src
@@ -144,5 +158,6 @@ then
     echo "$samp_file likely incomplete"
 fi
 done
+
 
 
