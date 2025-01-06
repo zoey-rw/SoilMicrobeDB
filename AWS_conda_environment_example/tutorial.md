@@ -1,4 +1,4 @@
-## SoilMicrobeDB Tutorial: 
+## Using SoilMicrobeDB to classify metagenomic soil samples
 
 SoilMicrobeDB is a Kraken2 database with extensive representation of high-quality genomes of soil organisms, including uncultured and fungal species. Key applications of SoilMicrobeDB include advancing metagenomic research in soil ecology, identifying microbial taxa in diverse soil environments, and supporting agricultural and environmental monitoring. For details on how this database was designed, and potential applications, please see our manuscript (Werbin et al., 2025).
 
@@ -24,7 +24,7 @@ mamba install kraken2
 Install quality-filter software (Architeuthis)
 ```
 conda install -c conda-forge -c bioconda architeuthis
-
+```
 
 Install helper for quality-filter outputs
 ```
