@@ -1,0 +1,230 @@
+#!/bin/bash
+
+#####################################################################
+#bracken_build.sh creates the kmer distribution file for a single Kraken database
+#Copyright (C) 2016-2023 Jennifer Lu, jlu26@jhmi.edu
+#
+#This file is part of Bracken.
+#
+#Bracken is free software; you can redistribute it and/or modify
+#it under the terms of the GNU General Public License as published by
+#the Free Software Foundation; either version 3 of the license, or
+#(at your option) any later version.
+#
+#This program is distributed in the hope that it will be useful,
+#but WITHOUT ANY WARRANTY; without even the implied warranty of
+#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+#GNU General Public License for more details
+#
+#You should have received a copy of the GNU General Public License
+#along with this program; if not, see <http://www.gnu.org/licenses/>.
+#
+#####################################################################
+
+set -eu
+THREADS=1
+KMER_LEN=35
+READ_LEN=100
+DATABASE=""
+KRAKEN="kraken"
+KINSTALL=""
+KTYPE=kraken2
+
+VERSION="2.9"
+while getopts "k:l:d:x:t:y:v" OPTION
+    do
+        case $OPTION in
+            t)
+                THREADS=$OPTARG
+                ;;
+            k)
+                KMER_LEN=$OPTARG
+                ;;
+            l)
+                READ_LEN=$OPTARG
+                ;;
+            d)
+                DATABASE=$OPTARG
+                ;;
+            x)
+                KINSTALL=$OPTARG
+                ;;
+            y) 
+                KTYPE=$OPTARG
+                ;;
+            v) 
+                echo bracken-build.sh v${VERSION}
+                exit 0
+                ;;
+            \?)
+                echo "Usage: bracken_build -v -k KMER_LEN -l READ_LEN -d MY_DB -x K_INSTALLATION -y K_TYPE -t THREADS"
+                echo "  -v             Echoes the current software version and exits" 
+                echo "  KMER_LEN       kmer length used to build the kraken database (default: 35)"
+                echo "  THREADS        the number of threads to use when running kraken classification and the bracken scripts"
+                echo "  READ_LEN       read length to get all classifications for (default: 100)"
+                echo "  MY_DB          location of Kraken database"
+                echo "  K_INSTALLATION location of the installed kraken/kraken-build scripts (default assumes scripts can be run from the user path)"
+                echo "  K_TYPE         version of kraken to use (default = kraken2 - other options: kraken, krakenuniq)"
+                exit
+                ;;
+        esac
+    done
+#Output command line options selected
+echo " >> Selected Options:"
+echo "       kmer length = $KMER_LEN"
+echo "       read length = $READ_LEN"
+echo "       database    = $DATABASE"
+echo "       threads     = $THREADS"
+echo "       kraken type = $KTYPE"
+if [[ "$DATABASE" =~ "/"$ ]]
+then
+    DATABASE=${DATABASE:0:-1}
+fi
+#Check for Kraken version
+if [ "$KINSTALL" == "" ]; then
+    if [ "$KTYPE" == "kraken2" ]; then
+        if hash kraken2 &> /dev/null; then
+            KRAKEN="kraken2"
+        else
+            echo "Kraken 2 not installed. Please specify installation directory using -x flag"
+            exit
+        fi
+    elif [ "$KTYPE" == "kraken" ]; then
+        if hash kraken &> /dev/null; then
+            KRAKEN="kraken"
+        else
+            echo "Kraken not installed. Please specify installation directory using -x flag"
+            exit
+        fi
+    elif [ "$KTYPE" == "krakenuniq" ]; then
+        if hash krakenuniq &> /dev/null; then
+            KRAKEN="krakenuniq"
+        else
+            echo "Krakenuniq not installed. Please specify installation directory using -x flag"
+            exit
+        fi
+    else
+        echo "User must first specify/install kraken, krakenuniq, or kraken2 and/or specify installation directory of kraken/krakenuniq/kraken2 using -x flag"
+        exit
+    fi
+else
+    #user specified location of kraken installation 
+    if [[ "$KINSTALL" =~ [^/]$ ]]
+    then
+        KINSTALL="$KINSTALL/"
+    fi
+    if [ -f ${KINSTALL}kraken2 ] && [ ${KTYPE} == "kraken2" ]; then
+        KRAKEN="kraken2"
+    elif [ -f ${KINSTALL}kraken ] && [ ${KTYPE} == "kraken" ]; then
+        KRAKEN="kraken"
+    elif [ -f ${KINSTALL}krakenuniq ] && [ ${KTYPE} == "krakenuniq" ]; then
+        KRAKEN="krakenuniq"
+    else
+        echo "User must first specify/install kraken, krakenuniq, or kraken2 and/or specify installation directory of kraken/krakenuniq/kraken2 using -x flag"
+        exit
+    fi
+fi
+#Check if Kraken database exists
+echo " >> Checking for Valid Options..."
+if [ -d $DATABASE ]
+then
+    #Directory exists, check for taxonomy/nodes.dmp, library/ and for hash.k2d file
+    if [ ! -d $DATABASE/library ]
+    then
+        echo " ERROR: Database library $DATABASE/library does not exist"
+        exit
+    elif [ ! -d $DATABASE/taxonomy ]
+    then
+        echo " ERROR : Database taxonomy $DATABASE/taxonomy does not exist"
+        exit
+    elif [ ! -f $DATABASE/taxonomy/nodes.dmp ]
+    then
+        echo " ERROR: Database taxonomy $DATABASE/taxonomy/nodes.dmp does not exist"
+        exit
+    elif [ $KRAKEN == "kraken2" ] && [ ! -f $DATABASE/hash.k2d ]
+    then
+        echo " ERROR: Kraken2 Database incomplete: $DATABASE/hash.k2d does not exist"
+        exit
+    elif [ $KRAKEN == "kraken" ] && [ ! -f $DATABASE/database.kdb ]
+    then
+        echo " ERROR: Kraken Database incomplete: $DATABASE/database.kdb does not exist"
+        exit
+    elif [ $KRAKEN == "krakenuniq" ] && [ ! -f $DATABASE/database.kdb ]
+    then
+        echo " ERROR: KrakenUniq Database incomplete: $DATABASE/database.kdb does not exist"
+        exit
+    fi
+else
+    echo " ERROR: Kraken database $DATABASE" does not exist
+    exit
+fi
+#See if database.kraken exists, if not, create
+echo " >> Creating database.kraken [if not found]"
+if [ -s $DATABASE/database.kraken ]
+then
+    #database.kraken exists, skip
+    echo "          database.kraken exists, skipping creation...."
+elif [ -s $DATABASE/database.kraken.tsv ]
+then
+    #database.kraken.tsv exists, skip
+    echo "          database.kraken.tsv exists, skipping creation...."
+    ln -s $DATABASE/database.kraken.tsv $DATABASE/database.kraken
+
+else
+    filenames=`find -L $DATABASE/library \( -name "*.fna" -o -name "*.fa" -o -name "*.fasta" \) -print`
+    if [ $KRAKEN == "kraken2" ]
+    then
+        #database.kraken not found, must create
+        echo "      >> ${KINSTALL}kraken2 --db $DATABASE --threads ${THREADS} $filenames > $DATABASE/database.kraken.tmp"
+        ${KINSTALL}kraken2 --db $DATABASE --threads ${THREADS} $filenames > $DATABASE/database.kraken.tmp
+    elif [ $KRAKEN == "krakenuniq" ]
+    then
+        #database.kraken not found, must create
+        echo "      >> ${KINSTALL}krakenuniq --db $DATABASE --threads ${THREADS} $filenames > $DATABASE/database.kraken.tmp"
+        ${KINSTALL}krakenuniq --db $DATABASE --threads ${THREADS} $filenames > $DATABASE/database.kraken.tmp
+    else
+        #database.kraken not found, must create
+        echo "      >> ${KINSTALL}kraken --db $DATABASE --threads ${THREADS} $filenames > $DATABASE/database.kraken.tmp"
+        ${KINSTALL}kraken --db $DATABASE --threads ${THREADS} $filenames > $DATABASE/database.kraken.tmp
+    fi 
+    if [ $? -eq 0 ]
+    then
+        mv $DATABASE/database.kraken.tmp $DATABASE/database.kraken
+        echo "          Finished creating database.kraken [in DB folder]"
+    else
+        rm $DATABASE/database.kraken.tmp
+        echo "          Unable to create database.kraken [in DB folder]"
+        exit 1
+    fi
+
+fi
+#Generate databaseXmers.kmer_distrib
+#DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
+DIR=`dirname $(realpath $0 || echo $0)`
+#cd $DIR
+echo " >> Creating database${READ_LEN}mers.kmer_distrib "
+if [ -f $DIR/src/kmer2read_distr ]; then
+    $DIR/src/kmer2read_distr --seqid2taxid $DATABASE/seqid2taxid.map --taxonomy $DATABASE/taxonomy/ --kraken $DATABASE/database.kraken --output $DATABASE/database${READ_LEN}mers.kraken -k ${KMER_LEN} -l ${READ_LEN} -t ${THREADS}
+    python $DIR/src/generate_kmer_distribution.py -i $DATABASE/database${READ_LEN}mers.kraken -o $DATABASE/database${READ_LEN}mers.kmer_distrib
+# check if kmer2read_distr is in PATH
+elif [ -f $(command -v kmer2read_distr) ]; then
+    kmer2read_distr --seqid2taxid $DATABASE/seqid2taxid.map --taxonomy $DATABASE/taxonomy/ --kraken $DATABASE/database.kraken --output $DATABASE/database${READ_LEN}mers.kraken -k ${KMER_LEN} -l ${READ_LEN} -t ${THREADS}
+    if [ -f $(command -v generate_kmer_distribution.py) ]; then
+        python $(command -v generate_kmer_distribution.py) -i $DATABASE/database${READ_LEN}mers.kraken -o $DATABASE/database${READ_LEN}mers.kmer_distrib
+    else
+        echo "      ERROR: generate_kmer_distribution.py script not found. "
+        echo "          Run 'sh install_bracken.sh' to generate the kmer2read_distr script."
+        echo "          Alternatively, cd to BRACKEN_FOLDER/src/ and run 'make'"
+        exit
+    fi
+else
+    echo "      ERROR: kmer2read_distr program not found. "
+    echo "          Run 'sh install_bracken.sh' to generate the kmer2read_distr script."
+    echo "          Alternatively, cd to BRACKEN_FOLDER/src/ and run 'make'"
+    exit
+fi
+echo "          Finished creating database${READ_LEN}mers.kraken and database${READ_LEN}mers.kmer_distrib [in DB folder]"
+echo "          *NOTE: to create read distribution files for multiple read lengths, "
+echo "                 rerun this script specifying the same database but a different read length"
+echo
+echo "Bracken build complete."

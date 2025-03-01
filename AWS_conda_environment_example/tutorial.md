@@ -1,13 +1,17 @@
 ## Using SoilMicrobeDB to classify metagenomic soil samples
+SoilMicrobeDB is a Kraken2 database with extensive representation of high-quality genomes of soil organisms, including uncultured and fungal species. Key applications of SoilMicrobeDB include advancing metagenomic research in soil ecology, identifying microbial taxa in diverse soil environments, and supporting agricultural and environmental monitoring. For details on how this database was designed, and potential applications, please refer to our manuscript (Werbin et al., 2025).
 
-SoilMicrobeDB is a Kraken2 database with extensive representation of high-quality genomes of soil organisms, including uncultured and fungal species. Key applications of SoilMicrobeDB include advancing metagenomic research in soil ecology, identifying microbial taxa in diverse soil environments, and supporting agricultural and environmental monitoring. For details on how this database was designed, and potential applications, please see our manuscript (Werbin et al., 2025).
+The tutorial below is for locally downloading this database to classify samples or update the database with new genomes. See section 6 ("Cloud Computing") for an alternative approach using an Amazon Machine Image. This tutorial walks through the process of evaluating the relative abundance of species within a metagenomic soil sample sequenced by the National Ecological Observatory Network. This tutorial is divided into the following steps: 
 
-The tutorial below is for locally downloading this database to classify samples or update the database with new genomes. See section 6 ("Cloud Computing") for an alternative approach using an Amazon Machine Image. This tutorial walks through the process for evaluating the relative abundance of species within a metagenomic soil sample sequenced by the National Ecological Observatory Network.  
+0. Install software, define paths and environment variables
+1. Download the SoilMicrobeDB
+2. Classify sample reads
+3. Filter classifications for false-positives
+4. Estimate relative abundances of taxa
 
-Downloading the Kraken2 database (Step 1) requires 289 GB of storage, and a similarly large amount of RAM for loading the database into memory when classifying samples (Step 2). Steps 3 and 4 are not RAM-intensive, but require installing software other than Kraken2. Step 4 requires downloading additional data files (approximately 400 MB of storage).
+Resource requirements: Downloading the Kraken2 database (Step 1) requires 289 GB of storage, and a similarly large amount of RAM for loading the database into memory when classifying samples (Step 2). Steps 3 and 4 are not RAM-intensive, but require installing software other than Kraken2. Step 4 requires downloading additional data files (approximately 400 MB of storage).
 
-The simplest approach to setup is to leverage the Struo2 pipeline for database development (Youngblut et al. 2022), with full installation details available here. This includes the software for steps 2 and 4, but the quality-filtering software (Architeuthis) must be installed separately. 
-
+The recommended approach to using SoilMicrobeDB is to leverage the Struo2 pipeline for database development (Youngblut et al. 2022), with full installation details available here. Struo2 allows for customizing the database through additional genomes, and the pipeline includes the Kraken and Bracken software used in Steps 2 and 4. Step 3's false-positive filtering software (Architeuthis) must be installed separately (outlined in below in section 0.1).
 ### 0. Install software, define paths and environment variables
 
 #### 0.1 Installation
@@ -66,25 +70,25 @@ architeuthis_dir_path=./test_output/02_architeuthis
 bracken_dir_path=./test_output/03_bracken
 
 ```
-### 1. Downloading the SoilMicrobeDB:
+### 1. Download the SoilMicrobeDB:
 
 Download using AWS command line toolkit:
 
 ```
-# Placeholder - replace with SoilGenomeDB once AWS URL is available
-aws s3 ls --no-sign-request s3://kraken2-ncbi-refseq-complete-v205/
+# Placeholder - replace with SoilMicrobeDB once AWS URL is available
+aws s3 ls --no-sign-request s3://kraken2-soil-microbe-database/
 DBNAME=SoilMicrobeDB
 ```
 
 After download, ensure each of the following paths points to a location on your system:
 ```
-# Placeholder - replace with SoilGenomeDB file paths once AWS URL is available
-DBDIR=/projectnb/frpmars/soil_microbe_db/databases/soil_microbe_db/kraken2
-DB_taxonomy_dir=/projectnb/frpmars/soil_microbe_db/databases/soil_microbe_db/kraken2/taxonomy/
-DB_taxo=/projectnb/frpmars/soil_microbe_db/databases/soil_microbe_db/kraken2/taxo.k2d
+# Placeholder - replace with SoilMicrobeDB file paths once AWS URL is available
+DBDIR=/databases/SoilMicrobeDB/kraken2
+DB_taxonomy_dir=/databases/SoilMicrobeDB/kraken2/taxonomy/
+DB_taxo=/databases/SoilMicrobeDB/kraken2/taxo.k2d
 ```
 
-### 2. Classifying a sample
+### 2. Classify sample reads
 
 To classify a sample, Kraken2 must be installed (Step 0). Modify the value of "NTHREADS" to reflect how many threads should run in parallel on your system, and specify variables to reflect the input and output locations. 
 
@@ -100,9 +104,9 @@ kraken2 --db $DBDIR --report $REPORT_PATH --output $OUTPUT_PATH --threads $NTHRE
 
 Note: the "--memory-mapping" checks for the database in memory rather than loading it from disk space. However, it is not suitable for all workflows. If you are using a high-performance cluster, check with system administrators to prevent excessive use of shared memory.
 
-### 3. Quality-filtering 
+### 3.  Filter classifications for false-positives
 
-To run the quality-filter step, we recommend the software Architeuthis (Diener et al. 2024). Install using the instructions provided by Architeuthis. The output files provide per-read results, but must be converted to the Kraken2 report format before passing to Bracken (Step 4). Currently, the only way to do this is by compiling a C++ script provided here, but this tutorial will be updated if an easier solution is found. (create a pull request or open an issue!)
+To run the false-positive filtering step, we recommend the software Architeuthis (Diener et al. 2024). Install using the instructions provided by Architeuthis. The output files provide per-read results, but must be converted to the Kraken2 report format before passing to Bracken (Step 4). Currently, the only way to do this is by compiling a C++ script provided here, but this tutorial will be updated if an easier solution is found. (Create a pull request or open an issue!)
 
 ```
 ARCHITEUTHIS_FILTERED=${architeuthis_dir_path}/${samp_name}_filtered.output
@@ -118,7 +122,7 @@ architeuthis mapping filter $KRAKEN_OUTPUT --db $DBDIR --data-dir $DB_taxonomy_d
 ./kraken2-master/src/kraken2-report $DB_taxo $ARCHITEUTHIS_FILTERED $ARCHITEUTHIS_FILTERED_REPORT	
 ```
 
-### 4. Estimating relative abundance
+### 4. Estimate relative abundances of taxa
 
 To estimate relative abundance with Bracken, you may use the default Bracken database provided with the SoilMicrobeDB Kraken2 database. It assumes your reads are 150bp; for different read lengths, a new Bracken database will need to be generated using developer instructions.
 
@@ -134,7 +138,7 @@ The above Bracken command can be modified to provide information at specific tax
 
 ### 5. Custom database updating
 
-To create the database from a genome list, or update the existing SoilGenomeDB with a new set of genomes, we recommend using the Struo2 pipeline (Youngblut et al. 2021). This involves creating a Struo2 environment, and customizing input and output filepaths within the configuration file (YAML format). The genome input file is a TSV with columns labeling the genome, its taxonomy ID, and filepath. The file used to generate SoilMicrobeDB is available here:
+To create the database from a genome list, or update the existing SoilMicrobeDB with a new set of genomes, we recommend using the Struo2 pipeline (Youngblut et al. 2021). This involves creating a Struo2 environment, and customizing input and output filepaths within the configuration file (YAML format). The genome input file is a TSV with columns labeling the genome, its taxonomy ID, and filepath. The file used to generate SoilMicrobeDB is available here:
 
 [path]
 
@@ -149,7 +153,7 @@ This database can also be integrated into cloud computing workflows using an Ama
 A detailed tutorial, provided by Robyn Wright, walks through the process of setting up an AMI for use with Kraken2. Follow the instructions, replacing the database download portion ("Get the Kraken2 database") with the following command: 
 
 ```
-# Placeholder - replace with SoilGenomeDB once AWS URL is available
-aws s3 cp --recursive --no-sign-request s3://kraken2-ncbi-refseq-complete-v205/Kraken2_RefSeqCompleteV205
+# Placeholder - replace with SoilMicrobeDB once AWS URL is available
+aws s3 cp --recursive --no-sign-request s3://kraken2-soil-microbe-database/Kraken2_SoilMicrobeDB
 ```
 Then, proceed with steps 0 and 2-4 of this tutorial to conduct analyses.
