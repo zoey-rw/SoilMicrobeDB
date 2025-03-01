@@ -11,10 +11,10 @@ Tags:
   - soil
   - bioinformatics
   - life sciences
-License:
-Citation: Werbin 
+License: There are no restrictions on the use of this data. 
+Citation: The SoilMicrobeDB includes data from multiple other publications, which we recommend citing. See Table 1 in our open-access manuscript (Werbin et al. 2025) for details.
 Resources:
-  - Description:
+  - Description: SoilMicrobeDB, a genome reference database for soil shotgun metagenomics
     ARN:
     Region:
     Type:
