@@ -2,14 +2,14 @@
 
 Includes over 20,000 metagenome-assembled genomes (MAGs) from soils, and 1400 fungi from Joint Genome Institute's Mycocosm
 
-For full details and genome sources, check out our preprint (coming soon)!
+For full details and genome sources, check out our preprint: https://www.biorxiv.org/content/10.1101/2025.03.21.644662v1
 
 ## Usage
-Explore/download abundances of each genome across NEON soil samples using the interactive portal, developed in partnership with the Boston University Software & Application Innovation Lab (SAIL) (coming soon)!
+Explore/download abundances of a subset of these genomes across NEON soil samples using the interactive portal, developed in partnership with the Boston University Software & Application Innovation Lab (SAIL): https://zoeywerbin.shinyapps.io/soil_microbe_db/
 
-For local classification against metagenome samples, the database files can be downloaded, along with Snakemake rules for each step of classification (Kraken2 for read classification, Architeuthis for kmer-filtering, and Bracken for abundance estimation)
+For local classification against metagenome samples, the database index files can be downloaded from an AWS bucket, along with Snakemake rules for each step of classification (Kraken2 for read classification, Architeuthis for kmer-filtering, and Bracken for abundance estimation). This is hosted through the AWS Open Data program - details will be added here as soon as available.
 
-To add genomes to the database, you will need to download the Struo2 software and have the filepaths of local genomes, along with their NCBI taxonomy 
+To add genomes to the database, you will need to download the database along with the Struo2 software, which contains a "db-update" workflow. The input file must have the filepaths of local genomes, along with their NCBI taxonomy, for compatibility with SoilGenomeDB.
 
 ## Credits & Acknowledgements
 
