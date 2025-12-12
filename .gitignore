@@ -5,12 +5,19 @@ old/
 
 # Any data files
 .data
-data/*
 databases/*
 .databases
 databases/
 .mock_community_analysis/data
 mock_community_analysis/data/*
+
+# Large classification data files (raw outputs)
+data/classification/01_kraken_output/*
+data/classification/02_bracken_output/*
+*.kreport
+*.b2
+data/classification/01_kraken_output/
+data/classification/02_bracken_output/
 
 ./scripts/database_development/genome_downloads/gtdb_207/lineage.txt
 ./scripts/database_development/genome_downloads/gtdb_207/pretty_lineage.txt
@@ -73,3 +80,6 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# Design documentation (for development, not version controlled)
+DESIGN_DOC.md
