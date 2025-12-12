@@ -1,19 +1,21 @@
 library(neonUtilities)
 library(tidyverse)
+library(data.table)
 library(broom)
 library(ggpubr)
+library(ggpmisc)
 library(SimplyAgree)
 library(ggstatsplot)
 library(patchwork)
 
 options(scipen=999)
 # Read in processed PLFA data - generated using code in https://github.com/zoey-rw/SoilBiomassNEON
-master_df <- fread("/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/summary_files/plfa_comparison.csv")
+master_df <- fread("data/classification/analysis_files/plfa_comparison.csv")
 #master_df <- readRDS("/projectnb/talbot-lab-data/zrwerbin/SoilBiomassNEON/NEON_microbial_biomass_PLFA.rds")
 
 
 # Read in processed qPCR data - missing lab QC data
-qpcr_wide = read_csv("/projectnb/frpmars/soil_microbe_db/ref_data/NEON_qpcr.csv") %>% 
+qpcr_wide = read_csv("data/comparison_data/qpcr/NEON_qpcr.csv") %>% 
     mutate(fungi = meanCopyNumber_fungi,
            bacarc = `meanCopyNumber_bacteria and archaea`) %>% 
     filter(fungi < 40000 & fungi > 0) %>% 
@@ -57,9 +59,10 @@ fig_4ab <- grouped_ggscatterstats(
                             scale_x_log10(),
                             stat_cor(label.y.npc = .97, size=7, p.accuracy = .0001,
                                      position = position_nudge(x = 0, y = .3)),
-                            stat_regline_equation(aes(label = ..rr.label..),
-                                                  show.legend = FALSE, size=7, label.y.npc = .9, 
-                                                  position = position_nudge(x = 0, y = .3)),
+                            stat_poly_eq(aes(label = paste(after_stat(rr.label), sep = "~~~")),
+                                         formula = y ~ x, parse = TRUE,
+                                         show.legend = FALSE, size = 7, label.y.npc = .9, 
+                                         position = position_nudge(x = 0, y = .3)),
                             theme( plot.margin = unit(c(1.5, 1.5, 1.5, 45), "pt"),
                                    axis.title = element_text(face = "bold")))
 ) + plot_annotation(tag_levels ="A")
@@ -70,7 +73,7 @@ fig_4ab
 
 
 fig_4ab %>% 
-    ggexport(height = 600, width = 1200, filename = "/projectnb/frpmars/soil_microbe_db/manuscript_figures/fig4.png")
+    ggexport(height = 600, width = 1200, filename = "manuscript_figures/fig4.png")
 
 
 ## OLD/TESTING

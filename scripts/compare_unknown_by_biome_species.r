@@ -6,15 +6,12 @@ library(ggpmisc)
 library(rstatix)
 
 #Read in bracken estimates from 3 databases
-species_bracken1 = fread("/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/summary_files/soil_microbe_db_filtered_species_merged.csv")
-species_bracken2 = fread("/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/summary_files/gtdb_species_merged.csv")
-species_bracken3 = fread("/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/summary_files/pluspf_species_merged.csv")
+species_bracken1 = fread("data/classification/taxonomic_rank_summaries/species/soil_microbe_db_filtered_species_merged.csv")
+species_bracken2 = fread("data/classification/taxonomic_rank_summaries/species/gtdb_species_merged.csv")
+species_bracken3 = fread("data/classification/taxonomic_rank_summaries/species/pluspf_species_merged.csv")
 
 
 species_bracken = rbindlist(list(species_bracken1, species_bracken2, species_bracken3))
-
-
-species_bracken = species_bracken1
 
 # Summarize by % passing filter
 filter_species = species_bracken %>% group_by(sample_id) %>% 
@@ -29,7 +26,7 @@ filter_species = species_bracken %>% group_by(sample_id) %>%
 
 
 # Add in sequencing depth
-seq_depth_df <- readRDS("/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/seq_depth_df.rds") 
+seq_depth_df <- readRDS("data/classification/analysis_files/seq_depth_df.rds") 
 pass_filter_species = left_join(filter_species, #seq_depth_df) %>% 
                               seq_depth_df %>% 
                                   select(-c(db_name, identified_reads))) %>% 
@@ -54,20 +51,38 @@ common_samples = sample_count[sample_count$n>2,]$common
 
 
 # Check for significant differences between databases
-db_fit <- pass_filter_species_long  %>% filter(common %in% common_samples) %>%  
-    filter(metric=="percent_passing") %>% 
-    group_by(pretty_metric) %>% 
-    anova_test(value ~ db_name) %>% 
-    add_significance()
+# Wrap in tryCatch to handle potential errors
+db_fit <- tryCatch({
+    pass_filter_species_long  %>% filter(common %in% common_samples) %>%  
+        filter(metric=="percent_passing") %>% 
+        group_by(pretty_metric) %>% 
+        anova_test(value ~ db_name) %>% 
+        add_significance()
+}, error = function(e) {
+    warning("ANOVA test failed: ", e$message)
+    data.frame()  # Return empty dataframe
+})
 
 #### Run Tukey ###
-db_tukey <- pass_filter_species_long %>% filter(common %in% common_samples) %>%  
-    group_by(pretty_metric) %>% 
-    tukey_hsd(value ~ db_name) %>% 
-    add_significance() %>% 
-    add_xy_position(step.increase = .01)
-
-db_tukey$y.position=sqrt(db_tukey$y.position)
+db_tukey <- tryCatch({
+    result <- pass_filter_species_long %>% filter(common %in% common_samples) %>%  
+        filter(metric=="percent_passing") %>% 
+        group_by(pretty_metric) %>% 
+        tukey_hsd(value ~ db_name) %>% 
+        add_significance()
+    
+    # Only add xy_position if results exist
+    if(nrow(result) > 0) {
+        result <- result %>% add_xy_position(step.increase = .01)
+        result$y.position=sqrt(result$y.position)
+    }
+    result
+}, error = function(e) {
+    warning("Tukey test failed: ", e$message)
+    # Create empty dataframe with required columns
+    data.frame(pretty_metric = character(0), y.position = numeric(0), 
+               group1 = character(0), group2 = character(0))
+})
 
 # Visualize classification between databases
 fig2 = pass_filter_species_long  %>% 
@@ -84,14 +99,20 @@ fig2 = pass_filter_species_long  %>%
     guides(color=guide_legend(NULL)) +
     stat_compare_means(show.legend = F)  + 
     scale_y_sqrt() + #scale_y_sqrt() +
-    stat_pvalue_manual(db_tukey %>%  
-                           filter(pretty_metric=="% reads classified at\n high quality"),#y.position = .21,
-                       #bracket.nudge.y = .34,
-                       hide.ns = T, y.position = .3,
-                       bracket.nudge.y = .2, step.increase = .05)#+ ggtitle("Classified to the species level") + ylim(0, .25)
+    {if(nrow(db_tukey) > 0 && any(db_tukey$pretty_metric == "% reads classified at\n high quality")) {
+        stat_pvalue_manual(db_tukey %>%  
+                               filter(pretty_metric=="% reads classified at\n high quality"),
+                           hide.ns = T, y.position = .3,
+                           bracket.nudge.y = .2, step.increase = .05)
+    }}#+ ggtitle("Classified to the species level") + ylim(0, .25)
 fig2
 
+# Save figure
+ggsave("manuscript_figures/fig2.png", fig2, width = 10, height = 8, units = "in", dpi = 300)
+cat("✅ Saved figure to: manuscript_figures/fig2.png\n")
+
 # Print stats for % classified and kept after filtering
+# Note: Code below may require external soil data file
 pass_filter_species_long %>% group_by(metric, db_name) %>% 
     filter(common %in% common_samples) %>% 
     summarize(mean = mean(value, na.rm=T), median = median(value, na.rm=T))
@@ -175,7 +196,7 @@ b <- ggplot(species_pass_filter,
 
 
 # Proportion fungi vs sequencing depth
-phyla_fungi_summary <- read_csv("/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/summary_files/soil_microbe_db_phyla_fungi_summary.csv")
+phyla_fungi_summary <- read_csv("data/classification/analysis_files/soil_microbe_db_phyla_fungi_summary.csv")
 fungi_proportion <- left_join(species_pass_filter, phyla_fungi_summary)
 
 a <- ggplot(fungi_proportion,

@@ -1,9 +1,9 @@
 
 
 
-genus_bracken1 = fread("/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/soil_microbe_db_filtered_genus_merged.csv")
-genus_bracken2 = fread("/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/pluspf_filtered_genus_merged.csv")
-genus_bracken3 = fread("/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/gtdb_207_filtered_genus_merged.csv")
+genus_bracken1 = fread("data/classification/taxonomic_rank_summaries/genus/soil_microbe_db_filtered_genus_merged.csv")
+genus_bracken2 = fread("data/classification/taxonomic_rank_summaries/genus/pluspf_filtered_genus_merged.csv")
+genus_bracken3 = fread("data/classification/taxonomic_rank_summaries/genus/gtdb_207_filtered_genus_merged.csv")
 genus_bracken = rbindlist(list(genus_bracken1, genus_bracken2, genus_bracken3))
 
 
@@ -18,7 +18,7 @@ filter_genus = genus_bracken %>% group_by(sample_id) %>%
 
 
 
-seq_depth_df <- readRDS("/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/seq_depth_df.rds") #%>% rename(n_classified_reads = identified_reads) #%>% select(-c(db_name, identified_reads))
+seq_depth_df <- readRDS("data/classification/analysis_files/seq_depth_df.rds") #%>% rename(n_classified_reads = identified_reads) #%>% select(-c(db_name, identified_reads))
 pass_filter_genus = left_join(filter_genus, #seq_depth_df) %>% 
                               seq_depth_df %>% select(-c(db_name, identified_reads))) %>% 
     mutate(#percent_classified = n_classified_reads / seq_depth,

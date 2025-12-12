@@ -3,7 +3,7 @@ library(data.table)
 
 # Summarize fungal % at phylum or genus level
 
-genus_bracken = fread("/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/summary_files/soil_microbe_db_filtered_genus_merged_lineage.csv")
+genus_bracken = fread("data/classification/taxonomic_rank_summaries/genus/soil_microbe_db_filtered_genus_merged_lineage.csv")
 
 fungal_phyla = c("Ascomycota","Basidiomycota","Blastocladiomycota","Chytridiomycota","Cryptomycota","Mucoromycota","Microsporidia","Olpidiomycota","Zoopagomycota")
 
@@ -36,11 +36,11 @@ genus_fungi_summary = genus_fungi_summary %>%
     mutate(db_name = gsub("_genus_filtered","",db_name)) 
 
 
-write_csv(genus_fungi_summary, "/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/summary_files/soil_microbe_db_genus_fungi_summary.csv")
+write_csv(genus_fungi_summary, "data/classification/analysis_files/soil_microbe_db_genus_fungi_summary.csv")
 
 
 # Phylum level
-phylum_bracken = fread("/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/summary_files/soil_microbe_db_filtered_phylum_merged_lineage.csv")
+phylum_bracken = fread("data/classification/taxonomic_rank_summaries/phylum/soil_microbe_db_filtered_phylum_merged_lineage.csv")
 
 
 fungal_phyla = c("Ascomycota","Basidiomycota","Blastocladiomycota","Chytridiomycota","Cryptomycota","Mucoromycota","Microsporidia","Olpidiomycota","Zoopagomycota")
@@ -65,7 +65,7 @@ phyla_fungi_summary = phyla_fungi_summary %>%
     select(sampleID,phyla_fungi_metagenome)
 
 
-write_csv(phyla_fungi_summary, "/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/summary_files/soil_microbe_db_phyla_fungi_summary.csv")
+write_csv(phyla_fungi_summary, "data/classification/analysis_files/soil_microbe_db_phyla_fungi_summary.csv")
 
 
 

@@ -13,12 +13,12 @@ library(patchwork)
 # This script plots the per-taxon error rates and per-community filter results
 
 # Read in true vs predicted abundances per taxon (output from 07)
-eval_df <- read_csv("/projectnb/frpmars/soil_microbe_db/mock_community_analysis/data/evaluation_results.csv")  %>% 
+eval_df <- read_csv("data/mock_community/evaluation_results.csv")  %>% 
     mutate(Database = recode(db_name, 
                              "GTDB 207" = "GTDB r207"))
 
 # Read in summary of reads classified and passing the false-positive filter (output from 08)
-filter_df <- read_csv("/projectnb/frpmars/soil_microbe_db/mock_community_analysis/data/filter_results.csv")
+filter_df <- read_csv("data/mock_community/filter_results.csv")
 
 
 
@@ -210,7 +210,7 @@ fig3 = (p1 | p2) / p5 +
                         theme(plot.margin = unit(c(-.5,0,0,0), 
                                                  'lines')))
 fig3 %>% 
-    ggexport(height = 900, width = 800, filename = "/projectnb/frpmars/soil_microbe_db/manuscript_figures/fig3.png")
+    ggexport(height = 900, width = 800, filename = "manuscript_figures/fig3.png")
 
 
 fig_s3 = p3 + p4 +
@@ -220,4 +220,4 @@ fig_s3 = p3 + p4 +
                                                  'lines')))
     
 fig_s3 %>% 
-        ggexport(height = 400, width = 800, filename = "/projectnb/frpmars/soil_microbe_db/manuscript_figures/fig_s3.png")
+        ggexport(height = 400, width = 800, filename = "manuscript_figures/fig_s3.png")

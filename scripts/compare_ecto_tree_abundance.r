@@ -1,12 +1,14 @@
 
-
-
+library(tidyverse)
+library(data.table)
+library(ggpmisc)
+library(ggpubr)
 
 # From supplement of Lang et al. 2023
-AM_trees = read_csv("/projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/misc_scripts/AM_fungi/AM_trees_lang.csv")
+AM_trees = read_csv("reference_data/AM_trees/AM_trees_lang.csv")
 
 
-bracken_genus_estimates <- readRDS("/projectnb/talbot-lab-data/zrwerbin/soil_genome_db/bracken_genus_estimates.rds")
+bracken_genus_estimates <- readRDS("data/classification/taxonomic_rank_summaries/genus/bracken_genus_estimates.rds")
 
 
 fungal_phyla = c("Ascomycota","Basidiomycota","Blastocladiomycota","Chytridiomycota","Cryptomycota","Mucoromycota","Microsporidia","Olpidiomycota","Zoopagomycota")
@@ -15,10 +17,10 @@ fungal_phyla = c("Ascomycota","Basidiomycota","Blastocladiomycota","Chytridiomyc
 emf_list = c("Cenoccoccum","Russula","Umbelopsis","Lactifluus","Lactarius","Boletus","Suillus","Laccaria","Amanita",#"Trichoderma", 
              "Tomentella","Inocybe","Cortinarius","Cadophora","Entoloma","Hebeloma","Tricholoma","Piloderma","Scleroderma","Rhizopogon","Cantharellus","Clavulina","Ceratobasidium","Tulasnella","Hysterangium","Gymnomyces","Serendipita","Thelephora","Elaphomyces","Meliniomyces")
 
-bracken_genus =fread("/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/summary_files/soil_microbe_db_filtered_genus_merged_lineage.csv", nThread = 8)
+bracken_genus =fread("data/classification/taxonomic_rank_summaries/genus/soil_microbe_db_filtered_genus_merged_lineage.csv", nThread = 8)
 
 
-bracken_phylum =fread("/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/summary_files/soil_microbe_db_filtered_phylum_merged_lineage.csv", nThread = 8)
+bracken_phylum =fread("data/classification/taxonomic_rank_summaries/phylum/soil_microbe_db_filtered_phylum_merged_lineage.csv", nThread = 8)
 
 
 
@@ -40,7 +42,8 @@ bracken_genus$is_emf = ifelse(bracken_genus$Genus %in% emf_list, T, F)
 
 bracken_genus[bracken_genus$is_emf==T,]$lineage %>% unique
 
-bracken_genus[bracken_genus$is_fungi==T,] %>% View
+# Exploratory code commented out (View() requires X11 display)
+# bracken_genus[bracken_genus$is_fungi==T,] %>% View
 
 emf_counts_rel = bracken_genus %>% group_by(sample_id, is_fungi) %>% 
     mutate(fungi_abun = sum(fraction_total_reads)) %>% ungroup %>% 
@@ -64,22 +67,24 @@ emf_counts_rel$`Plot Number` = substr(emf_counts_rel$plotID, 6, 8) %>% as.numeri
 
 
 
-emf_rel_EM_trees = merge(emf_counts_rel, AM_trees)
+emf_rel_EM_trees = merge(emf_counts_rel, AM_trees, by = c("Site", "Plot Number"))
 
 # Supplemental figure
 p2 = ggplot(emf_rel_EM_trees %>% filter(dateID > 201501), 
             aes(x = `Proportion ECM basal area`, y = emf_abun_rel)) + 
-    geom_jitter(aes(color = Site), alpha=.8, size=2) + facet_grid(~horizon) +
+    geom_jitter(aes(color = Site), alpha=.8, size=2) +
     stat_smooth(method="lm") +
     scale_y_log10() + 
     #scale_x_sqrt() + 
     #    geom_abline(slope=1, intercept = 0, linetype=2) + 
-    stat_regline_equation(aes(label = ..rr.label..),
-                          show.legend = FALSE, size=6, label.x.npc = .4)  + 
+    stat_poly_eq(aes(label = paste(after_stat(rr.label), sep = "~~~")),
+                 formula = y ~ x, parse = TRUE,
+                 show.legend = FALSE, size = 6, label.x.npc = .4)  + 
     theme_bw(base_size = 18)  +
     ylab("Proportion EMF in metagenome")  +
     xlab("Proportion EM tree basal area") 
 p2
 
-
-ggarrange(p1, p2, common.legend = T, nrow = 2)
+# Save figure (p2 only - p1 is created in compare_AM_abundance.r)
+# To combine panels, run both scripts and combine manually or create a separate assembly script
+ggsave("manuscript_figures/fig5c.png", p2, width = 10, height = 8, units = "in", dpi = 300)

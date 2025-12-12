@@ -8,10 +8,10 @@ library(ggpmisc)
 library(rstatix)
 library(ggpubr)
 
-seq_depth_df <- readRDS("/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/seq_depth_df.rds") %>% 
+seq_depth_df <- readRDS("data/classification/analysis_files/seq_depth_df.rds") %>% 
     select(-c(db_name, identified_reads))
 
-filter_reads_dir = "/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/02_bracken_output"
+filter_reads_dir = "data/classification/02_bracken_output"
 filter_scores_list <- list.files(filter_reads_dir, pattern = "_scores.output", recursive = T, full.names = T)
 
 # Create list of all samples from each database
@@ -61,10 +61,10 @@ pass_filter3 = left_join(pass_filter2, seq_depth_df) %>%
 pass_filter = pass_filter3
 
 # Save intermediate file
-saveRDS(pass_filter,"/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/filter_summary_20samples.rds")
+saveRDS(pass_filter,"data/classification/analysis_files/filter_summary_20samples.rds")
 
 
-pass_filter = readRDS("/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/filter_summary_20samples.rds")
+pass_filter = readRDS("data/classification/analysis_files/filter_summary_20samples.rds")
 
 pass_filter_long = pass_filter %>% 
     pivot_longer(cols = c(percent_passing, percent_classified, percent_classified_passing), 

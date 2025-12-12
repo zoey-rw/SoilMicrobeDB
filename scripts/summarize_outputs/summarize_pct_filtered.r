@@ -5,14 +5,13 @@ library(data.table)
 library(ggpubr)
 library(ggpmisc)
 library(rstatix)
-source("/projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/helper_functions.r")
-source("/projectnb/talbot-lab-data/zrwerbin/soil_microbe_GEMs/comets_shinyapp_example/source.R")
+source("scripts/helper_functions.r")
 
 
 #Read in bracken estimates from 3 databases
-species_bracken1 = fread("/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/summary_files/soil_microbe_db_filtered_species_merged.csv")
-species_bracken2 = fread("/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/summary_files/gtdb_species_merged.csv")
-species_bracken3 = fread("/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/summary_files/pluspf_species_merged.csv")
+species_bracken1 = fread("data/classification/taxonomic_rank_summaries/species/soil_microbe_db_filtered_species_merged.csv")
+species_bracken2 = fread("data/classification/taxonomic_rank_summaries/species/gtdb_species_merged.csv")
+species_bracken3 = fread("data/classification/taxonomic_rank_summaries/species/pluspf_species_merged.csv")
 
 
 species_bracken = rbindlist(list(species_bracken1, species_bracken2, species_bracken3))
@@ -31,7 +30,7 @@ filter_species = species_bracken %>% group_by(sample_id) %>%
 
 
 # Add in sequencing depth
-seq_depth_df <- readRDS("/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/seq_depth_df.rds") 
+seq_depth_df <- readRDS("data/classification/analysis_files/seq_depth_df.rds") 
 
 pass_filter_species = left_join(filter_species, #seq_depth_df) %>% 
                                 seq_depth_df %>% 
@@ -50,4 +49,4 @@ pass_filter_species_long = pass_filter_species %>%
                                   "percent_classified" = "% reads classified")) %>% 
     mutate(siteID = substr(sampleID, 1, 4))
 
-write.csv(pass_filter_species_long, "/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/summary_files/pass_filter_summary.csv")
+write.csv(pass_filter_species_long, "data/classification/analysis_files/pass_filter_summary.csv")

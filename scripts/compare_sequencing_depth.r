@@ -6,13 +6,13 @@ library(broom)
 library(ggpubr)
 library(SimplyAgree)
 
-seq_depth_df <- readRDS("/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/seq_depth_df.rds") %>% 
+seq_depth_df <- readRDS("data/classification/analysis_files/seq_depth_df.rds") %>% 
     #dplyr::rename(compositeSampleID = sampleID) %>% 
     select(-c(db_name, identified_reads))
 
 
 
-bracken_domain_estimates <- readRDS("/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/bracken_domain_estimates.rds") 
+bracken_domain_estimates <- readRDS("data/classification/taxonomic_rank_summaries/domain/bracken_domain_estimates.rds") 
 bracken_fb_ratio = bracken_domain_estimates %>%
     mutate(percentage = percentage*.01) %>%
     pivot_wider(names_from = taxon, values_from = percentage)  %>%

@@ -1,11 +1,11 @@
 library(tidyverse)
 
-source("/projectnb/talbot-lab-data/zrwerbin/soil_genome_db/custom_pavian.r")
+source("scripts/custom_pavian.r")
 source("https://raw.githubusercontent.com/bhattlab/kraken2_classification/master/scripts/process_classification.R")
-source("/projectnb/talbot-lab-data/zrwerbin/soil_genome_db/helper_functions.r")
+source("scripts/helper_functions.r")
 
 
-unfilter_reads_dir = "/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/01_kraken_output"
+unfilter_reads_dir = "data/classification/01_kraken_output"
 samp_files <- list.files(unfilter_reads_dir, recursive=T, pattern = "_soil_microbe_db_kraken.kreport", full.names = T)
 
 seq_depth = lapply(samp_files, function(report_path){
@@ -32,4 +32,4 @@ seq_depth_df = cbind.data.frame(samp_files,
     mutate(sampleID = str_remove(sampleID_orig, paste0("_",db_name)))
 seq_depth_df = seq_depth_df %>% select(sampleID, db_name, seq_depth = number_of_raw_reads, identified_reads)
 
-saveRDS(seq_depth_df,"/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/seq_depth_df.rds")
+saveRDS(seq_depth_df,"data/classification/analysis_files/seq_depth_df.rds")

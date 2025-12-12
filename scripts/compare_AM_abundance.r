@@ -1,15 +1,16 @@
 library(tidyverse)
 library(data.table)
+library(ggpmisc)
 
-source("/projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/helper_functions.r")
+source("scripts/helper_functions.r")
 
 
 # From supplement of Lang et al. 2023
-AM_trees = read_csv("/projectnb/frpmars/soil_microbe_db/ref_data/AM_trees/AM_trees_lang.csv")
+AM_trees = read_csv("reference_data/AM_trees/AM_trees_lang.csv")
 
 
 
-bracken_genus_estimates <- readRDS("/projectnb/talbot-lab-data/zrwerbin/soil_genome_db/bracken_genus_estimates.rds")
+bracken_genus_estimates <- readRDS("data/classification/taxonomic_rank_summaries/genus/bracken_genus_estimates.rds")
 
 
 fungal_phyla = c("Ascomycota","Basidiomycota","Blastocladiomycota","Chytridiomycota","Cryptomycota","Mucoromycota","Microsporidia","Olpidiomycota","Zoopagomycota")
@@ -20,10 +21,10 @@ amf_list = c("Diversispora","Archaeospora","Paraglomus",
              "Glomus","Acaulospora","Pacispora","Sacculospora",
              "Redeckera","Corymbiglomus","Gigaspora","Dentiscutalata","Cetraspora","Racocetra","Claroideoglomus","Funneliformis","Septoglomus","Sclerocystis","Geosiphon")
 
-bracken_genus =fread("/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/summary_files/soil_microbe_db_filtered_genus_merged_lineage.csv", nThread = 8)
+bracken_genus =fread("data/classification/taxonomic_rank_summaries/genus/soil_microbe_db_filtered_genus_merged_lineage.csv", nThread = 8)
 
 
-bracken_phylum =fread("/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/summary_files/soil_microbe_db_filtered_phylum_merged_lineage.csv", nThread = 8)
+bracken_phylum =fread("data/classification/taxonomic_rank_summaries/phylum/soil_microbe_db_filtered_phylum_merged_lineage.csv", nThread = 8)
 
 
 
@@ -85,22 +86,26 @@ amf_counts_rel$`Plot Number` = substr(amf_counts_rel$plotID, 6, 8) %>% as.numeri
 
 
 
-amf_rel_AM_trees = merge(amf_counts_rel, AM_trees)
+amf_rel_AM_trees = merge(amf_counts_rel, AM_trees, by = c("Site", "Plot Number"))
 
 # Supplemental figure
 p1 = ggplot(amf_rel_AM_trees, 
             aes(x = `Proportion AM basal area`, y = amf_abun_rel)) + 
-    geom_jitter(aes(color = Site), alpha=.8, size=2) + facet_grid(~horizon) +
+    geom_jitter(aes(color = Site), alpha=.8, size=2) +
     stat_smooth(method="lm") +
     scale_y_log10() + 
     #scale_x_sqrt() + 
     #    geom_abline(slope=1, intercept = 0, linetype=2) + 
-    stat_regline_equation(aes(label = ..rr.label..),
-                          show.legend = FALSE, size=6, label.x.npc = .4)  + 
+    stat_poly_eq(aes(label = paste(after_stat(rr.label), sep = "~~~")),
+                 formula = y ~ x, parse = TRUE,
+                 show.legend = FALSE, size = 6, label.x.npc = .4)  + 
     theme_bw(base_size = 18)  +
     ylab("Proportion AMF in metagenome")  +
     xlab("Proportion AM tree basal area") 
 p1
+
+# Save figure
+ggsave("manuscript_figures/fig5b.png", p1, width = 10, height = 8, units = "in", dpi = 300)
 
 
 ######
@@ -133,14 +138,14 @@ amf_counts_genus = bracken_genus_estimates %>%
     summarize(AMF_percent = sum(fraction_total_reads))
 
 
-myco_struo = read_tsv("/projectnb/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/mycocosm_published_struo.tsv")
-
-myco_struo[grepl("Ambispora", myco_struo$ncbi_organism_name),]
-myco_struo[grepl("Acaulo", myco_struo$ncbi_organism_name),]
-myco_struo[grepl("Diversispora", myco_struo$ncbi_organism_name),]
-myco_struo[grepl("Archaeospora", myco_struo$ncbi_organism_name),]
-myco_struo[grepl("Paraglomus", myco_struo$ncbi_organism_name),]
-myco_struo[grepl("Rhizophagus", myco_struo$ncbi_organism_name),]
+# Struo2 file used for exploration/validation (optional)
+# myco_struo = read_tsv("/projectnb/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/mycocosm_published_struo.tsv")
+# myco_struo[grepl("Ambispora", myco_struo$ncbi_organism_name),]
+# myco_struo[grepl("Acaulo", myco_struo$ncbi_organism_name),]
+# myco_struo[grepl("Diversispora", myco_struo$ncbi_organism_name),]
+# myco_struo[grepl("Archaeospora", myco_struo$ncbi_organism_name),]
+# myco_struo[grepl("Paraglomus", myco_struo$ncbi_organism_name),]
+# myco_struo[grepl("Rhizophagus", myco_struo$ncbi_organism_name),]
 
 
 amf_counts_AM_trees = merge(amf_counts, AM_trees)
@@ -157,8 +162,9 @@ p1 = ggplot(mucoro_counts_AM_trees,
     scale_y_log10() + 
     #scale_x_sqrt() + 
 #    geom_abline(slope=1, intercept = 0, linetype=2) + 
-    stat_regline_equation(aes(label = ..rr.label..),
-                          show.legend = FALSE, size=6, label.x.npc = .4) 
+    stat_poly_eq(aes(label = paste(after_stat(rr.label), sep = "~~~")),
+                 formula = y ~ x, parse = TRUE,
+                 show.legend = FALSE, size = 6, label.x.npc = .4) 
 
 
 p2 = ggplot(amf_counts_AM_trees %>% filter(dateID > 201501), 
@@ -168,7 +174,8 @@ p2 = ggplot(amf_counts_AM_trees %>% filter(dateID > 201501),
     scale_y_log10() + 
     #scale_x_sqrt() + 
     #    geom_abline(slope=1, intercept = 0, linetype=2) + 
-    stat_regline_equation(aes(label = ..rr.label..),
-                          show.legend = FALSE, size=6, label.x.npc = .4)
+    stat_poly_eq(aes(label = paste(after_stat(rr.label), sep = "~~~")),
+                 formula = y ~ x, parse = TRUE,
+                 show.legend = FALSE, size = 6, label.x.npc = .4)
 
 ggplot(AM_trees) + geom_point(aes(y = `Proportion AM basal area`, x = Site, color = Site))

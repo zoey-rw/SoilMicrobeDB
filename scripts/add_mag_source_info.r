@@ -6,15 +6,14 @@ library(ggpubr)
 library(data.table)
 library(ggpmisc)
 library(rstatix)
-source("/projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/helper_functions.r")
-source("/projectnb/talbot-lab-data/zrwerbin/soil_microbe_GEMs/comets_shinyapp_example/source.R")
+source("scripts/helper_functions.r")
 
 
 # Read in species-level abundances
-bracken_with_lineage=fread("/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/summary_files/soil_microbe_db_filtered_species_merged_lineage.csv", nThread = 8)
+bracken_with_lineage=fread("data/classification/taxonomic_rank_summaries/species/soil_microbe_db_filtered_species_merged_lineage.csv", nThread = 8)
 
 # Read in sequencing depth 
-seq_depth_df <- readRDS("/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/seq_depth_df.rds") 
+seq_depth_df <- readRDS("data/classification/analysis_files/seq_depth_df.rds") 
 
 # Now read in all the Kraken and study-specific files
 seqid_map_gtdb207 = fread("/projectnb/microbiome/ref_db/GTDB_207_kraken2/seqid2taxid.map")
@@ -72,7 +71,7 @@ fungi_unique <-  soil_microbe_db_struo[which(soil_microbe_db_struo$kingdom=="Fun
 # Use lists to label abundance data
 soil_microbe_db_struo$is_MAG = ifelse(soil_microbe_db_struo$ncbi_species_taxid %in% MAG_ids, T, F)
 
-write.csv(soil_microbe_db_struo %>% select(-c(fasta_file_path, tax_id, tax_name)), "/projectnb/frpmars/soil_microbe_db/data/soil_microbe_db_genome_table.csv")
+write.csv(soil_microbe_db_struo %>% select(-c(fasta_file_path, tax_id, tax_name)), "data/genome_database/soil_microbe_db_genome_table.csv")
 
 # Sanity check - get counts
 table(soil_microbe_db_struo$is_MAG)/nrow(soil_microbe_db_struo)
@@ -151,4 +150,4 @@ is_mag_df = left_join(is_mag_df,pass_filter_species_long %>% filter(metric == "p
 seq_depth_df$percent_classified2 = seq_depth_df$identified_reads/seq_depth_df$seq_depth
 is_mag_df = left_join(is_mag_df,seq_depth_df)  %>% ungroup
 
-write.csv(is_mag_df, "/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/summary_files/abundance_MAGs.csv")
+write.csv(is_mag_df, "data/classification/analysis_files/abundance_MAGs.csv")

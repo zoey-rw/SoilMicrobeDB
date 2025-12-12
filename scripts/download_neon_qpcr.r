@@ -11,9 +11,9 @@ qpcrData <- loadByProduct(site = "all", dpID = "DP1.10109.001", package = "expan
 ## qpcr_in = stackByTable(filepath = "/projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/misc_scripts/neon_qPCR/NEON_group-abund-microbe-soil")
 #qpcr_in <- qpcrData$mga_soilGroupAbundances
 
-saveRDS(qpcrData, "/projectnb/frpmars/soil_microbe_db/ref_data/NEON_qpcr_full.rds")
+saveRDS(qpcrData, "data/comparison_data/qpcr/NEON_qpcr_full.rds")
 
-qpcrData <- readRDS("/projectnb/frpmars/soil_microbe_db/ref_data/NEON_qpcr_full.rds")
+qpcrData <- readRDS("data/comparison_data/qpcr/NEON_qpcr_full.rds")
 
 
 
@@ -150,4 +150,4 @@ qpcrData_out$sampleID = soilCores[match(qpcrData_out$geneticSampleID,
 qpcrData_out$compositeSampleID = genSampleExample[match(qpcrData_out$sampleID,
 																										 genSampleExample$sampleID),]$genomicsSampleID
 
-write_csv(qpcrData_out, "/projectnb/frpmars/soil_microbe_db/ref_data/NEON_qpcr.csv")
+write_csv(qpcrData_out, "data/comparison_data/qpcr/NEON_qpcr.csv")

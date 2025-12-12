@@ -18,7 +18,7 @@ soilCores$compositeSampleID = genSampleExample[match(soilCores$sampleID,
 soilCores <- soilCores %>% filter(!is.na(compositeSampleID))
 
 
-domain_bracken1=fread("/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/soil_microbe_db_filtered_domain_merged.csv")
+domain_bracken1=fread("data/classification/taxonomic_rank_summaries/domain/soil_microbe_db_filtered_domain_merged.csv")
 domain_bracken = domain_bracken1
 # domain_bracken2=fread("/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/pluspf_filtered_domain_merged.csv")
 # domain_bracken3=fread("/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/gtdb_207_filtered_domain_merged.csv")
@@ -32,7 +32,7 @@ filter_domain = domain_bracken %>% group_by(sample_id) %>%
     mutate(sampleID = str_remove(sample_id, paste0("_",db_name))) %>% 
     mutate(db_name = gsub("_domain_filtered","",db_name)) 
 
-seq_depth_df <- readRDS("/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/seq_depth_df.rds") %>% 
+seq_depth_df <- readRDS("data/classification/analysis_files/seq_depth_df.rds") %>% 
     select(-c(db_name, identified_reads)) #%>% 
    # rename(n_classified_reads = identified_reads) 
 
@@ -212,4 +212,4 @@ ggplot(pass_filter_soilCore %>%
         position=position_jitter()) + geom_smooth() + 
     facet_grid(~db_name) + scale_y_sqrt()
 
-genus_bracken = fread("/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/soil_microbe_db_filtered_genus_merged.csv")
+genus_bracken = fread("data/classification/taxonomic_rank_summaries/genus/soil_microbe_db_filtered_genus_merged.csv")

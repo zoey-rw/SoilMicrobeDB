@@ -69,7 +69,7 @@ fun_bac_proportion = left_join(shortest_distance, fun_bac_ratios_simple,
 	select(-c(lat,lon))
 fun_bac_proportion$siteID = substr(fun_bac_proportion$geneticSampleID, 1, 4)
 
-write_csv(fun_bac_proportion, "/projectnb/frpmars/soil_microbe_db/ref_data/fun_bac_ratio_NEON.csv")
+write_csv(fun_bac_proportion, "data/comparison_data/modeled_fb_ratio/fun_bac_ratio_NEON.csv")
 
 # Take a look at variation across sites
 ggplot(fun_bac_proportion) + geom_point(aes(x = siteID, y = Fun_pro))

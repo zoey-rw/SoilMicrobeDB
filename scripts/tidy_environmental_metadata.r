@@ -73,5 +73,5 @@ coordinate_data <- soilChem$sls_soilCoreCollection %>%
 								sampleID)
 genomicSamples_coordinate_data <- left_join(genomicSamples,coordinate_data) %>% select(-sampleID) %>% distinct()
 soil_metadata_all <- left_join(soil_metadata_all, genomicSamples_coordinate_data)
-write.csv(soil_metadata_all, "/projectnb/frpmars/soil_microbe_db/ref_data/environmental_metadata_NEON.csv")
+write.csv(soil_metadata_all, "data/environmental_data/environmental_metadata_NEON.csv")
 

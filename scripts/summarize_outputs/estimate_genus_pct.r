@@ -3,15 +3,15 @@
 library(tidyverse)
 library(pavian)
 library(ggpubr)
-source("/projectnb/talbot-lab-data/zrwerbin/soil_genome_db/custom_pavian.r")
+source("scripts/custom_pavian.r")
 source("https://raw.githubusercontent.com/bhattlab/kraken2_classification/master/scripts/process_classification.R")
 
 
-sampleID_pooled_key <- readRDS("/projectnb/talbot-lab-data/zrwerbin/soil_genome_db/NEON_metagenomes/NEON_pooled_sample_key.rds")
+sampleID_pooled_key <- readRDS("data/comparison_data/its_amplicon/NEON_pooled_sample_key.rds")
 pooled_recode_list <- sampleID_pooled_key$genomicsSampleID
 names(pooled_recode_list) <- sampleID_pooled_key$sampleID
 
-soil_sample_dir <- "/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/02_bracken_output"
+soil_sample_dir <- "data/classification/02_bracken_output"
 
 samp_files <- list.files(soil_sample_dir, recursive=T, pattern = "_filtered_kraken_bracken_genuses.kreport", full.names = T)
 samp_names <- gsub("_filtered_kraken_bracken_genuses.kreport","",basename(samp_files)) %>% unique()
@@ -32,7 +32,7 @@ genus_output <- genus_in %>%
 	mutate(sampleID = str_remove(samp_name, paste0("_",db_name)))
 genus_output$siteID = substr(genus_output$sampleID, 1, 4)
 
-saveRDS(genus_output,"/projectnb/frpmars/soil_microbe_db/NEON_metagenome_classification/bracken_genus_HARV.rds")
+saveRDS(genus_output,"data/classification/taxonomic_rank_summaries/genus/bracken_genus_HARV.rds")
 
 
 

@@ -1,7 +1,7 @@
 
 # Read in the summary files from all SoilMicrobeDB output files
-lineage_phylum = fread("/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/summary_files/soil_microbe_db_filtered_phylum_merged_lineage.csv")
-lineage_genus = fread("/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/summary_files/soil_microbe_db_filtered_genus_merged_lineage.csv")
+lineage_phylum = fread("data/classification/taxonomic_rank_summaries/phylum/soil_microbe_db_filtered_phylum_merged_lineage.csv")
+lineage_genus = fread("data/classification/taxonomic_rank_summaries/genus/soil_microbe_db_filtered_genus_merged_lineage.csv")
 
 fungal_phyla = c("Ascomycota","Basidiomycota","Blastocladiomycota",
                  "Chytridiomycota","Cryptomycota","Mucoromycota",

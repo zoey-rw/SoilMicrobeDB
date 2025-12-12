@@ -3,16 +3,16 @@ library(tidyverse)
 library(data.table)
 
 # Read in ITS data from forecasting models
-its_genus = fread("/projectnb/frpmars/soil_microbe_db/ref_data/NEON_ITS_amplicon.csv")
+its_genus = fread("data/comparison_data/its_amplicon/NEON_ITS_amplicon.csv")
 
 # Read in species-level abundances - not used
-bracken_with_lineage=fread("/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/summary_files/soil_microbe_db_filtered_species_merged_lineage.csv", nThread = 8)
+bracken_with_lineage=fread("data/classification/taxonomic_rank_summaries/species/soil_microbe_db_filtered_species_merged_lineage.csv", nThread = 8)
 
 # Read in genus-level abundances
-bracken_genus =fread("/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/summary_files/soil_microbe_db_filtered_genus_merged_lineage.csv", nThread = 8)
+bracken_genus =fread("data/classification/taxonomic_rank_summaries/genus/soil_microbe_db_filtered_genus_merged_lineage.csv", nThread = 8)
 
 
-phyla_fungi_summary <- read_csv("/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/summary_files/soil_microbe_db_phyla_fungi_summary.csv") %>% 
+phyla_fungi_summary <- read_csv("data/classification/analysis_files/soil_microbe_db_phyla_fungi_summary.csv") %>% 
     rename(fungal_abundance = phyla_fungi_metagenome,
            metagenome_sample_id = sampleID)
 
@@ -57,7 +57,7 @@ unique(df_compare$name) # 268 overlapping genera
 genus_fungi_ITS = unique(its_genus_long$name) %>% str_to_title
 
 # Save!
-write.csv(df_compare, "/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/summary_files/genus_ITS_metagenome_comparison.csv")
+write.csv(df_compare, "data/classification/analysis_files/genus_ITS_metagenome_comparison.csv")
 
 
 
@@ -83,4 +83,4 @@ funguild_results_full = funguild_results_full %>%  mutate(functional_group =
 
 funguild_results_full$name = tolower(funguild_results_full$taxon)
 
-write_csv(funguild_results_full, "/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/summary_files/FUNguild_assignments.csv")
+write_csv(funguild_results_full, "data/classification/analysis_files/FUNguild_assignments.csv")

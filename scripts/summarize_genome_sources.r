@@ -3,13 +3,13 @@
 
 library(tidyverse)
 library(data.table)
-library(GGally)
-library(ggpubr)
-library(ggstatsplot)
+# library(GGally)  # Not needed for final figure generation
+# library(ggpubr)  # Not needed for final figure generation
+# library(ggstatsplot)  # Not needed for final figure generation
 library(patchwork)
 
 # Read in Struo2 input file with MAG classification
-main_df <- read_csv("/projectnb/frpmars/soil_microbe_db/data/soil_microbe_db_genome_table.csv") %>% 
+main_df <- read_csv("data/genome_database/soil_microbe_db_genome_table.csv") %>% 
     mutate(source = recode(source, 
                            "SPIRE_MAGs" = "SPIRE",
                            "GEM catalog" = "GEM",
@@ -45,13 +45,9 @@ no_MAGs = main_df %>% ungroup %>%
     select(source, superkingdom, n) %>% mutate(mag_percent = 0)
 mag_count = rbind.data.frame(mag_count, no_MAGs)
 
-    
-ggtable(main_df, "is_MAG", c("source"), cells = "row.prop") + ggtitle("Row proportions")
-
-
-ggtable(main_df, "is_MAG", c("source"), cells = "observed")
-
- 
+# Exploratory tables (commented out - not needed for final figure)
+# ggtable(main_df, "is_MAG", c("source"), cells = "row.prop") + ggtitle("Row proportions")
+# ggtable(main_df, "is_MAG", c("source"), cells = "observed")
 
 main_df %>% group_by(source,superkingdom) %>% 
     tally() %>% 
@@ -111,14 +107,13 @@ fig_1a = main_df %>%
 # Kingdom
 
 fig_1d = main_df %>% 
-    ggplot(aes(x= overall, fill=superkingdom,  y = after_stat(prop),
-               group = factor(superkingdom))) +
-    geom_bar(color = "black", position=position_fill(),  stat = "prop", show.legend = F) +
+    ggplot(aes(x= overall, fill=superkingdom)) +
+    geom_bar(color = "black", position=position_fill(), show.legend = F) +
     coord_flip() +
     theme_bw(base_size = 18) +
     xlab("") + 
-    geom_label(aes(label = paste0(round(100 * after_stat(prop)), "%")), 
-              stat = "prop", 
+    geom_label(aes(label = paste0(round(100 * after_stat(count) / sum(after_stat(count)), 1), "%")), 
+              stat = "count",
               position = position_fill(vjust = 0.5),
               fill="white",
               size = 5) + 
@@ -162,9 +157,8 @@ fig_1b = main_df  %>%
                        labels = scales::percent(c(0, 0.5, 1))) 
 
 fig_1e = main_df %>% 
-    ggplot(aes(x= overall,  y = after_stat(prop), fill=genome_type,
-               group = factor(genome_type))) +
-    geom_bar(color = "black",position=position_fill(), stat = "prop", show.legend = F) +
+    ggplot(aes(x= overall, fill=genome_type)) +
+    geom_bar(color = "black", position=position_fill(), show.legend = F) +
     coord_flip() +
     theme_bw(base_size = 18) +
     ylab("Proportion") + 
@@ -175,8 +169,8 @@ fig_1e = main_df %>%
           legend.title = element_blank())  +
     # geom_text(aes(label = paste0(value*100,"%")), 
     #           position = position_stack(vjust = 0.5),
-    geom_label(aes(label = paste0(round(100 * after_stat(prop)), "%")), 
-              stat = "prop", 
+    geom_label(aes(label = paste0(round(100 * after_stat(count) / sum(after_stat(count)), 1), "%")), 
+              stat = "count",
               position = position_fill(vjust = 0.5),
               size = 5, fill="white") + 
     theme(  axis.text.y=element_blank(),
@@ -253,8 +247,7 @@ fig1 = (fig_1a + fig_1b + fig_1c) / (fig_1d + fig_1e + fig_1f) +
 fig1 
 
 
-fig1 %>% 
-    ggexport(height = 800, width = 1200, filename = "/projectnb/frpmars/soil_microbe_db/manuscript_figures/fig1.png")
+ggsave("manuscript_figures/fig1.png", fig1, width = 12, height = 8, units = "in", dpi = 300)
 
 
 
@@ -262,13 +255,10 @@ fig1 %>%
 
 
 
-pluspf_inspect = read_tsv("https://genome-idx.s3.amazonaws.com/kraken/pluspf_20231009/inspect.txt", skip = 7, col_names = c(""))
-
-table(pluspf_inspect$X4) %>% sort
-
-
-pluspf_report = read_tsv( "https://genome-idx.s3.amazonaws.com/kraken/pluspf_20231009/library_report.tsv")
-table(pluspf_report$`#Library`) %>% sort
-
-pluspf_names = read_tsv("/projectnb/frpmars/soil_microbe_db/databases/pluspf/taxonomy/names.dmp")
-length(unique(pluspf_names$`1`))
+# Exploratory code below (commented out - not needed for figure generation)
+# pluspf_inspect = read_tsv("https://genome-idx.s3.amazonaws.com/kraken/pluspf_20231009/inspect.txt", skip = 7, col_names = c(""))
+# table(pluspf_inspect$X4) %>% sort
+# pluspf_report = read_tsv( "https://genome-idx.s3.amazonaws.com/kraken/pluspf_20231009/library_report.tsv")
+# table(pluspf_report$`#Library`) %>% sort
+# pluspf_names = read_tsv("/projectnb/frpmars/soil_microbe_db/databases/pluspf/taxonomy/names.dmp")
+# length(unique(pluspf_names$`1`))
