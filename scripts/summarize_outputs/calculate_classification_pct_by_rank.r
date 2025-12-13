@@ -17,23 +17,30 @@ fungal_phyla <- c("Ascomycota", "Basidiomycota", "Blastocladiomycota",
 
 # Read rank-specific files (similar approach to calculate_pct_phylum_without_genus.r)
 # Each file contains reads classified at that rank or higher
+cat("Reading phylum data...\n")
 phylum_data <- fread("data/classification/taxonomic_rank_summaries/phylum/soil_microbe_db_filtered_phylum_merged_lineage.csv", nThread = 8)
-genus_data <- fread("data/classification/taxonomic_rank_summaries/genus/soil_microbe_db_filtered_genus_merged_lineage.csv", nThread = 8)
-species_data <- fread("data/classification/taxonomic_rank_summaries/species/soil_microbe_db_filtered_species_merged_lineage.csv", nThread = 8)
 
-# Parse sample IDs for all datasets
-parse_sample_ids <- function(df) {
-    df %>%
-        separate(sample_id, into = c("sampleID", "db_name"), sep = "COMP_", remove = FALSE, extra = "merge") %>%
-        mutate(
-            sampleID = str_remove(sample_id, paste0("_", db_name)),
-            db_name = gsub("_filtered|_genus_filtered|_phylum_filtered", "", db_name)
-        )
+cat("Reading genus data...\n")
+genus_data <- fread("data/classification/taxonomic_rank_summaries/genus/soil_microbe_db_filtered_genus_merged_lineage.csv", nThread = 8)
+
+cat("Reading species data (this may take a moment - file is large)...\n")
+species_data <- fread("data/classification/taxonomic_rank_summaries/species/soil_microbe_db_filtered_species_merged_lineage.csv", nThread = 8)
+cat("Species data loaded. Parsing sample IDs and lineage...\n")
+
+# Parse sample IDs for all datasets using data.table for speed
+parse_sample_ids_dt <- function(df) {
+    setDT(df)
+    df[, c("sampleID", "db_name") := tstrsplit(sample_id, "COMP_", fixed = TRUE, keep = 1:2)]
+    df[, sampleID := sub(paste0("_", db_name), "", sample_id, fixed = TRUE)]
+    df[, db_name := gsub("_filtered|_genus_filtered|_phylum_filtered", "", db_name)]
+    as_tibble(df)
 }
 
-phylum_data <- parse_sample_ids(phylum_data)
-genus_data <- parse_sample_ids(genus_data)
-species_data <- parse_sample_ids(species_data)
+phylum_data <- parse_sample_ids_dt(phylum_data)
+genus_data <- parse_sample_ids_dt(genus_data)
+cat("Parsing sample IDs for species data...\n")
+species_data <- parse_sample_ids_dt(species_data)
+cat("Sample ID parsing complete.\n")
 
 # Identify fungi in each dataset
 phylum_data <- phylum_data %>%
@@ -42,8 +49,16 @@ phylum_data <- phylum_data %>%
 genus_data <- genus_data %>%
     mutate(is_fungi = grepl(paste(fungal_phyla, collapse = "|"), lineage))
 
-species_data <- species_data %>%
-    mutate(is_fungi = grepl(paste(fungal_phyla, collapse = "|"), lineage))
+# Parse all ranks from species lineage once using data.table for speed
+cat("Parsing taxonomic ranks from species lineage (this may take a moment)...\n")
+setDT(species_data)
+species_data[, is_fungi := grepl(paste(fungal_phyla, collapse = "|"), lineage)]
+species_data[, has_class := grepl("c__[^;]+", lineage) & !grepl("c__;", lineage)]
+species_data[, has_order := grepl("o__[^;]+", lineage) & !grepl("o__;", lineage)]
+species_data[, has_family := grepl("f__[^;]+", lineage) & !grepl("f__;", lineage)]
+species_data[, has_strain := grepl("s1__[^;]+", lineage)]
+species_data <- as_tibble(species_data)
+cat("Lineage parsing complete.\n")
 
 # Function to calculate classification % at a specific rank
 # Uses the appropriate rank-level file (phylum, genus, or species)
@@ -54,30 +69,15 @@ calculate_pct_at_rank <- function(data, rank_name, filter_fungi = FALSE, use_lin
     }
     
     if (use_lineage_parsing) {
-        # Parse lineage to extract specific rank
-        # Lineage format: k__Kingdom;p__Phylum;c__Class;o__Order;f__Family;g__Genus;s__Species
-        # Uses semicolons as separators and double underscores after rank prefix
-        rank_patterns <- list(
-            "class" = "c__([^;]+)",
-            "order" = "o__([^;]+)",
-            "family" = "f__([^;]+)",
-            "strain" = "s1__([^;]+)"
-        )
-        
-        if (rank_name %in% names(rank_patterns)) {
-            # Extract the rank value (pattern includes capture group, but str_extract returns full match)
-            prefix <- switch(rank_name,
-                "class" = "c__",
-                "order" = "o__",
-                "family" = "f__",
-                "strain" = "s1__"
-            )
-            data <- data %>%
-                mutate(
-                    rank_value = str_extract(lineage, rank_patterns[[rank_name]]),
-                    rank_value = gsub(paste0("^", prefix), "", rank_value)  # Remove rank prefix
-                ) %>%
-                filter(!is.na(rank_value) & rank_value != "" & rank_value != "NA")
+        # Use pre-parsed flags for efficiency (already done when loading species_data)
+        if (rank_name == "class") {
+            data <- data %>% filter(has_class == TRUE)
+        } else if (rank_name == "order") {
+            data <- data %>% filter(has_order == TRUE)
+        } else if (rank_name == "family") {
+            data <- data %>% filter(has_family == TRUE)
+        } else if (rank_name == "strain") {
+            data <- data %>% filter(has_strain == TRUE)
         }
     }
     
