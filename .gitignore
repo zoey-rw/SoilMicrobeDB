@@ -19,6 +19,20 @@ data/classification/02_bracken_output/*
 data/classification/01_kraken_output/
 data/classification/02_bracken_output/
 
+# Large merged classification summary files (too large for git)
+# These are multi-GB files that should not be version controlled
+data/classification/taxonomic_rank_summaries/**/*_merged.csv
+data/classification/taxonomic_rank_summaries/**/*_merged_lineage.csv
+data/classification/taxonomic_rank_summaries/**/*_estimates.rds
+
+# Large analysis files (RDS files can be large)
+data/classification/analysis_files/*.rds
+# Large CSV files in analysis_files (keep small ones, ignore large ones)
+data/classification/analysis_files/genus_ITS_metagenome_comparison.csv
+data/classification/analysis_files/soil_microbe_db_genus_fungi_summary.csv
+data/classification/analysis_files/soil_microbe_db_genus_fungi_summary.rds
+data/classification/analysis_files/soil_microbe_db_phyla_fungi_summary.rds
+
 ./scripts/database_development/genome_downloads/gtdb_207/lineage.txt
 ./scripts/database_development/genome_downloads/gtdb_207/pretty_lineage.txt
 ./scripts/database_development/genome_downloads/jgi_gold/ref_data/GOLDs5levelEcosystemClassificationPaths.xlsx,205870479,1698783192000,283690,644

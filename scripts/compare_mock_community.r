@@ -209,8 +209,8 @@ fig3 = (p1 | p2) / p5 +
                     theme = 
                         theme(plot.margin = unit(c(-.5,0,0,0), 
                                                  'lines')))
-fig3 %>% 
-    ggexport(height = 900, width = 800, filename = "manuscript_figures/fig3.png")
+# Save figure
+ggsave("manuscript_figures/fig3.png", fig3, width = 8, height = 9, units = "in", dpi = 300)
 
 
 fig_s3 = p3 + p4 +
@@ -219,5 +219,5 @@ fig_s3 = p3 + p4 +
                         theme(plot.margin = unit(c(-.5,0,0,0), 
                                                  'lines')))
     
-fig_s3 %>% 
-        ggexport(height = 400, width = 800, filename = "manuscript_figures/fig_s3.png")
+# Save figure
+ggsave("manuscript_figures/fig_s3.png", fig_s3, width = 8, height = 4, units = "in", dpi = 300)

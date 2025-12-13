@@ -1,0 +1,139 @@
+samp_name,fungal_proportion,readdepth,db_name,n_reads,pass_filter,n_pass_filter,percent_classified_passing,metric,value,Database
+fungprop_10_readdepth_.1M_gtdb_207_unfiltered,10,100000,gtdb_207_unfiltered,45171,1,42168,0.9335192933519293,percent_passing,0.84336,GTDB r207
+fungprop_10_readdepth_.1M_gtdb_207_unfiltered,10,100000,gtdb_207_unfiltered,45171,1,42168,0.9335192933519293,percent_classified,0.90342,GTDB r207
+fungprop_10_readdepth_.1M_pluspf,10,100000,pluspf,36883,1,28397,0.7699211018626467,percent_passing,0.56794,PlusPF
+fungprop_10_readdepth_.1M_pluspf,10,100000,pluspf,36883,1,28397,0.7699211018626467,percent_classified,0.73766,PlusPF
+fungprop_10_readdepth_.1M_soil_microbe_db,10,100000,soil_microbe_db,49474,1,48303,0.9763310021425395,percent_passing,0.96606,SoilMicrobeDB
+fungprop_10_readdepth_.1M_soil_microbe_db,10,100000,soil_microbe_db,49474,1,48303,0.9763310021425395,percent_classified,0.98948,SoilMicrobeDB
+fungprop_10_readdepth_1M_gtdb_207_unfiltered,10,1000000,gtdb_207_unfiltered,451666,1,420887,0.9318545119623792,percent_passing,0.841774,GTDB r207
+fungprop_10_readdepth_1M_gtdb_207_unfiltered,10,1000000,gtdb_207_unfiltered,451666,1,420887,0.9318545119623792,percent_classified,0.903332,GTDB r207
+fungprop_10_readdepth_1M_pluspf,10,1000000,pluspf,369894,1,284166,0.7682363055361806,percent_passing,0.568332,PlusPF
+fungprop_10_readdepth_1M_pluspf,10,1000000,pluspf,369894,1,284166,0.7682363055361806,percent_classified,0.739788,PlusPF
+fungprop_10_readdepth_1M_soil_microbe_db,10,1000000,soil_microbe_db,494815,1,483643,0.9774218647373261,percent_passing,0.967286,SoilMicrobeDB
+fungprop_10_readdepth_1M_soil_microbe_db,10,1000000,soil_microbe_db,494815,1,483643,0.9774218647373261,percent_classified,0.98963,SoilMicrobeDB
+fungprop_10_readdepth_5M_gtdb_207_unfiltered,10,5000000,gtdb_207_unfiltered,2258605,1,2104042,0.9315670513436392,percent_passing,0.8416168,GTDB r207
+fungprop_10_readdepth_5M_gtdb_207_unfiltered,10,5000000,gtdb_207_unfiltered,2258605,1,2104042,0.9315670513436392,percent_classified,0.903442,GTDB r207
+fungprop_10_readdepth_5M_pluspf,10,5000000,pluspf,1846778,1,1420148,0.7689868516952227,percent_passing,0.5680592,PlusPF
+fungprop_10_readdepth_5M_pluspf,10,5000000,pluspf,1846778,1,1420148,0.7689868516952227,percent_classified,0.7387112,PlusPF
+fungprop_10_readdepth_5M_soil_microbe_db,10,5000000,soil_microbe_db,2473790,1,2417269,0.9771520622203178,percent_passing,0.9669076,SoilMicrobeDB
+fungprop_10_readdepth_5M_soil_microbe_db,10,5000000,soil_microbe_db,2473790,1,2417269,0.9771520622203178,percent_classified,0.989516,SoilMicrobeDB
+fungprop_15_readdepth_.1M_gtdb_207_unfiltered,15,100000,gtdb_207_unfiltered,42750,1,39792,0.9308070175438596,percent_passing,0.79584,GTDB r207
+fungprop_15_readdepth_.1M_gtdb_207_unfiltered,15,100000,gtdb_207_unfiltered,42750,1,39792,0.9308070175438596,percent_classified,0.855,GTDB r207
+fungprop_15_readdepth_.1M_pluspf,15,100000,pluspf,37857,1,29499,0.7792218083841825,percent_passing,0.58998,PlusPF
+fungprop_15_readdepth_.1M_pluspf,15,100000,pluspf,37857,1,29499,0.7792218083841825,percent_classified,0.75714,PlusPF
+fungprop_15_readdepth_.1M_soil_microbe_db,15,100000,soil_microbe_db,49838,1,48704,0.9772462779405273,percent_passing,0.97408,SoilMicrobeDB
+fungprop_15_readdepth_.1M_soil_microbe_db,15,100000,soil_microbe_db,49838,1,48704,0.9772462779405273,percent_classified,0.99676,SoilMicrobeDB
+fungprop_15_readdepth_1M_gtdb_207_unfiltered,15,1000000,gtdb_207_unfiltered,427479,1,397597,0.9300971509711589,percent_passing,0.795194,GTDB r207
+fungprop_15_readdepth_1M_gtdb_207_unfiltered,15,1000000,gtdb_207_unfiltered,427479,1,397597,0.9300971509711589,percent_classified,0.854958,GTDB r207
+fungprop_15_readdepth_1M_pluspf,15,1000000,pluspf,377485,1,294193,0.7793501728545505,percent_passing,0.588386,PlusPF
+fungprop_15_readdepth_1M_pluspf,15,1000000,pluspf,377485,1,294193,0.7793501728545505,percent_classified,0.75497,PlusPF
+fungprop_15_readdepth_1M_soil_microbe_db,15,1000000,soil_microbe_db,498400,1,487377,0.9778832263242375,percent_passing,0.974754,SoilMicrobeDB
+fungprop_15_readdepth_1M_soil_microbe_db,15,1000000,soil_microbe_db,498400,1,487377,0.9778832263242375,percent_classified,0.9968,SoilMicrobeDB
+fungprop_15_readdepth_5M_gtdb_207_unfiltered,15,5000000,gtdb_207_unfiltered,2137353,1,1988881,0.9305346379376733,percent_passing,0.7955524,GTDB r207
+fungprop_15_readdepth_5M_gtdb_207_unfiltered,15,5000000,gtdb_207_unfiltered,2137353,1,1988881,0.9305346379376733,percent_classified,0.8549412,GTDB r207
+fungprop_15_readdepth_5M_pluspf,15,5000000,pluspf,1889859,1,1473492,0.7796835636944344,percent_passing,0.5893968,PlusPF
+fungprop_15_readdepth_5M_pluspf,15,5000000,pluspf,1889859,1,1473492,0.7796835636944344,percent_classified,0.7559436,PlusPF
+fungprop_15_readdepth_5M_soil_microbe_db,15,5000000,soil_microbe_db,2492030,1,2436930,0.977889511763502,percent_passing,0.974772,SoilMicrobeDB
+fungprop_15_readdepth_5M_soil_microbe_db,15,5000000,soil_microbe_db,2492030,1,2436930,0.977889511763502,percent_classified,0.996812,SoilMicrobeDB
+fungprop_1_readdepth_.1M_gtdb_207,1,100000,gtdb_207,49504,1,48407,0.977840174531351,percent_passing,0.96814,gtdb_207
+fungprop_1_readdepth_.1M_gtdb_207,1,100000,gtdb_207,49504,1,48407,0.977840174531351,percent_classified,0.99008,gtdb_207
+fungprop_1_readdepth_.1M_gtdb_207_unfiltered,1,100000,gtdb_207_unfiltered,49512,1,46305,0.9352278235579253,percent_passing,0.9261,GTDB r207
+fungprop_1_readdepth_.1M_gtdb_207_unfiltered,1,100000,gtdb_207_unfiltered,49512,1,46305,0.9352278235579253,percent_classified,0.99024,GTDB r207
+fungprop_1_readdepth_.1M_pluspf,1,100000,pluspf,38652,1,29713,0.7687312428852323,percent_passing,0.59426,PlusPF
+fungprop_1_readdepth_.1M_pluspf,1,100000,pluspf,38652,1,29713,0.7687312428852323,percent_classified,0.77304,PlusPF
+fungprop_1_readdepth_.1M_soil_microbe_db,1,100000,soil_microbe_db,49902,1,48701,0.9759328283435533,percent_passing,0.97402,SoilMicrobeDB
+fungprop_1_readdepth_.1M_soil_microbe_db,1,100000,soil_microbe_db,49902,1,48701,0.9759328283435533,percent_classified,0.99804,SoilMicrobeDB
+fungprop_1_readdepth_1M_gtdb_207,1,1000000,gtdb_207,494950,1,483872,0.9776179412061824,percent_passing,0.967744,gtdb_207
+fungprop_1_readdepth_1M_gtdb_207,1,1000000,gtdb_207,494950,1,483872,0.9776179412061824,percent_classified,0.9899,gtdb_207
+fungprop_1_readdepth_1M_gtdb_207_unfiltered,1,1000000,gtdb_207_unfiltered,494971,1,462996,0.9354002557725604,percent_passing,0.925992,GTDB r207
+fungprop_1_readdepth_1M_gtdb_207_unfiltered,1,1000000,gtdb_207_unfiltered,494971,1,462996,0.9354002557725604,percent_classified,0.989942,GTDB r207
+fungprop_1_readdepth_1M_pluspf,1,1000000,pluspf,386832,1,297833,0.7699285477933573,percent_passing,0.595666,PlusPF
+fungprop_1_readdepth_1M_pluspf,1,1000000,pluspf,386832,1,297833,0.7699285477933573,percent_classified,0.773664,PlusPF
+fungprop_1_readdepth_1M_soil_microbe_db,1,1000000,soil_microbe_db,498864,1,487089,0.9763963725584528,percent_passing,0.974178,SoilMicrobeDB
+fungprop_1_readdepth_1M_soil_microbe_db,1,1000000,soil_microbe_db,498864,1,487089,0.9763963725584528,percent_classified,0.997728,SoilMicrobeDB
+fungprop_1_readdepth_5M_gtdb_207,1,5000000,gtdb_207,2474726,1,2419656,0.9777470313885255,percent_passing,0.9678624,gtdb_207
+fungprop_1_readdepth_5M_gtdb_207,1,5000000,gtdb_207,2474726,1,2419656,0.9777470313885255,percent_classified,0.9898904,gtdb_207
+fungprop_1_readdepth_5M_gtdb_207_unfiltered,1,5000000,gtdb_207_unfiltered,2474617,1,2315955,0.9358842196590422,percent_passing,0.926382,GTDB r207
+fungprop_1_readdepth_5M_gtdb_207_unfiltered,1,5000000,gtdb_207_unfiltered,2474617,1,2315955,0.9358842196590422,percent_classified,0.9898468,GTDB r207
+fungprop_1_readdepth_5M_pluspf,1,5000000,pluspf,1935575,1,1489874,0.7697319917853868,percent_passing,0.5959496,PlusPF
+fungprop_1_readdepth_5M_pluspf,1,5000000,pluspf,1935575,1,1489874,0.7697319917853868,percent_classified,0.77423,PlusPF
+fungprop_1_readdepth_5M_soil_microbe_db,1,5000000,soil_microbe_db,2494147,1,2435209,0.976369476217721,percent_passing,0.9740836,SoilMicrobeDB
+fungprop_1_readdepth_5M_soil_microbe_db,1,5000000,soil_microbe_db,2494147,1,2435209,0.976369476217721,percent_classified,0.9976588,SoilMicrobeDB
+fungprop_20_readdepth_.1M_gtdb_207,20,100000,gtdb_207,40401,1,39269,0.97198089156209,percent_passing,0.78538,gtdb_207
+fungprop_20_readdepth_.1M_gtdb_207,20,100000,gtdb_207,40401,1,39269,0.97198089156209,percent_classified,0.80802,gtdb_207
+fungprop_20_readdepth_.1M_gtdb_207_unfiltered,20,100000,gtdb_207_unfiltered,40444,1,37721,0.932672337058649,percent_passing,0.75442,GTDB r207
+fungprop_20_readdepth_.1M_gtdb_207_unfiltered,20,100000,gtdb_207_unfiltered,40444,1,37721,0.932672337058649,percent_classified,0.80888,GTDB r207
+fungprop_20_readdepth_.1M_pluspf,20,100000,pluspf,37322,1,29370,0.7869353196506083,percent_passing,0.5874,PlusPF
+fungprop_20_readdepth_.1M_pluspf,20,100000,pluspf,37322,1,29370,0.7869353196506083,percent_classified,0.74644,PlusPF
+fungprop_20_readdepth_.1M_soil_microbe_db,20,100000,soil_microbe_db,49283,1,48268,0.9794046628654911,percent_passing,0.96536,SoilMicrobeDB
+fungprop_20_readdepth_.1M_soil_microbe_db,20,100000,soil_microbe_db,49283,1,48268,0.9794046628654911,percent_classified,0.98566,SoilMicrobeDB
+fungprop_20_readdepth_1M_gtdb_207,20,1000000,gtdb_207,403759,1,392485,0.9720774026089821,percent_passing,0.78497,gtdb_207
+fungprop_20_readdepth_1M_gtdb_207,20,1000000,gtdb_207,403759,1,392485,0.9720774026089821,percent_classified,0.807518,gtdb_207
+fungprop_20_readdepth_1M_gtdb_207_unfiltered,20,1000000,gtdb_207_unfiltered,404205,1,376033,0.9303026929404634,percent_passing,0.752066,GTDB r207
+fungprop_20_readdepth_1M_gtdb_207_unfiltered,20,1000000,gtdb_207_unfiltered,404205,1,376033,0.9303026929404634,percent_classified,0.80841,GTDB r207
+fungprop_20_readdepth_1M_pluspf,20,1000000,pluspf,374280,1,293182,0.7833226461472694,percent_passing,0.586364,PlusPF
+fungprop_20_readdepth_1M_pluspf,20,1000000,pluspf,374280,1,293182,0.7833226461472694,percent_classified,0.74856,PlusPF
+fungprop_20_readdepth_1M_soil_microbe_db,20,1000000,soil_microbe_db,492747,1,481848,0.977881143873022,percent_passing,0.963696,SoilMicrobeDB
+fungprop_20_readdepth_1M_soil_microbe_db,20,1000000,soil_microbe_db,492747,1,481848,0.977881143873022,percent_classified,0.985494,SoilMicrobeDB
+fungprop_20_readdepth_5M_gtdb_207,20,5000000,gtdb_207,2019551,1,1963403,0.9721977805957859,percent_passing,0.7853612,gtdb_207
+fungprop_20_readdepth_5M_gtdb_207,20,5000000,gtdb_207,2019551,1,1963403,0.9721977805957859,percent_classified,0.8078204,gtdb_207
+fungprop_20_readdepth_5M_gtdb_207_unfiltered,20,5000000,gtdb_207_unfiltered,2021791,1,1880395,0.9300639878206995,percent_passing,0.752158,GTDB r207
+fungprop_20_readdepth_5M_gtdb_207_unfiltered,20,5000000,gtdb_207_unfiltered,2021791,1,1880395,0.9300639878206995,percent_classified,0.8087164,GTDB r207
+fungprop_20_readdepth_5M_pluspf,20,5000000,pluspf,1871642,1,1467468,0.7840537880641704,percent_passing,0.5869872,PlusPF
+fungprop_20_readdepth_5M_pluspf,20,5000000,pluspf,1871642,1,1467468,0.7840537880641704,percent_classified,0.7486568,PlusPF
+fungprop_20_readdepth_5M_soil_microbe_db,20,5000000,soil_microbe_db,2463627,1,2409671,0.9780989573502807,percent_passing,0.9638684,SoilMicrobeDB
+fungprop_20_readdepth_5M_soil_microbe_db,20,5000000,soil_microbe_db,2463627,1,2409671,0.9780989573502807,percent_classified,0.9854508,SoilMicrobeDB
+fungprop_3_readdepth_.1M_gtdb_207,3,100000,gtdb_207,48524,1,47456,0.9779902728546699,percent_passing,0.94912,gtdb_207
+fungprop_3_readdepth_.1M_gtdb_207,3,100000,gtdb_207,48524,1,47456,0.9779902728546699,percent_classified,0.97048,gtdb_207
+fungprop_3_readdepth_.1M_gtdb_207_unfiltered,3,100000,gtdb_207_unfiltered,48525,1,45413,0.9358681092220504,percent_passing,0.90826,GTDB r207
+fungprop_3_readdepth_.1M_gtdb_207_unfiltered,3,100000,gtdb_207_unfiltered,48525,1,45413,0.9358681092220504,percent_classified,0.9705,GTDB r207
+fungprop_3_readdepth_.1M_pluspf,3,100000,pluspf,38618,1,29880,0.773732456367497,percent_passing,0.5976,PlusPF
+fungprop_3_readdepth_.1M_pluspf,3,100000,pluspf,38618,1,29880,0.773732456367497,percent_classified,0.77236,PlusPF
+fungprop_3_readdepth_.1M_soil_microbe_db,3,100000,soil_microbe_db,49853,1,48723,0.9773333600786311,percent_passing,0.97446,SoilMicrobeDB
+fungprop_3_readdepth_.1M_soil_microbe_db,3,100000,soil_microbe_db,49853,1,48723,0.9773333600786311,percent_classified,0.99706,SoilMicrobeDB
+fungprop_3_readdepth_1M_gtdb_207,3,1000000,gtdb_207,485253,1,474436,0.9777085355474361,percent_passing,0.948872,gtdb_207
+fungprop_3_readdepth_1M_gtdb_207,3,1000000,gtdb_207,485253,1,474436,0.9777085355474361,percent_classified,0.970506,gtdb_207
+fungprop_3_readdepth_1M_gtdb_207_unfiltered,3,1000000,gtdb_207_unfiltered,485293,1,453684,0.9348661530250797,percent_passing,0.907368,GTDB r207
+fungprop_3_readdepth_1M_gtdb_207_unfiltered,3,1000000,gtdb_207_unfiltered,485293,1,453684,0.9348661530250797,percent_classified,0.970586,GTDB r207
+fungprop_3_readdepth_1M_pluspf,3,1000000,pluspf,386699,1,299440,0.774349041502564,percent_passing,0.59888,PlusPF
+fungprop_3_readdepth_1M_pluspf,3,1000000,pluspf,386699,1,299440,0.774349041502564,percent_classified,0.773398,PlusPF
+fungprop_3_readdepth_1M_soil_microbe_db,3,1000000,soil_microbe_db,498580,1,486949,0.9766717477636487,percent_passing,0.973898,SoilMicrobeDB
+fungprop_3_readdepth_1M_soil_microbe_db,3,1000000,soil_microbe_db,498580,1,486949,0.9766717477636487,percent_classified,0.99716,SoilMicrobeDB
+fungprop_3_readdepth_5M_gtdb_207,3,5000000,gtdb_207,2426226,1,2372253,0.977754339455599,percent_passing,0.9489012,gtdb_207
+fungprop_3_readdepth_5M_gtdb_207,3,5000000,gtdb_207,2426226,1,2372253,0.977754339455599,percent_classified,0.9704904,gtdb_207
+fungprop_3_readdepth_5M_gtdb_207_unfiltered,3,5000000,gtdb_207_unfiltered,2426341,1,2268991,0.9351492638503821,percent_passing,0.9075964,GTDB r207
+fungprop_3_readdepth_5M_gtdb_207_unfiltered,3,5000000,gtdb_207_unfiltered,2426341,1,2268991,0.9351492638503821,percent_classified,0.9705364,GTDB r207
+fungprop_3_readdepth_5M_pluspf,3,5000000,pluspf,1934194,1,1498427,0.7747035716169113,percent_passing,0.5993708,PlusPF
+fungprop_3_readdepth_5M_pluspf,3,5000000,pluspf,1934194,1,1498427,0.7747035716169113,percent_classified,0.7736776,PlusPF
+fungprop_3_readdepth_5M_soil_microbe_db,3,5000000,soil_microbe_db,2492717,1,2435186,0.9769203644055864,percent_passing,0.9740744,SoilMicrobeDB
+fungprop_3_readdepth_5M_soil_microbe_db,3,5000000,soil_microbe_db,2492717,1,2435186,0.9769203644055864,percent_classified,0.9970868,SoilMicrobeDB
+fungprop_5_readdepth_.1M_gtdb_207,5,100000,gtdb_207,47151,1,45992,0.9754193972556255,percent_passing,0.91984,gtdb_207
+fungprop_5_readdepth_.1M_gtdb_207,5,100000,gtdb_207,47151,1,45992,0.9754193972556255,percent_classified,0.94302,gtdb_207
+fungprop_5_readdepth_.1M_gtdb_207_unfiltered,5,100000,gtdb_207_unfiltered,47132,1,43922,0.9318934057540524,percent_passing,0.87844,GTDB r207
+fungprop_5_readdepth_.1M_gtdb_207_unfiltered,5,100000,gtdb_207_unfiltered,47132,1,43922,0.9318934057540524,percent_classified,0.94264,GTDB r207
+fungprop_5_readdepth_.1M_pluspf,5,100000,pluspf,38087,1,29523,0.775146375403681,percent_passing,0.59046,PlusPF
+fungprop_5_readdepth_.1M_pluspf,5,100000,pluspf,38087,1,29523,0.775146375403681,percent_classified,0.76174,PlusPF
+fungprop_5_readdepth_.1M_soil_microbe_db,5,100000,soil_microbe_db,49871,1,48711,0.976739989172064,percent_passing,0.97422,SoilMicrobeDB
+fungprop_5_readdepth_.1M_soil_microbe_db,5,100000,soil_microbe_db,49871,1,48711,0.976739989172064,percent_classified,0.99742,SoilMicrobeDB
+fungprop_5_readdepth_.5M_gtdb_207,5,500000,gtdb_207,235822,1,229934,0.975032015672838,percent_passing,0.919736,gtdb_207
+fungprop_5_readdepth_.5M_gtdb_207,5,500000,gtdb_207,235822,1,229934,0.975032015672838,percent_classified,0.943288,gtdb_207
+fungprop_5_readdepth_.5M_gtdb_207_unfiltered,5,500000,gtdb_207_unfiltered,235781,1,220084,0.9334255092649535,percent_passing,0.880336,GTDB r207
+fungprop_5_readdepth_.5M_gtdb_207_unfiltered,5,500000,gtdb_207_unfiltered,235781,1,220084,0.9334255092649535,percent_classified,0.943124,GTDB r207
+fungprop_5_readdepth_.5M_soil_microbe_db,5,500000,soil_microbe_db,249388,1,243496,0.9763741639533579,percent_passing,0.973984,SoilMicrobeDB
+fungprop_5_readdepth_.5M_soil_microbe_db,5,500000,soil_microbe_db,249388,1,243496,0.9763741639533579,percent_classified,0.997552,SoilMicrobeDB
+fungprop_5_readdepth_1M_gtdb_207,5,1000000,gtdb_207,471789,1,460255,0.9755526305191515,percent_passing,0.92051,gtdb_207
+fungprop_5_readdepth_1M_gtdb_207,5,1000000,gtdb_207,471789,1,460255,0.9755526305191515,percent_classified,0.943578,gtdb_207
+fungprop_5_readdepth_1M_gtdb_207_unfiltered,5,1000000,gtdb_207_unfiltered,471643,1,440259,0.933458145249691,percent_passing,0.880518,GTDB r207
+fungprop_5_readdepth_1M_gtdb_207_unfiltered,5,1000000,gtdb_207_unfiltered,471643,1,440259,0.933458145249691,percent_classified,0.943286,GTDB r207
+fungprop_5_readdepth_1M_pluspf,5,1000000,pluspf,380852,1,294752,0.7739279300095575,percent_passing,0.589504,PlusPF
+fungprop_5_readdepth_1M_pluspf,5,1000000,pluspf,380852,1,294752,0.7739279300095575,percent_classified,0.761704,PlusPF
+fungprop_5_readdepth_1M_soil_microbe_db,5,1000000,soil_microbe_db,498854,1,487365,0.976969213437198,percent_passing,0.97473,SoilMicrobeDB
+fungprop_5_readdepth_1M_soil_microbe_db,5,1000000,soil_microbe_db,498854,1,487365,0.976969213437198,percent_classified,0.997708,SoilMicrobeDB
+fungprop_5_readdepth_5M_gtdb_207,5,5000000,gtdb_207,2358485,1,2300135,0.9752595416125182,percent_passing,0.920054,gtdb_207
+fungprop_5_readdepth_5M_gtdb_207,5,5000000,gtdb_207,2358485,1,2300135,0.9752595416125182,percent_classified,0.943394,gtdb_207
+fungprop_5_readdepth_5M_gtdb_207_unfiltered,5,5000000,gtdb_207_unfiltered,2357770,1,2200307,0.9332152839335474,percent_passing,0.8801228,GTDB r207
+fungprop_5_readdepth_5M_gtdb_207_unfiltered,5,5000000,gtdb_207_unfiltered,2357770,1,2200307,0.9332152839335474,percent_classified,0.943108,GTDB r207
+fungprop_5_readdepth_5M_pluspf,5,5000000,pluspf,1903060,1,1473202,0.774122728658056,percent_passing,0.5892808,PlusPF
+fungprop_5_readdepth_5M_pluspf,5,5000000,pluspf,1903060,1,1473202,0.774122728658056,percent_classified,0.761224,PlusPF
+fungprop_5_readdepth_5M_soil_microbe_db,5,5000000,soil_microbe_db,2494031,1,2436215,0.9768182512567005,percent_passing,0.974486,SoilMicrobeDB
+fungprop_5_readdepth_5M_soil_microbe_db,5,5000000,soil_microbe_db,2494031,1,2436215,0.9768182512567005,percent_classified,0.9976124,SoilMicrobeDB

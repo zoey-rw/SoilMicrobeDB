@@ -1,0 +1,621 @@
+taxon,trophicMode,guild,confidenceRanking,functional_group,name
+Fusarium,Pathotroph-Saprotroph-Symbiotroph,Animal Pathogen-Endophyte-Lichen Parasite-|Plant Pathogen|-Plant Saprotroph-Undefined Saprotroph-Wood Saprotroph,Possible,Pathogen,fusarium
+Ilyonectria,Pathotroph,|Plant Pathogen|,Probable,Pathogen,ilyonectria
+Dactylonectria,Pathotroph,|Plant Pathogen|,Probable,Pathogen,dactylonectria
+Neonectria,Pathotroph,|Plant Pathogen|,Probable,Pathogen,neonectria
+Thelonectria,Saprotroph,|Plant Saprotroph|,Highly Probable,Other saprotroph,thelonectria
+Trichoderma,Pathotroph-Saprotroph-Symbiotroph,Animal Pathogen-Endophyte-Epiphyte-|Fungal Parasite|-Plant Pathogen-Wood Saprotroph,Probable,Pathogen,trichoderma
+Escovopsis,Pathotroph,|Fungal Parasite|,Probable,NA,escovopsis
+Hypomyces,Pathotroph,|Fungal Parasite|,Highly Probable,NA,hypomyces
+Tolypocladium,Pathotroph-Symbiotroph,|Animal Parasite|-Animal Pathogen-Clavicipitaceous Endophyte-Fungal Parasite,Possible,Pathogen,tolypocladium
+Ophiocordyceps,Pathotroph-Saprotroph-Symbiotroph,Endophyte-|Insect Pathogen|-Undefined Saprotroph,Probable,Pathogen,ophiocordyceps
+Purpureocillium,Pathotroph-Saprotroph,|Animal Parasite|-Fungal Parasite-Undefined Saprotroph,Probable,Other saprotroph,purpureocillium
+Hirsutella,Pathotroph-Saprotroph,|Animal Parasite|-Animal Pathogen-Undefined Saprotroph,Probable,Pathogen,hirsutella
+Drechmeria,Pathotroph-Saprotroph-Symbiotroph,|Animal Parasite|-Endophyte-Undefined Saprotroph,Probable,Endophyte,drechmeria
+Cordyceps,Pathotroph-Symbiotroph,Clavicipitaceous Endophyte-Fungal Parasite-|Insect Pathogen|,Possible,Pathogen,cordyceps
+Beauveria,Pathotroph-Saprotroph-Symbiotroph,|Animal Parasite|-Animal Pathogen-Endophyte-Undefined Saprotroph,Probable,Pathogen,beauveria
+Akanthomyces,Pathotroph-Saprotroph,|Animal Parasite|-Animal Pathogen-Undefined Saprotroph,Probable,Pathogen,akanthomyces
+Metarhizium,Pathotroph-Saprotroph,|Animal Parasite|-Animal Pathogen-Undefined Saprotroph,Probable,Pathogen,metarhizium
+Ustilaginoidea,Pathotroph-Symbiotroph,Clavicipitaceous Endophyte-|Plant Pathogen|,Possible,Pathogen,ustilaginoidea
+Pochonia,Pathotroph-Saprotroph,|Animal Parasite|-Animal Pathogen-Undefined Saprotroph,Probable,Pathogen,pochonia
+Stachybotrys,Pathotroph-Saprotroph,Plant Pathogen-Plant Saprotroph-|Wood Saprotroph|,Highly Probable,Pathogen,stachybotrys
+Clonostachys,Pathotroph-Saprotroph,Fungal Parasite-Plant Pathogen-Plant Saprotroph-|Wood Saprotroph|,Probable,Pathogen,clonostachys
+Hapsidospora,Saprotroph,|Plant Saprotroph|,Probable,Other saprotroph,hapsidospora
+Colletotrichum,Pathotroph-Saprotroph-Symbiotroph,Endophyte-|Plant Pathogen|-Plant Saprotroph,Probable,Pathogen,colletotrichum
+Verticillium,Pathotroph-Saprotroph-Symbiotroph,Endophyte-Fungal Parasite-|Plant Pathogen|-Plant Saprotroph,Probable,Pathogen,verticillium
+Plectosphaerella,Pathotroph-Saprotroph-Symbiotroph,Endophyte-|Plant Pathogen|-Plant Saprotroph,Probable,Pathogen,plectosphaerella
+Sodiomyces,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,sodiomyces
+Scedosporium,Pathotroph-Saprotroph,Animal Parasite-|Undefined Saprotroph|,Probable,Other saprotroph,scedosporium
+Lomentospora,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,lomentospora
+Thielaviopsis,Pathotroph-Saprotroph,|Plant Pathogen|-Wood Saprotroph,Probable,Pathogen,thielaviopsis
+Xylaria,Saprotroph-Symbiotroph,Endophyte-Plant Saprotroph-Undefined Saprotroph-|Wood Saprotroph|,Probable,Endophyte,xylaria
+Nemania,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,nemania
+Biscogniauxia,Pathotroph-Saprotroph-Symbiotroph,Endophyte-Plant Pathogen-Undefined Saprotroph-|Wood Saprotroph|,Probable,Pathogen,biscogniauxia
+Durotheca,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,durotheca
+Rosellinia,Pathotroph-Saprotroph,|Plant Pathogen|-Undefined Saprotroph-Wood Saprotroph,Probable,Pathogen,rosellinia
+Ustulina,Saprotroph,Undefined Saprotroph,Probable,Other saprotroph,ustulina
+Astrocystis,Saprotroph,Plant Saprotroph-Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,astrocystis
+Camillea,Saprotroph-Symbiotroph,Endophyte-Undefined Saprotroph-|Wood Saprotroph|,Probable,Endophyte,camillea
+Whalleya,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,whalleya
+Hypoxylon, Saprotroph-Saprotroph-Symbiotroph,Endophyte-Undefined Saprotroph-|Wood Saprotroph|,Probable,Endophyte,hypoxylon
+Daldinia,Saprotroph-Symbiotroph,Endophyte-Undefined Saprotroph-|Wood Saprotroph|,Probable,Endophyte,daldinia
+Annulohypoxylon,Saprotroph-Symbiotroph,Endophyte-Undefined Saprotroph-|Wood Saprotroph|,Probable,Endophyte,annulohypoxylon
+Hypomontagnella,Saprotroph,|Wood Saprotroph|,Probable,Other saprotroph,hypomontagnella
+Jackrogersella,Saprotroph,|Wood Saprotroph|,Probable,Other saprotroph,jackrogersella
+Microdochium,Pathotroph-Symbiotroph,Endophyte-|Plant Pathogen|,Possible,Pathogen,microdochium
+Pestalotiopsis,Pathotroph,|Plant Pathogen|,Probable,Pathogen,pestalotiopsis
+Eutypa,Pathotroph,|Plant Pathogen|,Probable,Pathogen,eutypa
+Chaetomium,Pathotroph-Saprotroph-Symbiotroph,Animal Pathogen-Dung Saprotroph-Endophyte-Epiphyte-Plant Pathogen-|Plant Saprotroph|-Wood Saprotroph,Possible,Pathogen,chaetomium
+Trichocladium,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,trichocladium
+Staphylotrichum,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,staphylotrichum
+Thermothelomyces,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,thermothelomyces
+Corynascus,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,corynascus
+Chaetomidium,Saprotroph,|Dung Saprotroph|-Undefined Saprotroph,Probable,Other saprotroph,chaetomidium
+Dichotomopilus,Saprotroph,|Undefined Saprotroph|,Possible,Other saprotroph,dichotomopilus
+Lasiosphaeria,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,lasiosphaeria
+Cercophora,Saprotroph,|Dung Saprotroph|,Highly Probable,Other saprotroph,cercophora
+Apodospora,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,apodospora
+Apiosordaria,Saprotroph,|Dung Saprotroph|-Undefined Saprotroph,Highly Probable,Other saprotroph,apiosordaria
+Immersiella,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,immersiella
+Bombardia,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,bombardia
+Podospora,Saprotroph-Symbiotroph,|Dung Saprotroph|-Endophyte-Plant Saprotroph-Undefined Saprotroph,Possible,Endophyte,podospora
+Cladorrhinum,Pathotroph-Saprotroph-Symbiotroph,Animal Pathogen-Dung Saprotroph-Endophyte-Plant Pathogen-Plant Saprotroph-|Undefined Saprotroph|-Wood Saprotroph,Probable,Pathogen,cladorrhinum
+Neurospora,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,neurospora
+Sordaria,Pathotroph-Saprotroph,|Dung Saprotroph|-Plant Pathogen-Wood Saprotroph,Probable,Pathogen,sordaria
+Schizothecium,Saprotroph,|Dung Saprotroph|,Highly Probable,Other saprotroph,schizothecium
+Diplogelasinospora,Saprotroph,Plant Saprotroph-|Undefined Saprotroph|,Probable,Other saprotroph,diplogelasinospora
+Madurella,Pathotroph-Saprotroph,|Animal Parasite|-Animal Pathogen-Undefined Saprotroph,Probable,Pathogen,madurella
+Ophiostoma,Pathotroph-Saprotroph,|Plant Pathogen|-Wood Saprotroph,Probable,Pathogen,ophiostoma
+Sporothrix,Pathotroph-Saprotroph-Symbiotroph,Animal Pathogen-Endophyte-|Plant Pathogen|-Plant Saprotroph-Undefined Saprotroph-Wood Saprotroph,Probable,Pathogen,sporothrix
+Leptographium,Pathotroph-Saprotroph,|Plant Pathogen|-Wood Saprotroph,Probable,Pathogen,leptographium
+Diaporthe,Pathotroph-Saprotroph-Symbiotroph,Endophyte-|Plant Pathogen|-Plant Saprotroph,Possible,Pathogen,diaporthe
+Cryphonectria,Pathotroph-Saprotroph,|Plant Pathogen|-Plant Saprotroph,Highly Probable,Pathogen,cryphonectria
+Valsa, Pathotroph,|Plant Pathogen|,Probable,Pathogen,valsa
+Gaeumannomyces,Pathotroph,|Plant Pathogen|,Probable,Pathogen,gaeumannomyces
+Magnaporthiopsis,Pathotroph,|Undefined Pathogen|,Probable,Pathogen,magnaporthiopsis
+Pyricularia,Pathotroph,|Plant Pathogen|,Probable,Pathogen,pyricularia
+Coniochaeta,Pathotroph-Saprotroph-Symbiotroph,Animal Pathogen-Dung Saprotroph-Endophyte-Lichen Parasite-Plant Pathogen-|Undefined Saprotroph|,Possible,Pathogen,coniochaeta
+Phialemonium,Pathotroph-Saprotroph,|Animal Parasite|-Undefined Saprotroph,Probable,Other saprotroph,phialemonium
+Hyaloscypha,Pathotroph-Saprotroph-Symbiotroph,Ectomycorrhizal-Ericoid Mycorrhizal-Plant Pathogen-|Plant Saprotroph|-Undefined Saprotroph-Wood Saprotroph,Probable,Ectomycorrhizae,hyaloscypha
+Phialocephala,Saprotroph-Symbiotroph,Endophyte-|Undefined Saprotroph|,Highly Probable,Endophyte,phialocephala
+Acephala,Saprotroph-Symbiotroph,Ectomycorrhizal-Endophyte-|Undefined Saprotroph|,Possible,Ectomycorrhizae,acephala
+Mollisia,Pathotroph-Saprotroph-Symbiotroph,Endophyte-|Plant Pathogen|-Plant Saprotroph,Probable,Pathogen,mollisia
+Halenospora,Saprotroph,Plant Saprotroph-Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,halenospora
+Cadophora,Pathotroph-Saprotroph-Symbiotroph,Ectomycorrhizal-Endophyte-Plant Pathogen-|Plant Saprotroph|,Highly Probable,Ectomycorrhizae,cadophora
+Amylocarpus,Pathotroph-Saprotroph,Plant Pathogen-|Wood Saprotroph|,Probable,Pathogen,amylocarpus
+Rhexocercosporidium,Pathotroph-Saprotroph,|Plant Pathogen|-Plant Saprotroph,Probable,Pathogen,rhexocercosporidium
+Sclerotinia,Pathotroph-Saprotroph,|Plant Pathogen|-Plant Saprotroph,Probable,Pathogen,sclerotinia
+Botrytis,Pathotroph-Saprotroph,|Plant Pathogen|-Plant Saprotroph,Probable,Pathogen,botrytis
+Leptodontidium,Saprotroph-Symbiotroph,Endophyte-Ericoid Mycorrhizal-|Plant Saprotroph|,Highly Probable,Endophyte,leptodontidium
+Rhynchosporium,Pathotroph,|Plant Pathogen|,Probable,Pathogen,rhynchosporium
+Drepanopeziza,Pathotroph,|Plant Pathogen|,Probable,Pathogen,drepanopeziza
+Calycina,Saprotroph-Symbiotroph,Endophyte-Undefined Saprotroph-|Wood Saprotroph|,Probable,Endophyte,calycina
+Amorphotheca,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,amorphotheca
+Ascocoryne,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,ascocoryne
+Pseudogymnoascus,Pathotroph-Saprotroph-Symbiotroph,Animal Pathogen-|Undefined Saprotroph|,Possible,Pathogen,pseudogymnoascus
+Oidiodendron,Pathotroph-Saprotroph-Symbiotroph,Endophyte-Ericoid Mycorrhizal-|Undefined Saprotroph|,Probable,Endophyte,oidiodendron
+Blumeria, Pathotroph,|Plant Pathogen|,Probable,Pathogen,blumeria
+Erysiphe,Pathotroph,|Plant Pathogen|,Probable,Pathogen,erysiphe
+Golovinomyces,Pathotroph,|Plant Pathogen|,Probable,Pathogen,golovinomyces
+Bipolaris,Pathotroph-Saprotroph,|Plant Pathogen|-Plant Saprotroph,Probable,Pathogen,bipolaris
+Alternaria,Pathotroph-Saprotroph-Symbiotroph,Animal Pathogen-Endophyte-|Plant Pathogen|-Plant Saprotroph-Wood Saprotroph,Possible,Pathogen,alternaria
+Pyrenophora,Pathotroph-Saprotroph,|Plant Pathogen|-Wood Saprotroph,Probable,Pathogen,pyrenophora
+Stemphylium,Pathotroph-Saprotroph,|Plant Pathogen|-Plant Saprotroph-Wood Saprotroph,Highly Probable,Pathogen,stemphylium
+Exserohilum,Pathotroph-Saprotroph,|Plant Pathogen|-Wood Saprotroph,Probable,Pathogen,exserohilum
+Didymella,Pathotroph-Saprotroph,Animal Pathogen-|Plant Pathogen|-Plant Saprotroph-Undefined Saprotroph,Probable,Pathogen,didymella
+Boeremia,Pathotroph-Symbiotroph,Endophyte-|Plant Pathogen|,Possible,Pathogen,boeremia
+Ascochyta,Pathotroph,Lichen Parasite-|Plant Pathogen|,Probable,Pathogen,ascochyta
+Ophiobolus,Saprotroph,|Plant Saprotroph|-Undefined Saprotroph-Wood Saprotroph,Probable,Other saprotroph,ophiobolus
+Paraphoma,Pathotroph-Saprotroph,|Plant Pathogen|-Plant Saprotroph-Undefined Saprotroph-Wood Saprotroph,Probable,Pathogen,paraphoma
+Plenodomus,Pathotroph-Saprotroph,|Plant Pathogen|-Plant Saprotroph-Undefined Saprotroph,Probable,Pathogen,plenodomus
+Ampelomyces,Pathotroph-Saprotroph-Symbiotroph,Endophyte-Fungal Parasite-|Plant Pathogen|-Plant Saprotroph-Undefined Saprotroph,Probable,Pathogen,ampelomyces
+Bimuria,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,bimuria
+Karstenula,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,karstenula
+Paraphaeosphaeria,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,paraphaeosphaeria
+Byssothecium,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,byssothecium
+Stagonospora,Pathotroph,|Plant Pathogen|,Probable,Pathogen,stagonospora
+Massarina,Pathotroph-Saprotroph,|Plant Pathogen|-Undefined Saprotroph,Probable,Pathogen,massarina
+Periconia,Pathotroph-Saprotroph-Symbiotroph,Endophyte-|Plant Pathogen|-Wood Saprotroph,Possible,Pathogen,periconia
+Lentithecium,Saprotroph,|Wood Saprotroph|,Probable,Other saprotroph,lentithecium
+Trematosphaeria,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,trematosphaeria
+Clavariopsis,Pathotroph-Saprotroph,Plant Pathogen-|Wood Saprotroph|,Probable,Pathogen,clavariopsis
+Aaosphaeria,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,aaosphaeria
+Lindgomyces,Saprotroph,|Wood Saprotroph|,Probable,Other saprotroph,lindgomyces
+Clohesyomyces,Saprotroph,|Wood Saprotroph|,Probable,Other saprotroph,clohesyomyces
+Westerdykella,Saprotroph,|Dung Saprotroph|-Undefined Saprotroph,Probable,Other saprotroph,westerdykella
+Corynespora,Pathotroph-Saprotroph-Symbiotroph,Endophyte-Lichen Parasite-|Plant Pathogen|-Undefined Saprotroph,Probable,Pathogen,corynespora
+Pleomassaria,Saprotroph,Plant Saprotroph-Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,pleomassaria
+Polyplosphaeria,Saprotroph,|Plant Saprotroph|-Undefined Saprotroph,Probable,Other saprotroph,polyplosphaeria
+Melanomma,Saprotroph-Symbiotroph,Lichenized-|Wood Saprotroph|,Highly Probable,Other saprotroph,melanomma
+Cenococcum,Symbiotroph,|Ectomycorrhizal|,Highly Probable,Ectomycorrhizae,cenococcum
+Venturia, Pathotroph-Pathotroph-Saprotroph,|Plant Pathogen|-Plant Saprotroph,Probable,Pathogen,venturia
+Verruconis,Pathotroph-Saprotroph,|Animal Parasite|-Undefined Saprotroph,Probable,Other saprotroph,verruconis
+Lophium,Saprotroph,|Plant Saprotroph|-Undefined Saprotroph,Probable,Other saprotroph,lophium
+Lepidopterella,Pathotroph-Saprotroph,Plant Pathogen-Undefined Saprotroph-|Wood Saprotroph|,Probable,Pathogen,lepidopterella
+Rhizodiscina,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,rhizodiscina
+Hysterium, Saprotroph-Pathotroph-Saprotroph,Plant Pathogen-Undefined Saprotroph-|Wood Saprotroph|,Probable,Pathogen,hysterium
+Zymoseptoria,Pathotroph-Saprotroph,|Plant Pathogen|-Plant Saprotroph,Probable,Pathogen,zymoseptoria
+Pseudocercospora,Pathotroph,|Plant Pathogen|,Probable,Pathogen,pseudocercospora
+Sphaerulina,Pathotroph-Saprotroph-Symbiotroph,Lichenized-Plant Pathogen-|Plant Saprotroph|,Highly Probable,Pathogen,sphaerulina
+Cercospora,Pathotroph,|Plant Pathogen|,Probable,Pathogen,cercospora
+Friedmanniomyces,Saprotroph,|Plant Saprotroph|,Probable,Other saprotroph,friedmanniomyces
+Hortaea,Pathotroph,|Animal Parasite|-Plant Pathogen,Probable,Pathogen,hortaea
+Dissoconium,Pathotroph-Saprotroph,Plant Pathogen-|Plant Saprotroph|-Undefined Saprotroph,Probable,Pathogen,dissoconium
+Aureobasidium,Pathotroph-Saprotroph-Symbiotroph,Animal Pathogen-Endophyte-Epiphyte-|Plant Pathogen|-Plant Saprotroph-Undefined Saprotroph,Possible,Pathogen,aureobasidium
+Cladosporium,Pathotroph-Saprotroph-Symbiotroph,Animal Pathogen-Endophyte-Lichen Parasite-Plant Pathogen-|Plant Saprotroph|-Wood Saprotroph,Possible,Pathogen,cladosporium
+Elsinoe,Pathotroph-Saprotroph,|Plant Pathogen|-Plant Saprotroph,Probable,Pathogen,elsinoe
+Neofusicoccum,Pathotroph-Saprotroph-Symbiotroph,Endophyte-|Plant Pathogen|-Plant Saprotroph,Probable,Pathogen,neofusicoccum
+Diplodia,Pathotroph-Saprotroph-Symbiotroph,Epiphyte-|Plant Pathogen|-Plant Saprotroph-Wood Saprotroph,Possible,Pathogen,diplodia
+Macrophomina,Pathotroph-Saprotroph-Symbiotroph,Endophyte-|Plant Pathogen|-Plant Saprotroph,Probable,Pathogen,macrophomina
+Botryosphaeria,Pathotroph-Saprotroph-Symbiotroph,Endophyte-|Plant Pathogen|-Plant Saprotroph,Probable,Pathogen,botryosphaeria
+Phyllosticta,Pathotroph-Saprotroph-Symbiotroph,Endophyte-Lichen Parasite-|Plant Pathogen|-Plant Saprotroph-Wood Saprotroph,Highly Probable,Pathogen,phyllosticta
+Aplosporella,Pathotroph-Saprotroph-Symbiotroph,Endophyte-|Plant Pathogen|-Plant Saprotroph,Probable,Pathogen,aplosporella
+Zopfia,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,zopfia
+Lineolata,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,lineolata
+Trichodelitschia,Saprotroph,|Dung Saprotroph|-Undefined Saprotroph,Probable,Other saprotroph,trichodelitschia
+Eremomyces,Saprotroph,Dung Saprotroph-|Undefined Saprotroph|,Probable,Other saprotroph,eremomyces
+Viridothelium,Saprotroph-Symbiotroph,|Lichenized|-Wood Saprotroph,Probable,Other saprotroph,viridothelium
+Aspergillus, Pathotroph-Saprotroph-Symbiotroph,Animal Pathogen-Endophyte-Plant Saprotroph-|Undefined Saprotroph|-Wood Saprotroph,Probable,Pathogen,aspergillus
+Penicillium,Pathotroph-Saprotroph-Symbiotroph,Animal Parasite-Dung Saprotroph-Endophyte-Fungal Parasite-Plant Pathogen-|Undefined Saprotroph|-Wood Saprotroph,Highly Probable,Pathogen,penicillium
+Penicilliopsis,Saprotroph,|Plant Saprotroph|-Undefined Saprotroph,Probable,Other saprotroph,penicilliopsis
+Elaphomyces,Symbiotroph,|Ectomycorrhizal|,Highly Probable,Ectomycorrhizae,elaphomyces
+Talaromyces,Pathotroph-Saprotroph,Animal Parasite-|Undefined Saprotroph|,Probable,Other saprotroph,talaromyces
+Paecilomyces,Pathotroph-Saprotroph-Symbiotroph,Clavicipitaceous |Endophyte|-Plant Pathogen-Plant Saprotroph-Undefined Saprotroph-Wood Saprotroph,Probable,Pathogen,paecilomyces
+Blastomyces,Pathotroph-Saprotroph,|Animal Parasite|-Animal Pathogen-Undefined Saprotroph,Highly Probable,Pathogen,blastomyces
+Emergomyces,Pathotroph-Saprotroph,Animal Parasite-|Undefined Saprotroph|,Probable,Other saprotroph,emergomyces
+Trichophyton,Pathotroph-Saprotroph,|Animal Parasite|-Undefined Saprotroph,Probable,Other saprotroph,trichophyton
+Paracoccidioides,Pathotroph-Saprotroph,|Animal Parasite|-Undefined Saprotroph,Probable,Other saprotroph,paracoccidioides
+Coccidioides,Pathotroph-Saprotroph,Animal Parasite-Animal Pathogen-|Undefined Saprotroph|,Highly Probable,Pathogen,coccidioides
+Exophiala,Pathotroph-Saprotroph-Symbiotroph,|Animal Parasite|-Animal Pathogen-Endophyte-Plant Saprotroph-Undefined Saprotroph,Probable,Pathogen,exophiala
+Fonsecaea,Pathotroph-Saprotroph,Animal Pathogen-Plant Saprotroph-|Undefined Saprotroph|,Probable,Pathogen,fonsecaea
+Cladophialophora,Pathotroph-Saprotroph-Symbiotroph,Animal Pathogen-Endophyte-Fungal Parasite-|Undefined Saprotroph|,Probable,Pathogen,cladophialophora
+Phialophora,Pathotroph-Saprotroph-Symbiotroph,Animal Pathogen-Endophyte-Ericoid Mycorrhizal-Plant Pathogen-|Plant Saprotroph|-Wood Saprotroph,Possible,Pathogen,phialophora
+Capronia,Pathotroph-Saprotroph-Symbiotroph,Animal Pathogen-Endophyte-Fungal Parasite-|Undefined Saprotroph|,Highly Probable,Pathogen,capronia
+Endocarpon,Symbiotroph,|Lichenized|,Highly Probable,NA,endocarpon
+Lasallia,Symbiotroph,|Lichenized|,Highly Probable,NA,lasallia
+Acarospora,Symbiotroph,|Lichenized|,Highly Probable,NA,acarospora
+Tuber, Symbiotroph,|Ectomycorrhizal|,Highly Probable,Ectomycorrhizae,tuber
+Choiromyces,Symbiotroph,|Ectomycorrhizal|,Highly Probable,Ectomycorrhizae,choiromyces
+Tricharina,Saprotroph-Symbiotroph,Endophyte-|Undefined Saprotroph|,Probable,Endophyte,tricharina
+Pyronema,Saprotroph-Symbiotroph,Endophyte-Plant Saprotroph-|Undefined Saprotroph|,Probable,Endophyte,pyronema
+Trichophaea,Saprotroph-Symbiotroph,Dung Saprotroph-|Ectomycorrhizal|-Undefined Saprotroph,Probable,Ectomycorrhizae,trichophaea
+Wilcoxina,Symbiotroph,|Ectomycorrhizal|,Highly Probable,Ectomycorrhizae,wilcoxina
+Sphaerosporella,Symbiotroph,|Ectomycorrhizal|,Highly Probable,Ectomycorrhizae,sphaerosporella
+Geopyxis,Saprotroph-Symbiotroph,Ectomycorrhizal-Plant Saprotroph-|Undefined Saprotroph|,Possible,Ectomycorrhizae,geopyxis
+Terfezia,Symbiotroph,|Ectomycorrhizal|,Highly Probable,Ectomycorrhizae,terfezia
+Kalaharituber,Saprotroph-Symbiotroph,Ectomycorrhizal-|Undefined Saprotroph|,Possible,Ectomycorrhizae,kalaharituber
+Peziza,Saprotroph-Symbiotroph,Dung Saprotroph-Ectomycorrhizal-Endophyte-Plant Saprotroph-|Undefined Saprotroph|,Possible,Ectomycorrhizae,peziza
+Morchella,Saprotroph-Symbiotroph,Ectomycorrhizal-|Undefined Saprotroph|-Wood Saprotroph,Probable,Ectomycorrhizae,morchella
+Ascobolus,Saprotroph,Dung Saprotroph-|Plant Saprotroph|-Wood Saprotroph,Probable,Other saprotroph,ascobolus
+Lachancea,Pathotroph-Saprotroph,Animal Parasite-Animal Pathogen-|Undefined Saprotroph|,Possible,Pathogen,lachancea
+Candida,Pathotroph-Saprotroph-Symbiotroph,Animal Pathogen-Endophyte-Endosymbiont-Epiphyte-|Undefined Saprotroph|,Probable,Pathogen,candida
+Metschnikowia,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,metschnikowia
+Lipomyces,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,lipomyces
+Saitoella,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,saitoella
+Russula,Symbiotroph,|Ectomycorrhizal|,Highly Probable,Ectomycorrhizae,russula
+Lactarius,Symbiotroph,|Ectomycorrhizal|,Highly Probable,Ectomycorrhizae,lactarius
+Lactifluus,Symbiotroph,|Ectomycorrhizal|,Highly Probable,Ectomycorrhizae,lactifluus
+Auriscalpium,Pathotroph-Saprotroph,Plant Pathogen-|Plant Saprotroph|-Wood Saprotroph,Probable,Pathogen,auriscalpium
+Peniophora,Pathotroph-Saprotroph,Plant Pathogen-|Wood Saprotroph|,Probable,Pathogen,peniophora
+Amylostereum,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,amylostereum
+Gloeopeniophorella,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,gloeopeniophorella
+Vararia, Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,vararia
+Heterobasidion,Pathotroph-Saprotroph,|Plant Pathogen|-Wood Saprotroph,Highly Probable,Pathogen,heterobasidion
+Trametes,Pathotroph-Saprotroph,Plant Pathogen-|Wood Saprotroph|,Highly Probable,Pathogen,trametes
+Ganoderma,Pathotroph-Saprotroph,|Plant Pathogen|-Wood Saprotroph,Highly Probable,Pathogen,ganoderma
+Polyporus,Pathotroph-Saprotroph,Plant Pathogen-|Wood Saprotroph|,Highly Probable,Pathogen,polyporus
+Cerioporus,Saprotroph,|Wood Saprotroph|,Probable,Other saprotroph,cerioporus
+Dichomitus,Saprotroph,|Wood Saprotroph|,Highly Probable,Other saprotroph,dichomitus
+Lentinus,Saprotroph,|Wood Saprotroph|,Probable,Other saprotroph,lentinus
+Pilatotrama,Saprotroph,|Wood Saprotroph|,Probable,Other saprotroph,pilatotrama
+Lenzites,Saprotroph,|Wood Saprotroph|,Highly Probable,Other saprotroph,lenzites
+Fomes,Pathotroph-Saprotroph,Plant Pathogen-|Wood Saprotroph|,Highly Probable,Pathogen,fomes
+Earliella,Saprotroph,|Wood Saprotroph|,Highly Probable,Other saprotroph,earliella
+Fomitopsis,Pathotroph-Saprotroph,Plant Pathogen-|Wood Saprotroph|,Highly Probable,Pathogen,fomitopsis
+Neoantrodia,Saprotroph,|Wood Saprotroph|,Probable,Other saprotroph,neoantrodia
+Rhodofomes,Saprotroph,|Wood Saprotroph|,Probable,Other saprotroph,rhodofomes
+Phanerodontia,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,phanerodontia
+Bjerkandera,Pathotroph-Saprotroph-Symbiotroph,Endophyte-Plant Pathogen-|Wood Saprotroph|,Highly Probable,Pathogen,bjerkandera
+Wolfiporia,Saprotroph,|Wood Saprotroph|,Highly Probable,Other saprotroph,wolfiporia
+Phlebia,Saprotroph,|Wood Saprotroph|,Highly Probable,Other saprotroph,phlebia
+Epithele,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,epithele
+Irpex,Saprotroph,|Wood Saprotroph|,Highly Probable,Other saprotroph,irpex
+Obba,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,obba
+Postia,Saprotroph,|Wood Saprotroph|,Highly Probable,Other saprotroph,postia
+Rhizoctonia,Pathotroph-Saprotroph-Symbiotroph,Ectomycorrhizal-Orchid Mycorrhizal-|Plant Pathogen|-Plant Saprotroph-Wood Saprotroph,Probable,Ectomycorrhizae,rhizoctonia
+Thanatephorus,Pathotroph-Saprotroph,|Plant Pathogen|-Plant Saprotroph,Probable,Pathogen,thanatephorus
+Ceratobasidium,Pathotroph-Saprotroph-Symbiotroph,Ectomycorrhizal-Endomycorrhizal-Orchid Mycorrhizal-|Plant Pathogen|-Plant Saprotroph-Undefined Saprotroph,Possible,Ectomycorrhizae,ceratobasidium
+Hydnum,Symbiotroph,|Ectomycorrhizal|,Highly Probable,Ectomycorrhizae,hydnum
+Clavulina,Symbiotroph,|Ectomycorrhizal|,Highly Probable,Ectomycorrhizae,clavulina
+Tulasnella,Saprotroph-Symbiotroph,Ectomycorrhizal-|Plant Saprotroph|-Undefined Saprotroph,Possible,Ectomycorrhizae,tulasnella
+Botryobasidium, Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,botryobasidium
+Auricularia,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,auricularia
+Exidia,Saprotroph-Symbiotroph,Endophyte-Plant Saprotroph-Undefined Saprotroph-|Wood Saprotroph|,Probable,Endophyte,exidia
+Oliveonia,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,oliveonia
+Phellopilus,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,phellopilus
+Rickenella,Pathotroph,Bryophyte Parasite-|Plant Pathogen|,Probable,Pathogen,rickenella
+Thelephora, Symbiotroph,|Ectomycorrhizal|,Highly Probable,Ectomycorrhizae,thelephora
+Serendipita,Saprotroph-Symbiotroph,Ectomycorrhizal-|Endophyte|-Ericoid Mycorrhizal-Orchid Mycorrhizal-Undefined Saprotroph,Highly Probable,Ectomycorrhizae,serendipita
+Psilocybe, Saprotroph,|Plant Saprotroph|-Undefined Saprotroph,Probable,Other saprotroph,psilocybe
+Pholiota,Pathotroph-Saprotroph,Plant Pathogen-Plant Saprotroph-Undefined Saprotroph-|Wood Saprotroph|,Probable,Pathogen,pholiota
+Hypholoma,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,hypholoma
+Agrocybe,Saprotroph,Dung Saprotroph-|Undefined Saprotroph|,Probable,Other saprotroph,agrocybe
+Galerina,Pathotroph-Saprotroph,Bryophyte Parasite-Plant Pathogen-Plant Saprotroph-Undefined Saprotroph-|Wood Saprotroph|,Probable,Pathogen,galerina
+Flammula,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,flammula
+Coprinopsis, Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,coprinopsis
+Coprinellus,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,coprinellus
+Coprinus,Pathotroph-Saprotroph,|Dung Saprotroph|-Plant Pathogen-Plant Saprotroph,Highly Probable,Pathogen,coprinus
+Agaricus, Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,agaricus
+Leucoagaricus,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,leucoagaricus
+Hebeloma,Symbiotroph,|Ectomycorrhizal|,Highly Probable,Ectomycorrhizae,hebeloma
+Gymnopilus,Saprotroph,Plant Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,gymnopilus
+Phlegmacium,Symbiotroph,Ectomycorrhizal,Probable,Ectomycorrhizae,phlegmacium
+Laccaria,Symbiotroph,|Ectomycorrhizal|,Highly Probable,Ectomycorrhizae,laccaria
+Cyathus,Saprotroph,|Plant Saprotroph|-Undefined Saprotroph,Probable,Other saprotroph,cyathus
+Panaeolus,Saprotroph,|Dung Saprotroph|,Probable,Other saprotroph,panaeolus
+Armillaria,Pathotroph-Saprotroph,Plant Pathogen-|Plant Saprotroph|-Undefined Saprotroph-Wood Saprotroph,Probable,Pathogen,armillaria
+Hymenopellis,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,hymenopellis
+Lentinula,Saprotroph,|Wood Saprotroph|,Probable,Other saprotroph,lentinula
+Gymnopus,Saprotroph,|Plant Saprotroph|,Probable,Other saprotroph,gymnopus
+Mycena,Pathotroph-Saprotroph,Plant Pathogen-|Plant Saprotroph|-Undefined Saprotroph-Wood Saprotroph,Probable,Pathogen,mycena
+Schizophyllum,Saprotroph,Plant Saprotroph-|Wood Saprotroph|,Highly Probable,Other saprotroph,schizophyllum
+Auriculariopsis,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,auriculariopsis
+Fistulina,Pathotroph-Saprotroph,|Plant Pathogen|-Wood Saprotroph,Highly Probable,Pathogen,fistulina
+Tricholoma,Pathotroph-Symbiotroph,|Ectomycorrhizal|-Fungal Parasite,Highly Probable,Ectomycorrhizae,tricholoma
+Amanita,Saprotroph-Symbiotroph,|Ectomycorrhizal|-Undefined Saprotroph,Probable,Ectomycorrhizae,amanita
+Volvariella,Saprotroph,|Plant Saprotroph|-Undefined Saprotroph-Wood Saprotroph,Highly Probable,Other saprotroph,volvariella
+Pluteus,Pathotroph-Saprotroph,Bryophyte Parasite-|Plant Saprotroph|-Wood Saprotroph,Probable,Other saprotroph,pluteus
+Pleurotus,Pathotroph-Saprotroph,Endophyte-Nematophagous-Plant Pathogen-|Wood Saprotroph|,Probable,Pathogen,pleurotus
+Dendrothele,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,dendrothele
+Suillus,Symbiotroph,|Ectomycorrhizal|,Highly Probable,Ectomycorrhizae,suillus
+Rhizopogon,Symbiotroph,|Ectomycorrhizal|,Highly Probable,Ectomycorrhizae,rhizopogon
+Imleria,Symbiotroph,|Ectomycorrhizal|,Probable,Ectomycorrhizae,imleria
+Boletus,Pathotroph-Symbiotroph,|Ectomycorrhizal|-Fungal Parasite,Highly Probable,Ectomycorrhizae,boletus
+Lanmaoa,Symbiotroph,|Ectomycorrhizal|,Probable,Ectomycorrhizae,lanmaoa
+Pisolithus,Symbiotroph,|Ectomycorrhizal|,Highly Probable,Ectomycorrhizae,pisolithus
+Coniophora,Saprotroph,|Wood Saprotroph|,Probable,Other saprotroph,coniophora
+Serpula,Saprotroph,|Wood Saprotroph|,Probable,Other saprotroph,serpula
+Paxillus,Symbiotroph,|Ectomycorrhizal|,Highly Probable,Ectomycorrhizae,paxillus
+Melanogaster,Symbiotroph,|Ectomycorrhizal|,Highly Probable,Ectomycorrhizae,melanogaster
+Piloderma,Symbiotroph,|Ectomycorrhizal|,Highly Probable,Ectomycorrhizae,piloderma
+Fibularhizoctonia,Saprotroph,Undefined Saprotroph,Probable,Other saprotroph,fibularhizoctonia
+Gautieria,Symbiotroph,|Ectomycorrhizal|,Highly Probable,Ectomycorrhizae,gautieria
+Hysterangium,Symbiotroph,|Ectomycorrhizal|,Highly Probable,Ectomycorrhizae,hysterangium
+Sphaerobolus,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,sphaerobolus
+Solicoccozyma,Saprotroph-Symbiotroph,Epiphyte-|Undefined Saprotroph|,Probable,Other saprotroph,solicoccozyma
+Cryptococcus,Pathotroph-Saprotroph-Symbiotroph,Animal Pathogen-Endophyte-Epiphyte-|Undefined Saprotroph|,Possible,Pathogen,cryptococcus
+Dioszegia,Saprotroph,|Plant Saprotroph|-Undefined Saprotroph,Probable,Other saprotroph,dioszegia
+Tremella, Pathotroph,|Fungal Parasite|-Lichen Parasite,Probable,NA,tremella
+Trichosporon,Pathotroph-Saprotroph,|Animal Parasite|-Animal Pathogen-Undefined Saprotroph,Probable,Pathogen,trichosporon
+Cutaneotrichosporon,Pathotroph-Saprotroph,|Animal Parasite|-Animal Pathogen-Undefined Saprotroph,Possible,Pathogen,cutaneotrichosporon
+Calocera,Saprotroph,|Wood Saprotroph|,Probable,Other saprotroph,calocera
+Phakopsora,Pathotroph,|Plant Pathogen|,Probable,Pathogen,phakopsora
+Puccinia, Pathotroph,|Plant Pathogen|,Highly Probable,Pathogen,puccinia
+Melampsora,Pathotroph,|Plant Pathogen|,Probable,Pathogen,melampsora
+Cronartium,Pathotroph,|Plant Pathogen|,Highly Probable,Pathogen,cronartium
+Rhodotorula,Pathotroph-Saprotroph-Symbiotroph,Animal Pathogen-Animal Symbiotroph-Endophyte-Plant Pathogen-|Undefined Saprotroph|,Probable,Pathogen,rhodotorula
+Microbotryum,Pathotroph,|Plant Pathogen|,Probable,Pathogen,microbotryum
+Pseudozyma,Pathotroph-Symbiotroph,Endophyte-|Epiphyte|-Fungal Parasite,Probable,Endophyte,pseudozyma
+Ustilago,Pathotroph,|Plant Pathogen|,Probable,Pathogen,ustilago
+Moesziomyces,Pathotroph,|Plant Pathogen|,Probable,Pathogen,moesziomyces
+Sporisorium,Pathotroph,|Plant Pathogen|,Probable,Pathogen,sporisorium
+Violaceomyces,Saprotroph-Symbiotroph,|Epiphyte|-Plant Saprotroph,Probable,Other saprotroph,violaceomyces
+Tilletiopsis,Pathotroph-Saprotroph,Endophyte-Fungal Parasite-|Plant Pathogen|-Plant Saprotroph-Undefined Saprotroph,Probable,Pathogen,tilletiopsis
+Acaromyces,Pathotroph,|Animal Parasite|-Animal Pathogen-Plant Pathogen,Highly Probable,Pathogen,acaromyces
+Jaminaea,Pathotroph-Symbiotroph,|Epiphyte|-Plant Pathogen,Probable,Pathogen,jaminaea
+Tilletia,Pathotroph,|Plant Pathogen|,Probable,Pathogen,tilletia
+Ceraceosorus,Pathotroph-Symbiotroph,Epiphyte-|Plant Pathogen|,Probable,Pathogen,ceraceosorus
+Malassezia,Pathotroph-Saprotroph,Animal Pathogen-|Undefined Saprotroph|,Probable,Pathogen,malassezia
+Mortierella,Saprotroph-Symbiotroph,Endophyte-Plant Saprotroph-|Undefined Saprotroph|,Probable,Endophyte,mortierella
+Dissophora,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,dissophora
+Haplosporangium,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,haplosporangium
+Lobosporangium,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,lobosporangium
+Modicella,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,modicella
+Gamsiella,Saprotroph,Dung Saprotroph-|Undefined Saprotroph|,Probable,Other saprotroph,gamsiella
+Rhizophagus,Symbiotroph,|Arbuscular Mycorrhizal|-Endophyte,Highly Probable,Arbuscular mycorrhizae,rhizophagus
+Glomus,Symbiotroph,|Arbuscular Mycorrhizal|-Endophyte,Highly Probable,Arbuscular mycorrhizae,glomus
+Oehlia,Symbiotroph,|Arbuscular Mycorrhizal|-Endophyte,Probable,Arbuscular mycorrhizae,oehlia
+Gigaspora,Symbiotroph,|Arbuscular Mycorrhizal|-Endophyte,Highly Probable,Arbuscular mycorrhizae,gigaspora
+Geosiphon,Symbiotroph,Arbuscular Mycorrhizal-Endophyte-|Lichenized|,Highly Probable,Arbuscular mycorrhizae,geosiphon
+Mucor, Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,mucor
+Cunninghamella,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,cunninghamella
+Hesseltinella,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,hesseltinella
+Absidia,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,absidia
+Halteromyces,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,halteromyces
+Chlamydoabsidia,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,chlamydoabsidia
+Gongronella,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,gongronella
+Circinella,Saprotroph,Dung Saprotroph-|Undefined Saprotroph|,Probable,Other saprotroph,circinella
+Phascolomyces, Saprotroph,Dung Saprotroph-|Undefined Saprotroph|,Probable,Other saprotroph,phascolomyces
+Lichtheimia,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,lichtheimia
+Zychaea,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,zychaea
+Spinellus,Pathotroph,|Fungal Parasite|,Highly Probable,NA,spinellus
+Jimgerdemannia,Symbiotroph,|Ectomycorrhizal|,Probable,Ectomycorrhizae,jimgerdemannia
+Endogone,Saprotroph-Symbiotroph,Ectomycorrhizal-Endophyte-|Undefined Saprotroph|,Probable,Ectomycorrhizae,endogone
+Umbelopsis,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,umbelopsis
+Neocallimastix,Saprotroph-Symbiotroph,|Animal Symbiotroph|-Plant Saprotroph,Highly Probable,Other saprotroph,neocallimastix
+Pecoramyces,Saprotroph-Symbiotroph,|Animal Symbiotroph|-Plant Saprotroph,Probable,Other saprotroph,pecoramyces
+Caecomyces,Saprotroph-Symbiotroph,|Animal Symbiotroph|-Plant Saprotroph,Probable,Other saprotroph,caecomyces
+Piromyces,Saprotroph-Symbiotroph,|Animal Symbiotroph|-Plant Saprotroph,Probable,Other saprotroph,piromyces
+Anaeromyces,Saprotroph-Symbiotroph,|Animal Symbiotroph|-Plant Saprotroph,Probable,Other saprotroph,anaeromyces
+Zopfochytrium,Saprotroph,Algal Saprotroph-|Plant Saprotroph|,Probable,Other saprotroph,zopfochytrium
+Chytriomyces,Pathotroph-Saprotroph,Algal Parasite-Fungal Parasite-Plant Saprotroph-|Undefined Saprotroph|,Probable,Other saprotroph,chytriomyces
+Entophlyctis,Pathotroph-Saprotroph,Algal Parasite-|Plant Saprotroph|-Undefined Saprotroph,Probable,Other saprotroph,entophlyctis
+Caulochytrium,Pathotroph,|Fungal Parasite|,Probable,NA,caulochytrium
+Blyttiomyces,Pathotroph-Saprotroph,|Algal Parasite|-Plant Pathogen-Pollen Saprotroph,Probable,Pathogen,blyttiomyces
+Polychytrium,Pathotroph-Saprotroph,Plant Pathogen-Undefined Saprotroph,Probable,Pathogen,polychytrium
+Hyaloraphidium,Saprotroph,Algal Saprotroph-|Plant Saprotroph|-Undefined Saprotroph,Probable,Other saprotroph,hyaloraphidium
+Gonapodya,Saprotroph,|Plant Saprotroph|,Probable,Other saprotroph,gonapodya
+Smittium,Symbiotroph,|Animal Symbiotroph|,Probable,NA,smittium
+Coemansia,Saprotroph,Dung Saprotroph-|Undefined Saprotroph|,Probable,Other saprotroph,coemansia
+Linderina,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,linderina
+Martensiomyces,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,martensiomyces
+Dimargaris,Pathotroph-Saprotroph,Dung Saprotroph-|Fungal Parasite|,Probable,Other saprotroph,dimargaris
+Zoophthora,Pathotroph-Saprotroph,|Animal Parasite|-Animal Pathogen-Undefined Saprotroph,Probable,Pathogen,zoophthora
+Syncephalis,Pathotroph,|Fungal Parasite|,Probable,NA,syncephalis
+Allomyces,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,allomyces
+Edhazardia,Pathotroph,|Animal Parasite|,Probable,NA,edhazardia
+Olpidium,Pathotroph,|Algal Parasite|-Plant Pathogen,Probable,Pathogen,olpidium
+Pythium, Pathotroph-Pathotroph-Saprotroph,|Plant Pathogen|-Undefined Saprotroph,Probable,Pathogen,pythium
+Moelleriella,Pathotroph-Saprotroph,|Animal Parasite|-Animal Pathogen-Undefined Saprotroph,Probable,Pathogen,moelleriella
+Emericellopsis,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,emericellopsis
+Poronia,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,poronia
+Rostrohypoxylon,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,rostrohypoxylon
+Truncatella,Pathotroph,|Plant Pathogen|,Probable,Pathogen,truncatella
+Pseudomassariella,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,pseudomassariella
+Achaetomium,Saprotroph-Symbiotroph,Endophyte-|Undefined Saprotroph|,Probable,Endophyte,achaetomium
+Canariomyces,Pathotroph-Saprotroph,Plant Pathogen-Plant Saprotroph-|Undefined Saprotroph|,Probable,Pathogen,canariomyces
+Lasiosphaeris,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,lasiosphaeris
+Gelasinospora,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,gelasinospora
+Copromyces,Saprotroph,|Dung Saprotroph|-Undefined Saprotroph,Probable,Other saprotroph,copromyces
+Echria,Saprotroph,|Dung Saprotroph|-Wood Saprotroph,Possible,Other saprotroph,echria
+Glarea,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,glarea
+Thermomyces,Pathotroph-Saprotroph-Symbiotroph,Endophyte-Plant Pathogen-Plant Saprotroph-|Undefined Saprotroph|,Possible,Pathogen,thermomyces
+Emmonsia,Pathotroph-Saprotroph,Animal Parasite-|Undefined Saprotroph|,Probable,Other saprotroph,emmonsia
+Histoplasma,Pathotroph-Saprotroph,|Animal Parasite|-Undefined Saprotroph,Probable,Other saprotroph,histoplasma
+Polytolypa,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,polytolypa
+Uncinocarpus,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,uncinocarpus
+Ascosphaera,Pathotroph-Saprotroph,|Animal Parasite|-Animal Pathogen-Undefined Saprotroph,Probable,Pathogen,ascosphaera
+Rhinocladiella,Pathotroph-Saprotroph-Symbiotroph,Animal Parasite-Endophyte-|Undefined Saprotroph|-Wood Saprotroph,Probable,Endophyte,rhinocladiella
+Cyphellophora,Pathotroph-Saprotroph,Animal Parasite-Animal Pathogen-|Plant Saprotroph|-Undefined Saprotroph,Probable,Pathogen,cyphellophora
+Decorospora,Pathotroph-Saprotroph,Plant Pathogen-Plant Saprotroph-|Wood Saprotroph|,Probable,Pathogen,decorospora
+Curvularia,Pathotroph-Saprotroph,|Plant Pathogen|-Plant Saprotroph,Probable,Pathogen,curvularia
+Parastagonospora,Pathotroph-Saprotroph,|Plant Pathogen|-Plant Saprotroph,Probable,Pathogen,parastagonospora
+Phaeosphaeria,Pathotroph-Saprotroph-Symbiotroph,Endophyte-Plant Pathogen-|Plant Saprotroph|,Probable,Pathogen,phaeosphaeria
+Setomelanomma,Pathotroph-Saprotroph,|Plant Pathogen|-Wood Saprotroph,Probable,Pathogen,setomelanomma
+Pyrenochaeta,Pathotroph-Saprotroph,Plant Pathogen-Undefined Saprotroph-|Wood Saprotroph|,Highly Probable,Pathogen,pyrenochaeta
+Cucurbitaria,Pathotroph-Saprotroph,|Plant Pathogen|-Plant Saprotroph-Wood Saprotroph,Probable,Pathogen,cucurbitaria
+Pseudopyrenochaeta,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,pseudopyrenochaeta
+Didymosphaeria,Pathotroph-Saprotroph-Symbiotroph,Endophyte-Fungal Parasite-Lichen Parasite-|Plant Pathogen|-Plant Saprotroph-Undefined Saprotroph,Probable,Pathogen,didymosphaeria
+Massariosphaeria,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,massariosphaeria
+Sporormia,Saprotroph,|Dung Saprotroph|,Highly Probable,Other saprotroph,sporormia
+Lophiotrema,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,lophiotrema
+Dendryphion,Pathotroph-Saprotroph-Symbiotroph,Endophyte-|Plant Pathogen|-Plant Saprotroph,Probable,Pathogen,dendryphion
+Clathrospora,Pathotroph-Saprotroph,|Plant Pathogen|-Wood Saprotroph,Probable,Pathogen,clathrospora
+Amniculicola,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,amniculicola
+Lophiostoma,Saprotroph,Plant Saprotroph-Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,lophiostoma
+Dothidotthia,Pathotroph-Saprotroph-Symbiotroph,Endophyte-|Plant Pathogen|-Wood Saprotroph,Probable,Pathogen,dothidotthia
+Tothia,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,tothia
+Mytilinidion,Pathotroph-Saprotroph,Plant Pathogen-Undefined Saprotroph-|Wood Saprotroph|,Probable,Pathogen,mytilinidion
+Glonium, Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,glonium
+Aulographum,Saprotroph,|Plant Saprotroph|-Undefined Saprotroph,Probable,Other saprotroph,aulographum
+Rhytidhysteron,Pathotroph-Saprotroph,Plant Pathogen-Undefined Saprotroph-|Wood Saprotroph|,Probable,Pathogen,rhytidhysteron
+Saccharata,Pathotroph-Saprotroph-Symbiotroph,Endophyte-|Plant Pathogen|-Plant Saprotroph,Probable,Pathogen,saccharata
+Cryomyces,Saprotroph,|Undefined Saprotroph|,Possible,Other saprotroph,cryomyces
+Coniosporium,Pathotroph-Saprotroph,Animal Parasite-Animal Pathogen-|Plant Pathogen|-Undefined Saprotroph,Possible,Pathogen,coniosporium
+Lizonia,Pathotroph-Saprotroph,|Plant Pathogen|-Plant Saprotroph,Probable,Pathogen,lizonia
+Pseudovirgaria,Pathotroph,|Fungal Parasite|,Probable,NA,pseudovirgaria
+Zasmidium,Pathotroph-Saprotroph,|Plant Pathogen|-Plant Saprotroph-Undefined Saprotroph,Probable,Pathogen,zasmidium
+Baudoinia,Saprotroph,|Undefined Saprotroph|,Highly Probable,Other saprotroph,baudoinia
+Teratosphaeria,Pathotroph-Saprotroph,|Plant Pathogen|-Plant Saprotroph-Wood Saprotroph,Probable,Pathogen,teratosphaeria
+Myriangium,Pathotroph-Saprotroph,|Animal Parasite|-Animal Pathogen-Undefined Saprotroph,Probable,Pathogen,myriangium
+Polychaeton,Pathotroph-Saprotroph,|Plant Pathogen|-Plant Saprotroph-Undefined Saprotroph,Probable,Pathogen,polychaeton
+Graphis,Symbiotroph,|Lichenized|,Highly Probable,NA,graphis
+Dibaeis,Symbiotroph,|Lichenized|,Highly Probable,NA,dibaeis
+Cladonia,Symbiotroph,|Lichenized|,Highly Probable,NA,cladonia
+Xylona,Saprotroph-Symbiotroph,|Endophyte|-Plant Saprotroph,Probable,Endophyte,xylona
+Tirmania,Symbiotroph,|Ectomycorrhizal|,Highly Probable,Ectomycorrhizae,tirmania
+Ascodesmis,Saprotroph,|Dung Saprotroph|-Undefined Saprotroph,Probable,Other saprotroph,ascodesmis
+Orbilia,Pathotroph-Saprotroph,Animal Parasite-|Wood Saprotroph|,Probable,Other saprotroph,orbilia
+Drechslerella,Pathotroph-Saprotroph,|Animal Parasite|-Nematophagous-Wood Saprotroph,Probable,Other saprotroph,drechslerella
+Dactylellina,Pathotroph-Saprotroph,|Animal Parasite|-Undefined Saprotroph-Wood Saprotroph,Probable,Other saprotroph,dactylellina
+Lodderomyces,Pathotroph-Saprotroph,|Animal Parasite|-Undefined Saprotroph,Probable,Other saprotroph,lodderomyces
+Tetrapisispora,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,tetrapisispora
+Saccharomyces,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,saccharomyces
+Nakaseomyces,Pathotroph-Saprotroph,Animal Parasite-|Undefined Saprotroph|,Probable,Other saprotroph,nakaseomyces
+Eremothecium,Pathotroph-Saprotroph,|Plant Pathogen|-Plant Saprotroph,Probable,Pathogen,eremothecium
+Naumovozyma,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,naumovozyma
+Ogataea,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,ogataea
+Pichia,Pathotroph-Saprotroph-Symbiotroph,Animal Parasite-Animal Pathogen-Animal Symbiotroph-Plant Pathogen-|Undefined Saprotroph|,Probable,Pathogen,pichia
+Pachysolen,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,pachysolen
+Ascoidea,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,ascoidea
+Hanseniaspora,Pathotroph-Saprotroph,Animal Parasite-|Undefined Saprotroph|,Probable,Other saprotroph,hanseniaspora
+Yarrowia,Saprotroph,|Undefined Saprotroph|,Highly Probable,Other saprotroph,yarrowia
+Pneumocystis,Pathotroph-Saprotroph,|Animal Parasite|-Animal Pathogen-Undefined Saprotroph,Highly Probable,Pathogen,pneumocystis
+Schizosaccharomyces,Saprotroph,|Undefined Saprotroph|,Highly Probable,Other saprotroph,schizosaccharomyces
+Scleroderma,Symbiotroph,|Ectomycorrhizal|,Highly Probable,Ectomycorrhizae,scleroderma
+Leucogyrophana,Pathotroph-Saprotroph,Lichen Parasite-|Wood Saprotroph|,Probable,Other saprotroph,leucogyrophana
+Crassisporium,Saprotroph,Plant Saprotroph-|Undefined Saprotroph|,Probable,Other saprotroph,crassisporium
+Cylindrobasidium,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Possible,Other saprotroph,cylindrobasidium
+Guyanagaster,Pathotroph-Saprotroph,Plant Pathogen-|Wood Saprotroph|,Probable,Pathogen,guyanagaster
+Mucidula,Pathotroph-Saprotroph,Plant Pathogen-Undefined Saprotroph-|Wood Saprotroph|,Probable,Pathogen,mucidula
+Rhodocollybia,Saprotroph,|Plant Saprotroph|-Undefined Saprotroph,Probable,Other saprotroph,rhodocollybia
+Moniliophthora,Pathotroph-Saprotroph,|Plant Pathogen|-Plant Saprotroph-Undefined Saprotroph,Possible,Pathogen,moniliophthora
+Marasmius,Pathotroph-Saprotroph-Symbiotroph,Endophyte-Plant Pathogen-|Plant Saprotroph|-Undefined Saprotroph,Probable,Pathogen,marasmius
+Lyophyllum,Saprotroph-Symbiotroph,|Ectomycorrhizal|-Undefined Saprotroph,Possible,Ectomycorrhizae,lyophyllum
+Termitomyces,Saprotroph,|Plant Saprotroph|-Undefined Saprotroph,Probable,Other saprotroph,termitomyces
+Infundibulicybe,Saprotroph,|Plant Saprotroph|-Undefined Saprotroph,Probable,Other saprotroph,infundibulicybe
+Lepista,Saprotroph,|Plant Saprotroph|-Undefined Saprotroph,Probable,Other saprotroph,lepista
+Jaapia, Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,jaapia
+Daedaleopsis,Pathotroph-Saprotroph,Plant Pathogen-|Wood Saprotroph|,Highly Probable,Pathogen,daedaleopsis
+Daedalea,Saprotroph,|Wood Saprotroph|,Highly Probable,Other saprotroph,daedalea
+Phlebiopsis,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,phlebiopsis
+Phanerochaete,Saprotroph,|Wood Saprotroph|,Highly Probable,Other saprotroph,phanerochaete
+Amylocystis,Saprotroph,|Wood Saprotroph|,Highly Probable,Other saprotroph,amylocystis
+Gelatoporia,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,gelatoporia
+Fibroporia,Saprotroph,|Wood Saprotroph|,Probable,Other saprotroph,fibroporia
+Panus,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,panus
+Laetiporus,Pathotroph-Saprotroph,|Plant Pathogen|-Wood Saprotroph,Highly Probable,Pathogen,laetiporus
+Multifurca,Symbiotroph,|Ectomycorrhizal|,Highly Probable,Ectomycorrhizae,multifurca
+Stereum,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,stereum
+Dentipellis,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,dentipellis
+Cantharellus,Symbiotroph,|Ectomycorrhizal|,Highly Probable,Ectomycorrhizae,cantharellus
+Schizopora,Pathotroph-Saprotroph,Plant Pathogen-|Wood Saprotroph|,Highly Probable,Pathogen,schizopora
+Neolentinus,Saprotroph,|Wood Saprotroph|,Probable,Other saprotroph,neolentinus
+Gloeophyllum,Saprotroph,|Wood Saprotroph|,Highly Probable,Other saprotroph,gloeophyllum
+Punctularia,Pathotroph-Saprotroph,Plant Pathogen-Undefined Saprotroph-|Wood Saprotroph|,Probable,Pathogen,punctularia
+Ramaria,Saprotroph-Symbiotroph,|Ectomycorrhizal|-Plant Saprotroph,Possible,Ectomycorrhizae,ramaria
+Naganishia,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,naganishia
+Mrakia,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,mrakia
+Dacryopinax,Saprotroph,|Wood Saprotroph|,Probable,Other saprotroph,dacryopinax
+Leucosporidium,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,leucosporidium
+Kalmanozyma,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,kalmanozyma
+Testicularia,Pathotroph,|Plant Pathogen|,Probable,Pathogen,testicularia
+Tilletiaria,Pathotroph-Saprotroph,Plant Pathogen-|Wood Saprotroph|,Probable,Pathogen,tilletiaria
+Pilaira,Saprotroph,Dung Saprotroph-|Undefined Saprotroph|,Highly Probable,Other saprotroph,pilaira
+Cokeromyces,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,cokeromyces
+Helicostylum,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,helicostylum
+Benjaminiella,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,benjaminiella
+Parasitella,Pathotroph-Saprotroph,|Fungal Parasite|-Undefined Saprotroph,Probable,Other saprotroph,parasitella
+Choanephora,Pathotroph-Saprotroph,Plant Pathogen-|Plant Saprotroph|-Undefined Saprotroph,Probable,Pathogen,choanephora
+Blakeslea,Pathotroph-Saprotroph,Plant Pathogen-|Undefined Saprotroph|,Probable,Pathogen,blakeslea
+Gilbertella,Pathotroph-Saprotroph,|Plant Pathogen|-Plant Saprotroph-Undefined Saprotroph,Probable,Pathogen,gilbertella
+Rhizopus,Pathotroph-Saprotroph,Plant Pathogen-|Undefined Saprotroph|,Probable,Pathogen,rhizopus
+Sporodiniella,Pathotroph-Saprotroph,Arthropod Parasite-|Undefined Saprotroph|,Probable,Other saprotroph,sporodiniella
+Backusella,Saprotroph,Dung Saprotroph-|Undefined Saprotroph|,Probable,Other saprotroph,backusella
+Pilobolus,Saprotroph,|Dung Saprotroph|,Highly Probable,Other saprotroph,pilobolus
+Mycotypha,Saprotroph,Dung Saprotroph-|Undefined Saprotroph|,Probable,Other saprotroph,mycotypha
+Dichotomocladium,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,dichotomocladium
+Fennellomyces,Saprotroph,Dung Saprotroph-|Undefined Saprotroph|,Probable,Other saprotroph,fennellomyces
+Phycomyces,Saprotroph,|Dung Saprotroph|-Undefined Saprotroph,Probable,Other saprotroph,phycomyces
+Saksenaea,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,saksenaea
+Syncephalastrum,Pathotroph-Saprotroph,Animal Parasite-|Undefined Saprotroph|,Probable,Other saprotroph,syncephalastrum
+Radiomyces,Saprotroph,Dung Saprotroph-|Undefined Saprotroph|,Probable,Other saprotroph,radiomyces
+Chytridium,Pathotroph-Symbiotroph,|Algal Parasite|-Algal Symbiotroph-Plant Pathogen,Probable,Pathogen,chytridium
+Obelidium,Pathotroph-Saprotroph,Plant Pathogen-Undefined Saprotroph,Probable,Pathogen,obelidium
+Rhizoclosmatium,Pathotroph-Saprotroph,Plant Pathogen-|Plant Saprotroph|-Undefined Saprotroph,Probable,Pathogen,rhizoclosmatium
+Geranomyces,Saprotroph,|Pollen Saprotroph|-Undefined Saprotroph,Probable,Other saprotroph,geranomyces
+Fimicolochytrium,Pathotroph-Saprotroph,Algal Parasite-Plant Pathogen-|Pollen Saprotroph|,Probable,Pathogen,fimicolochytrium
+Powellomyces,Pathotroph-Saprotroph,Algal Parasite-Plant Pathogen-|Pollen Saprotroph|,Probable,Pathogen,powellomyces
+Homolaphlyctis,Saprotroph,|Plant Saprotroph|,Probable,Other saprotroph,homolaphlyctis
+Conidiobolus,Pathotroph-Saprotroph,|Animal Parasite|-Animal Pathogen-Undefined Saprotroph,Probable,Pathogen,conidiobolus
+Neoconidiobolus,Pathotroph-Saprotroph,|Animal Parasite|-Undefined Saprotroph,Probable,Other saprotroph,neoconidiobolus
+Basidiobolus,Pathotroph-Saprotroph-Symbiotroph,Animal Pathogen-Animal Symbiotroph-|Undefined Saprotroph|,Probable,Pathogen,basidiobolus
+Zancudomyces,Symbiotroph,|Animal Symbiotroph|,Probable,NA,zancudomyces
+Kickxella,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,kickxella
+Ramicandelaber,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,ramicandelaber
+Piptocephalis,Pathotroph,|Fungal Parasite|,Probable,NA,piptocephalis
+Thamnocephalis,Pathotroph,Animal Pathogen-|Fungal Parasite|,Probable,Pathogen,thamnocephalis
+Vairimorpha,Pathotroph,|Animal Parasite|,Probable,NA,vairimorpha
+Blastocladiella,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,blastocladiella
+Catenaria,Pathotroph-Saprotroph,|Animal Parasite|-Undefined Saprotroph,Probable,Other saprotroph,catenaria
+Parauncinula,Pathotroph,|Plant Pathogen|,Probable,Pathogen,parauncinula
+Claviceps,Pathotroph,|Plant Pathogen|,Probable,Pathogen,claviceps
+Phaeoacremonium,Pathotroph,|Plant Pathogen|,Probable,Pathogen,phaeoacremonium
+Macroventuria,Saprotroph,|Plant Saprotroph|,Probable,Other saprotroph,macroventuria
+Delitschia,Saprotroph-Symbiotroph,Dung Saprotroph-Endophyte-|Plant Saprotroph|-Undefined Saprotroph,Probable,Endophyte,delitschia
+Microthyrium,Saprotroph-Symbiotroph,|Epiphyte|-Plant Saprotroph-Undefined Saprotroph,Probable,Other saprotroph,microthyrium
+Patellaria, Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,patellaria
+Dothistroma,Pathotroph,|Plant Pathogen|,Probable,Pathogen,dothistroma
+Fulvia,Pathotroph,|Plant Pathogen|,Probable,Pathogen,fulvia
+Acidomyces, Pathotroph-Pathotroph-Saprotroph-Symbiotroph,Endophyte-Plant Pathogen-|Undefined Saprotroph|-Unknown Saprotroph-Wood Saprotroph,Possible,Pathogen,acidomyces
+Neohortaea,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,neohortaea
+Delphinella,Pathotroph-Saprotroph,Plant Pathogen-|Wood Saprotroph|,Probable,Pathogen,delphinella
+Rachicladosporium,Saprotroph,|Plant Saprotroph|,Probable,Other saprotroph,rachicladosporium
+Nannizzia,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,nannizzia
+Microsporum,Pathotroph-Saprotroph,|Animal Parasite|-Animal Pathogen-Undefined Saprotroph,Probable,Pathogen,microsporum
+Phaeomoniella,Pathotroph,|Plant Pathogen|,Highly Probable,Pathogen,phaeomoniella
+Trametopsis,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,trametopsis
+Abortiporus,Pathotroph-Saprotroph,Plant Pathogen-|Wood Saprotroph|,Highly Probable,Pathogen,abortiporus
+Artomyces,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,artomyces
+Pyrrhoderma,Pathotroph-Saprotroph,Plant Pathogen-|Wood Saprotroph|,Probable,Pathogen,pyrrhoderma
+Fomitiporia,Pathotroph-Saprotroph,|Plant Pathogen|-Wood Saprotroph,Probable,Pathogen,fomitiporia
+Sistotremastrum,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,sistotremastrum
+Desarmillaria,Pathotroph-Saprotroph,Bryophyte Parasite-|Plant Pathogen|-Wood Saprotroph,Probable,Pathogen,desarmillaria
+Macrolepiota,Saprotroph,|Plant Saprotroph|-Undefined Saprotroph,Probable,Other saprotroph,macrolepiota
+Crepidotus,Saprotroph,|Wood Saprotroph|,Highly Probable,Other saprotroph,crepidotus
+Hypsizygus,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,hypsizygus
+Hygrophoropsis,Saprotroph,|Plant Saprotroph|-Wood Saprotroph,Probable,Other saprotroph,hygrophoropsis
+Chiua,Symbiotroph,|Ectomycorrhizal|,Probable,Ectomycorrhizae,chiua
+Hydnomerulius,Saprotroph,|Wood Saprotroph|,Probable,Other saprotroph,hydnomerulius
+Plicaturopsis,Saprotroph,|Wood Saprotroph|,Probable,Other saprotroph,plicaturopsis
+Filobasidium,Saprotroph,|Undefined Saprotroph|,Highly Probable,Other saprotroph,filobasidium
+Thamnidium, Saprotroph,Dung Saprotroph-|Undefined Saprotroph|,Probable,Other saprotroph,thamnidium
+Globomyces,Saprotroph,|Pollen Saprotroph|,Probable,Other saprotroph,globomyces
+Cladochytrium,Pathotroph-Saprotroph,Algal Saprotroph-Plant Pathogen-|Plant Saprotroph|,Probable,Pathogen,cladochytrium
+Saccharomycopsis,Pathotroph-Saprotroph,Animal Parasite-|Undefined Saprotroph|,Probable,Other saprotroph,saccharomycopsis
+Cytidiella,Saprotroph,Undefined Saprotroph-|Wood Saprotroph|,Probable,Other saprotroph,cytidiella
+Heliocybe,Saprotroph,|Wood Saprotroph|,Probable,Other saprotroph,heliocybe
+Amylomyces,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,amylomyces
+Batrachochytrium,Pathotroph-Saprotroph,|Animal Parasite|-Animal Pathogen-Undefined Saprotroph,Probable,Pathogen,batrachochytrium
+Pinnaticoemansia,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,pinnaticoemansia
+Piedraia,Pathotroph-Saprotroph,|Animal Parasite|-Animal Pathogen-Undefined Saprotroph,Probable,Pathogen,piedraia
+Helicocarpus,Pathotroph-Saprotroph,|Animal Parasite|-Undefined Saprotroph,Probable,Other saprotroph,helicocarpus
+Kluyveromyces,Saprotroph-Symbiotroph,Endophyte-|Undefined Saprotroph|,Probable,Endophyte,kluyveromyces
+Kazachstania,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,kazachstania
+Vanderwaltozyma,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,vanderwaltozyma
+Yamadazyma,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,yamadazyma
+Debaryomyces,Saprotroph,|Undefined Saprotroph|,Highly Probable,Other saprotroph,debaryomyces
+Clavispora,Pathotroph-Saprotroph,Animal Pathogen-|Plant Saprotroph|-Undefined Saprotroph,Probable,Pathogen,clavispora
+Peterozyma,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,peterozyma
+Ambrosiozyma,Pathotroph-Saprotroph,Plant Pathogen-Undefined Saprotroph-|Wood Saprotroph|,Probable,Pathogen,ambrosiozyma
+Nadsonia,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,nadsonia
+Cyberlindnera,Pathotroph-Saprotroph,Animal Parasite-|Undefined Saprotroph|,Probable,Other saprotroph,cyberlindnera
+Blastobotrys,Saprotroph,|Undefined Saprotroph|,Highly Probable,Other saprotroph,blastobotrys
+Hermanssonia,Saprotroph,|Wood Saprotroph|,Probable,Other saprotroph,hermanssonia
+Rigidoporus,Saprotroph,|Wood Saprotroph|,Highly Probable,Other saprotroph,rigidoporus
+Crucibulum,Saprotroph,|Plant Saprotroph|-Undefined Saprotroph,Probable,Other saprotroph,crucibulum
+Omphalotus,Saprotroph,|Wood Saprotroph|,Probable,Other saprotroph,omphalotus
+Pterula, Saprotroph,|Plant Saprotroph|-Undefined Saprotroph-Wood Saprotroph,Probable,Other saprotroph,pterula
+Phlebopus,Saprotroph-Symbiotroph,Animal Associated Biotroph-Root Associate Biotroph,Highly Probable,NA,phlebopus
+Butyriboletus,Symbiotroph,|Ectomycorrhizal|,Probable,Ectomycorrhizae,butyriboletus
+Gyrodon,Symbiotroph,|Ectomycorrhizal|,Highly Probable,Ectomycorrhizae,gyrodon
+Naematelia,Pathotroph,|Fungal Parasite|,Probable,NA,naematelia
+Kockovaella,Saprotroph-Symbiotroph,Endophyte-|Epiphyte|-Undefined Saprotroph,Probable,Endophyte,kockovaella
+Cystobasidium,Pathotroph,|Fungal Parasite|,Highly Probable,NA,cystobasidium
+Mixia,Pathotroph-Saprotroph,|Plant Pathogen|-Undefined Saprotroph,Highly Probable,Pathogen,mixia
+Pseudomicrostroma,Pathotroph-Symbiotroph,Epiphyte-|Plant Pathogen|,Probable,Pathogen,pseudomicrostroma
+Wallemia,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,wallemia
+Bifiguratus,Saprotroph-Symbiotroph,Endophyte-|Undefined Saprotroph|,Probable,Endophyte,bifiguratus
+Phlyctochytrium,Pathotroph-Saprotroph,|Algal Parasite|-Fungal Parasite-Plant Pathogen-Plant Saprotroph-Undefined Saprotroph,Probable,Pathogen,phlyctochytrium
+Gaertneriomyces,Pathotroph-Saprotroph,Algal Parasite-Plant Pathogen-|Pollen Saprotroph|,Probable,Pathogen,gaertneriomyces
+Spizellomyces,Pathotroph-Saprotroph,Plant Pathogen-|Pollen Saprotroph|-Undefined Parasite-Undefined Saprotroph,Probable,Pathogen,spizellomyces
+Paraphysoderma,Pathotroph,|Algal Parasite|-Plant Pathogen,Probable,Pathogen,paraphysoderma
+Enterocytozoon,Pathotroph,|Animal Parasite|,Probable,NA,enterocytozoon
+Rozella,Pathotroph-Symbiotroph,|Fungal Parasite|,Highly Probable,NA,rozella
+Citeromyces,Pathotroph-Saprotroph,Animal Parasite-|Undefined Saprotroph|,Probable,Other saprotroph,citeromyces
+Suhomyces,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,suhomyces
+Hyphopichia,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,hyphopichia
+Babjeviella,Saprotroph,|Undefined Saprotroph|,Highly Probable,Other saprotroph,babjeviella
+Brettanomyces,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,brettanomyces
+Neolecta,Pathotroph-Saprotroph,|Plant Pathogen|-Undefined Saprotroph,Probable,Pathogen,neolecta
+Meira,Pathotroph,|Animal Parasite|-Animal Pathogen-Plant Pathogen,Probable,Pathogen,meira
+Torulaspora,Pathotroph-Saprotroph,Animal Parasite-|Undefined Saprotroph|,Probable,Other saprotroph,torulaspora
+Spathaspora,Saprotroph-Symbiotroph,|Animal Symbiotroph|-Undefined Saprotroph,Probable,Other saprotroph,spathaspora
+Wickerhamomyces,Saprotroph,|Plant Saprotroph|-Undefined Saprotroph,Probable,Other saprotroph,wickerhamomyces
+Taphrina,Pathotroph,|Plant Pathogen|,Probable,Pathogen,taphrina
+Protomyces,Pathotroph,|Plant Pathogen|,Probable,Pathogen,protomyces
+Nosema,Pathotroph,|Insect Pathogen|,Probable,Pathogen,nosema
+Hepatospora,Pathotroph,|Animal Parasite|,Probable,NA,hepatospora
+Spraguea,Pathotroph,|Animal Parasite|,Probable,NA,spraguea
+Meyerozyma,Saprotroph-Symbiotroph,Endophyte-|Epiphyte|-Undefined Saprotroph,Probable,Endophyte,meyerozyma
+Scheffersomyces,Saprotroph-Symbiotroph,|Animal Symbiotroph|-Undefined Saprotroph,Highly Probable,Other saprotroph,scheffersomyces
+Nakazawaea,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,nakazawaea
+Mitosporidium,Pathotroph,|Animal Parasite|,Probable,NA,mitosporidium
+Paramicrosporidium,Pathotroph,|Protist Parasite|,Probable,NA,paramicrosporidium
+Pseudoloma, Pathotroph,|Animal Parasite|,Probable,NA,pseudoloma
+Zygosaccharomyces,Pathotroph-Saprotroph,Plant Pathogen-|Undefined Saprotroph|,Probable,Pathogen,zygosaccharomyces
+Saturnispora,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,saturnispora
+Kuraishia,Saprotroph-Symbiotroph,|Animal Symbiotroph|-Undefined Saprotroph,Probable,Other saprotroph,kuraishia
+Komagataella,Pathotroph-Saprotroph,Plant Pathogen-|Wood Saprotroph|,Probable,Pathogen,komagataella
+Wickerhamiella,Saprotroph,|Undefined Saprotroph|,Probable,Other saprotroph,wickerhamiella
+Tortispora,Pathotroph-Saprotroph,|Plant Pathogen|-Plant Saprotroph,Probable,Pathogen,tortispora
+Gorgonomyces,Saprotroph,|Pollen Saprotroph|,Probable,Other saprotroph,gorgonomyces
+Enterospora,Pathotroph,|Animal Parasite|,Probable,NA,enterospora
+Trachipleistophora,Pathotroph,|Animal Parasite|,Probable,NA,trachipleistophora
+Vavraia,Pathotroph,|Animal Parasite|,Probable,NA,vavraia
+Amphiamblys,Pathotroph,|Protist Parasite|,Probable,NA,amphiamblys
+Nematocida,Pathotroph,|Animal Parasite|,Probable,NA,nematocida
+Antonospora,Pathotroph,|Animal Parasite|,Probable,NA,antonospora
+Ordospora,Pathotroph,|Animal Parasite|,Probable,NA,ordospora
+Vittaforma,Pathotroph,|Animal Parasite|,Probable,NA,vittaforma
+Encephalitozoon,Pathotroph,|Animal Parasite|,Probable,NA,encephalitozoon

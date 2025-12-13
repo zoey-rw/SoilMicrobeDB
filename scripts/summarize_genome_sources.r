@@ -3,9 +3,14 @@
 
 library(tidyverse)
 library(data.table)
-# library(GGally)  # Not needed for final figure generation
-# library(ggpubr)  # Not needed for final figure generation
-# library(ggstatsplot)  # Not needed for final figure generation
+if(!require(GGally, quietly = TRUE)) {
+    install.packages("GGally", repos = "https://cloud.r-project.org")
+    library(GGally)
+} else {
+    library(GGally)
+}
+library(ggpubr)
+library(ggstatsplot)
 library(patchwork)
 
 # Read in Struo2 input file with MAG classification
@@ -45,9 +50,13 @@ no_MAGs = main_df %>% ungroup %>%
     select(source, superkingdom, n) %>% mutate(mag_percent = 0)
 mag_count = rbind.data.frame(mag_count, no_MAGs)
 
-# Exploratory tables (commented out - not needed for final figure)
-# ggtable(main_df, "is_MAG", c("source"), cells = "row.prop") + ggtitle("Row proportions")
-# ggtable(main_df, "is_MAG", c("source"), cells = "observed")
+    
+ggtable(main_df, "is_MAG", c("source"), cells = "row.prop") + ggtitle("Row proportions")
+
+
+ggtable(main_df, "is_MAG", c("source"), cells = "observed")
+
+ 
 
 main_df %>% group_by(source,superkingdom) %>% 
     tally() %>% 
@@ -107,13 +116,14 @@ fig_1a = main_df %>%
 # Kingdom
 
 fig_1d = main_df %>% 
-    ggplot(aes(x= overall, fill=superkingdom)) +
-    geom_bar(color = "black", position=position_fill(), show.legend = F) +
+    ggplot(aes(x= overall, fill=superkingdom,  y = after_stat(prop),
+               group = factor(superkingdom))) +
+    geom_bar(color = "black", position=position_fill(),  stat = "prop", show.legend = F) +
     coord_flip() +
     theme_bw(base_size = 18) +
     xlab("") + 
-    geom_label(aes(label = paste0(round(100 * after_stat(count) / sum(after_stat(count)), 1), "%")), 
-              stat = "count",
+    geom_label(aes(label = paste0(round(100 * after_stat(prop)), "%")), 
+              stat = "prop", 
               position = position_fill(vjust = 0.5),
               fill="white",
               size = 5) + 

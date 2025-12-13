@@ -4,10 +4,12 @@ library(data.table)
 library(ggpmisc)
 library(rstatix)
 library(ggstatsplot)
-library(patchwork)
 
 
 source("scripts/helper_functions.r")
+
+# Note: source.R from comets_shinyapp_example may not be available locally
+# source("/projectnb/talbot-lab-data/zrwerbin/soil_microbe_GEMs/comets_shinyapp_example/source.R")
 
 alaska_sites = c("BONA","DEJU","HEAL","TOOL","BARR")
 taiga_sites = c("BONA","DEJU","HEAL")
@@ -99,45 +101,46 @@ fig6 = ggarrange(fig_6a, fig_6b, common.legend = F, heights = c(1,1), nrow=2,
           labels = c("A","B"))
 
 fig6
-fig6 %>% 
-    ggexport(height = 1000, width = 800, filename = "manuscript_figures/fig6.png")
+# Save figure
+ggsave("manuscript_figures/fig6.png", fig6, width = 8, height = 10, units = "in", dpi = 300)
 
 # Exploratory code below (commented out - not needed for figure generation)
+# Exploratory code below (commented out - requires additional data files)
 # below - old
 
 # positive relationship MAGs ~ latitude 
-a <- ggplot(is_mag_df, aes(y = sum*100, x=decimalLatitude)) +
-    geom_point(aes( color=biome),
-               size=2, alpha=.4, #show.legend = F,
-               position=position_jitter(width = .1, height=0.01)) + 
-    theme_bw(base_size = 18) + 
-    ylab("Relative abundance of MAGs at species-level") + 
-    xlab("Latitude") +
-    guides(color=guide_legend(NULL)) +
-    #stat_compare_means(show.legend = F, method="t.test")  + 
-    scale_y_sqrt() + #ggtitle("Abundances \nassigned from MAGs") +
-stat_smooth(method="lm", show.legend = F) +
-    stat_poly_eq(aes(label = paste(after_stat(rr.label), sep = "~~~")),
-                 formula = y ~ x, parse = TRUE,
-                          show.legend = FALSE, size=7) 
+# a <- ggplot(is_mag_df, aes(y = sum*100, x=decimalLatitude)) +
+#     geom_point(aes( color=biome),
+#                size=2, alpha=.4, #show.legend = F,
+#                position=position_jitter(width = .1, height=0.01)) + 
+#     theme_bw(base_size = 18) + 
+#     ylab("Relative abundance of MAGs at species-level") + 
+#     xlab("Latitude") +
+#     guides(color=guide_legend(NULL)) +
+#     #stat_compare_means(show.legend = F, method="t.test")  + 
+#     scale_y_sqrt() + #ggtitle("Abundances \nassigned from MAGs") +
+# stat_smooth(method="lm", show.legend = F) +
+#     stat_poly_eq(aes(label = paste(after_stat(rr.label), sep = "~~~")),
+#                  formula = y ~ x, parse = TRUE,
+#                           show.legend = FALSE, size=7) 
 
 
 #lineage_df =  split_taxonomy_ncbi(bracken_with_lineage$lineage)
-lineage_df =  lapply(bracken_with_lineage$lineage, 
-                     function(x) {
-                         phyloseq::parse_taxonomy_qiime(x) %>% #as.data.frame() %>% 
-                             t()  %>% as.data.frame()
-                         }) %>% 
-    data.table::rbindlist()
-
-bracken_with_lineage_full = cbind.data.frame(bracken_with_lineage, lineage_df)
-bracken_with_lineage_full$fungi = ifelse(bracken_with_lineage_full$Phylum %in% fungal_phyla, T, F)
-bracken_with_lineage_full$pluspf_fungi = ifelse(bracken_with_lineage_full$fungi==T & bracken_with_lineage_full$novel_fungi==F, T, F)
-
-
-
-fungal_phyla = c("Ascomycota","Basidiomycota","Blastocladiomycota","Chytridiomycota","Cryptomycota","Mucoromycota","Microsporidia","Olpidiomycota","Zoopagomycota")
-
-fungi_count = phylum_output %>% filter(db_name %in% c("PlusPF","PlusPFP8","soil_microbe_db")) %>%
-	group_by(plot_date,db_name, sampleID, seq_depth,sampleID_orig) %>%
-	filter(taxon %in% fungal_phyla) %>% summarize(total_fungi=sum(percentage))
+# lineage_df =  lapply(bracken_with_lineage$lineage, 
+#                      function(x) {
+#                          phyloseq::parse_taxonomy_qiime(x) %>% #as.data.frame() %>% 
+#                              t()  %>% as.data.frame()
+#                          }) %>% 
+#     data.table::rbindlist()
+# 
+# bracken_with_lineage_full = cbind.data.frame(bracken_with_lineage, lineage_df)
+# bracken_with_lineage_full$fungi = ifelse(bracken_with_lineage_full$Phylum %in% fungal_phyla, T, F)
+# bracken_with_lineage_full$pluspf_fungi = ifelse(bracken_with_lineage_full$fungi==T & bracken_with_lineage_full$novel_fungi==F, T, F)
+# 
+# 
+# 
+# fungal_phyla = c("Ascomycota","Basidiomycota","Blastocladiomycota","Chytridiomycota","Cryptomycota","Mucoromycota","Microsporidia","Olpidiomycota","Zoopagomycota")
+# 
+# fungi_count = phylum_output %>% filter(db_name %in% c("PlusPF","PlusPFP8","soil_microbe_db")) %>%
+# 	group_by(plot_date,db_name, sampleID, seq_depth,sampleID_orig) %>%
+# 	filter(taxon %in% fungal_phyla) %>% summarize(total_fungi=sum(percentage))

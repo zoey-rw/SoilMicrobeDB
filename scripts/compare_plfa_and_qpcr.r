@@ -3,7 +3,6 @@ library(tidyverse)
 library(data.table)
 library(broom)
 library(ggpubr)
-library(ggpmisc)
 library(SimplyAgree)
 library(ggstatsplot)
 library(patchwork)
@@ -59,10 +58,9 @@ fig_4ab <- grouped_ggscatterstats(
                             scale_x_log10(),
                             stat_cor(label.y.npc = .97, size=7, p.accuracy = .0001,
                                      position = position_nudge(x = 0, y = .3)),
-                            stat_poly_eq(aes(label = paste(after_stat(rr.label), sep = "~~~")),
-                                         formula = y ~ x, parse = TRUE,
-                                         show.legend = FALSE, size = 7, label.y.npc = .9, 
-                                         position = position_nudge(x = 0, y = .3)),
+                            stat_regline_equation(aes(label = ..rr.label..),
+                                                  show.legend = FALSE, size=7, label.y.npc = .9, 
+                                                  position = position_nudge(x = 0, y = .3)),
                             theme( plot.margin = unit(c(1.5, 1.5, 1.5, 45), "pt"),
                                    axis.title = element_text(face = "bold")))
 ) + plot_annotation(tag_levels ="A")
@@ -175,7 +173,7 @@ a1 = plfa_qpcr_df %>% #filter(f_proportion < .4) %>%
 
 
 b1 = plfa_qpcr_df %>% ggplot(aes(x = genus_fungi_metagenome, 
-                                     y =proportion_fungi3, color=biome)) + 
+                                     y =proportion_fungi, color=biome)) + 
     geom_point(aes(color=biome),
                alpha=.5) +
     stat_smooth(method="lm", se=F) +

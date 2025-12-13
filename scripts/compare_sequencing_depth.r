@@ -6,9 +6,10 @@ library(broom)
 library(ggpubr)
 library(SimplyAgree)
 
+# Note: seq_depth_df$sampleID actually contains compositeSampleIDs (ends with "-COMP")
 seq_depth_df <- readRDS("data/classification/analysis_files/seq_depth_df.rds") %>% 
-    #dplyr::rename(compositeSampleID = sampleID) %>% 
-    select(-c(db_name, identified_reads))
+    select(-c(db_name, identified_reads)) %>%
+    rename(compositeSampleID = sampleID)
 
 
 
@@ -20,7 +21,9 @@ bracken_fb_ratio = bracken_domain_estimates %>%
         fb_ratio = Eukaryota/(Bacteria+Archaea),
         f_proportion = Eukaryota/(Bacteria+Archaea+Eukaryota) ) %>% 
     mutate(plotID = substr(samp_name, 1, 8)) %>% 
-    filter(f_proportion < .8)
+    filter(f_proportion < .8) %>%
+    separate(samp_name, into = c("compositeSampleID", "db_name"), sep = "COMP_", remove = F, extra = "merge") %>%
+    mutate(compositeSampleID = str_remove(samp_name, paste0("_", db_name)))
 bracken_fb_ratio = left_join(bracken_fb_ratio, seq_depth_df) 
 
 
@@ -28,8 +31,8 @@ bracken_fb_ratio = left_join(bracken_fb_ratio, seq_depth_df)
 
 library(ggpmisc)
 
-keep_samples = intersect(bracken_fb_ratio[bracken_fb_ratio$db_name=="pluspf",]$sampleID,
-                         bracken_fb_ratio[bracken_fb_ratio$db_name=="soil_microbe_db",]$sampleID)
+keep_samples = intersect(bracken_fb_ratio[bracken_fb_ratio$db_name=="pluspf",]$compositeSampleID,
+                         bracken_fb_ratio[bracken_fb_ratio$db_name=="soil_microbe_db",]$compositeSampleID)
 
 # Supp figure
 ggplot(bracken_fb_ratio %>% 
@@ -75,7 +78,7 @@ bracken_fb_ratio %>% filter(db_name %in% c("soil_microbe_db","pluspf") &
     	filter(seq_depth > 1000000) %>%
     #	filter(taxon %in% c("Archaea","Bacteria","Eukaryota")) %>% 
     group_by(db_name) %>% 
-    dplyr::summarize( median(Eukaryota)) %>% View
+    dplyr::summarize( median(Eukaryota))
 
 
 

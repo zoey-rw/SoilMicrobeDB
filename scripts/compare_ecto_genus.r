@@ -6,8 +6,10 @@ library(data.table)
 library(ggpubr)
 
 # Sequencing depth 
+# Note: seq_depth_df$sampleID actually contains compositeSampleIDs (ends with "-COMP")
 seq_depth_df <- readRDS("data/classification/analysis_files/seq_depth_df.rds") %>% 
-    select(-c(db_name, identified_reads)) %>% rename("compositeSampleID" = "sampleID")
+    select(-c(db_name, identified_reads)) %>% 
+    rename(compositeSampleID = sampleID)
 
 # Using a few sites where all the samples definitely ran
 # Bracken abundances
@@ -50,3 +52,24 @@ ggplot(ecto  %>%
     stat_compare_means(hide.ns = T, label = "p.signif", #label.y = .1, 
                        label.y.npc = .7, size=7)
 
+
+
+ecto_wide = ecto  %>% 
+    # filter(seq_depth > 1000000) %>% 
+    filter(db_name %in% c("pluspf","soil_microbe_db")) %>% 
+    select(compositeSampleID, fraction_total_reads,db_name, name) %>% 
+               pivot_wider(values_from = fraction_total_reads, names_from=db_name)
+fig_pluspf_vs_smd_fun = ggplot(ecto_wide) +
+    geom_point(aes(x = soil_microbe_db, y = pluspf),
+               size=3, alpha=.4
+               #position=position_dodge(width = 1)
+    ) +
+    geom_smooth(aes(x = soil_microbe_db, y = pluspf), 
+                method = "lm",
+                formula = y ~ x) +
+    geom_abline(slope = 1, intercept=0, color=1, linetype=2, linewidth=1.2) +
+    facet_wrap(~name,ncol=1, scales = "free")  +
+    #facet_grid(rows=vars(taxon), scales = "free")  +
+    theme_bw(base_size = 16) +
+    ylab("PlusPF rel. abundance") +
+    xlab("SoilMicrobeDB rel. abundance") + labs(color = NULL)
