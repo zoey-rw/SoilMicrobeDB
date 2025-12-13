@@ -1,20 +1,14 @@
 library(tidyverse)
 library(data.table)
+source("scripts/helper_functions.r")
 
 other_soilData <- readRDS("/projectnb/dietzelab/zrwerbin/N-cycle/data/NEON_soilCovariates_allsites.rds")
 
 
-soilData <- readRDS("/projectnb/dietzelab/zrwerbin/N-cycle/neon_soil_data_2023.rds")
-soilCores <- soilData$sls_soilCoreCollection
-genomicSamples <- soilData$sls_metagenomicsPooling %>%
-	tidyr::separate(genomicsPooledIDList, into=c("first","second","third"),sep="\\|",fill="right") %>%
-	dplyr::select(genomicsSampleID,first,second,third)
-genSampleExample <- genomicSamples %>%
-	tidyr::pivot_longer(cols=c("first","second","third"),values_to = "sampleID") %>%
-	dplyr::select(sampleID,genomicsSampleID) %>%
-	drop_na()
-soilCores$compositeSampleID = genSampleExample[match(soilCores$sampleID,
-                                                     genSampleExample$sampleID),]$genomicsSampleID
+# Load soilCores using helper function
+if(!exists("soilCores")) {
+    soilCores <- load_soilCores()
+}
 soilCores <- soilCores %>% filter(!is.na(compositeSampleID))
 
 

@@ -396,6 +396,43 @@ assign_biome_presence = function(test_df) {
 	return(df_out)
 }
 
+# Load and prepare soilCores data from NEON soil data RDS file
+# Applies transformations: isForest classification, biome recoding, and compositeSampleID addition
+load_soilCores <- function(neon_soil_file = "data/environmental_data/neon_soil_data_2023.rds") {
+    soilData <- readRDS(neon_soil_file)
+    soilCores <- soilData$sls_soilCoreCollection
+    
+    # Apply transformations from source.R
+    soilCores <- soilCores %>% 
+        mutate(isForest = ifelse(grepl("Forest", nlcdClass), 
+                                 "forest habitat", "non forest habitat")) %>% 
+        mutate(biome = recode(nlcdClass, "mixedForest" = "Forest",
+                             "evergreenForest" = "Forest",
+                             "deciduousForest" = "Forest",
+                             "emergentHerbaceousWetlands" = "Wetlands",
+                             "woodyWetlands" = "Wetlands",
+                             "dwarfScrub" = "Shrubland",
+                             "shrubScrub" = "Shrubland",
+                             "sedgeHerbaceous" = "Herbaceous",
+                             "grasslandHerbaceous" = "Herbaceous",
+                             "pastureHay" = "Agricultural",
+                             "cultivatedCrops" = "Agricultural"))
+    
+    # Add compositeSampleID from genomicSamples
+    if("sls_metagenomicsPooling" %in% names(soilData)) {
+        genomicSamples <- soilData$sls_metagenomicsPooling %>%
+            tidyr::separate(genomicsPooledIDList, into=c("first","second","third"),sep="\\|",fill="right") %>%
+            dplyr::select(genomicsSampleID,first,second,third)
+        genSampleExample <- genomicSamples %>%
+            tidyr::pivot_longer(cols=c("first","second","third"),values_to = "sampleID") %>%
+            dplyr::select(sampleID,genomicsSampleID) %>%
+            drop_na()
+        soilCores$compositeSampleID <- genSampleExample[match(soilCores$sampleID, genSampleExample$sampleID),]$genomicsSampleID
+    }
+    
+    return(soilCores)
+}
+
 # From testing 
 # (commented out example code - kept for reference)
 # Combine abundance and metadata into one dataframe 

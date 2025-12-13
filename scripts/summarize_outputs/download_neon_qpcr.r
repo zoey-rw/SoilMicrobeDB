@@ -134,15 +134,11 @@ ggplot(qpcrData_out %>% filter(siteID %in% c("CPER", "DSNY", "HARV", "OSBS", "ST
 
 
 
-soilData <- readRDS("/projectnb/dietzelab/zrwerbin/N-cycle/neon_soil_data_2023.rds")
-soilCores <- soilData$sls_soilCoreCollection
-genomicSamples <- soilData$sls_metagenomicsPooling %>%
-	tidyr::separate(genomicsPooledIDList, into=c("first","second","third"),sep="\\|",fill="right") %>%
-	dplyr::select(genomicsSampleID,first,second,third)
-genSampleExample <- genomicSamples %>%
-	tidyr::pivot_longer(cols=c("first","second","third"),values_to = "sampleID") %>%
-	dplyr::select(sampleID,genomicsSampleID) %>%
-	drop_na()
+# Load soilCores using helper function
+if(!exists("soilCores")) {
+    source("scripts/helper_functions.r")
+    soilCores <- load_soilCores()
+}
 
 
 qpcrData_out$sampleID = soilCores[match(qpcrData_out$geneticSampleID,

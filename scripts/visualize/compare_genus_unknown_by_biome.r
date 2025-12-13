@@ -57,6 +57,12 @@ pass_filter_genus_long %>% group_by(metric, db_name, siteID) %>% filter(common %
     summarize(mean = mean(value, na.rm=T), median = median(value, na.rm=T))
 
 
+# Load soilCores using helper function
+if(!exists("soilCores")) {
+    source("scripts/helper_functions.r")
+    soilCores <- load_soilCores()
+}
+
 # categories from https://www.mrlc.gov/data/legends/national-land-cover-database-2011-nlcd2011-legend
 soilCore_subset = soilCores %>% select(sampleID = compositeSampleID,plotID,
                                        nlcdClass, horizon, sampleBottomDepth,sampleTopDepth, 

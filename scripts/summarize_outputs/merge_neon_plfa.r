@@ -33,10 +33,11 @@ seq_depth_df <- readRDS("data/classification/analysis_files/seq_depth_df.rds") %
 metagenome = left_join(metagenome, seq_depth_df) %>% 
     filter(seq_depth > 1000000)
 
-# Subset soil data (from NEON data RDS file)
-# Expected file: data/comparison_data/neon/neon_soil_data_2023.rds
-# Or load via: soilData <- readRDS("data/comparison_data/neon/neon_soil_data_2023.rds"); soilCores <- soilData$sls_soilCoreCollection
-if(exists("soilCores")) {
+# Load soilCores using helper function
+if(!exists("soilCores")) {
+    soilCores <- load_soilCores()
+}
+
 soil_master_df = soilCores %>% select(compositeSampleID, siteID,sampleID,
                                       plotID, biomassID,geneticSampleID, biome,
                                       nlcdClass, horizon, sampleBottomDepth,sampleTopDepth, 
@@ -44,14 +45,6 @@ soil_master_df = soilCores %>% select(compositeSampleID, siteID,sampleID,
                                       sampleTiming) %>% 
    # distinct(sampleID, .keep_all = T) %>% 
     filter(!is.na(biomassID))
-} else {
-    warning("⚠️  MISSING FILE: soilCores not found!")
-    warning("   Expected: data/comparison_data/neon/neon_soil_data_2023.rds")
-    warning("   Load with: soilData <- readRDS('data/comparison_data/neon/neon_soil_data_2023.rds'); soilCores <- soilData$sls_soilCoreCollection")
-    warning("   Continuing with minimal structure - some metadata will be missing")
-    # If soilCores is not available, create minimal structure
-    soil_master_df = metagenome %>% select(compositeSampleID) %>% distinct()
-}
 
 # Read in the processed PLFA data 
 plfa_file <- "data/comparison_data/plfa/NEON_microbial_biomass_PLFA.rds"
