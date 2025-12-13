@@ -1,0 +1,2 @@
+/Volumes/HARDDRIVE/SoilMicrobeDB/data/classification/02_bracken_output/WOOD_001-M-20140507-COMP_soil_microbe_db_scores.output
+/Volumes/HARDDRIVE/SoilMicrobeDB/data/classification/02_bracken_output/WOOD_001-M-20140702-COMP_soil_microbe_db_scores.output
