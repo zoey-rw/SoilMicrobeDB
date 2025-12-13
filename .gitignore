@@ -33,6 +33,11 @@ data/classification/analysis_files/soil_microbe_db_genus_fungi_summary.csv
 data/classification/analysis_files/soil_microbe_db_genus_fungi_summary.rds
 data/classification/analysis_files/soil_microbe_db_phyla_fungi_summary.rds
 
+# Large GTDB metadata files (exceed GitHub's 100MB limit)
+data/genome_database/bac120_metadata_r95.tsv
+data/genome_database/bac120_metadata_r214.tsv
+data/genome_database/bac120_metadata_r207.tsv
+
 ./scripts/database_development/genome_downloads/gtdb_207/lineage.txt
 ./scripts/database_development/genome_downloads/gtdb_207/pretty_lineage.txt
 ./scripts/database_development/genome_downloads/jgi_gold/ref_data/GOLDs5levelEcosystemClassificationPaths.xlsx,205870479,1698783192000,283690,644
