@@ -114,3 +114,7 @@ Rplots.pdf
 
 # Design documentation (for development, not version controlled)
 DESIGN_DOC.md
+
+# NEON environmental data files
+data/environmental_data/NEON_DP1.10081.001_16S.rds
+data/environmental_data/NEON_DP1.10081.001_ITS.rds
