@@ -2,7 +2,6 @@
 # After running Kraken, Architeuthis, and Bracken
 # Merge Bracken outputs with "architeuthis merge"
 # Then, lineage info can be added to the merged file with "architeuthis lineage"
-# Note: Cleanup of .b2 files is handled by scripts/run_workflow/05_cleanup_intermediate_files.sh
 
 module load miniconda
 conda activate struo2
@@ -30,9 +29,22 @@ merge_and_add_lineage() {
     
     echo "Processing $DBNAME at $rank level..."
     
+    # Expand glob pattern to find actual files
+    b2_files=$(find ${bracken_dir} -name "${b2_pattern}" -type f 2>/dev/null | sort)
+    
+    if [ -z "$b2_files" ]; then
+        echo "  WARNING: No files found matching pattern ${b2_pattern} in ${bracken_dir}"
+        echo "  Skipping merge for $DBNAME at $rank level"
+        return
+    fi
+    
+    # Count files found
+    file_count=$(echo "$b2_files" | wc -l)
+    echo "  Found $file_count file(s) matching pattern"
+    
     # Merge bracken files
     if [ ! -f "$lineage_file" ]; then
-        architeuthis merge -o $merged_file ${bracken_dir}/${b2_pattern}
+        architeuthis merge -o $merged_file $b2_files
         architeuthis lineage $merged_file --db $DBDIR --data-dir $DB_taxonomy_dir --out $lineage_file
         
         if [ -f "$lineage_file" ]; then
@@ -45,49 +57,56 @@ merge_and_add_lineage() {
     fi
 }
 
-# Process each database at species level
-DBNAME=soil_microbe_db
-DBDIR=/projectnb/frpmars/soil_microbe_db/databases/soil_microbe_db/kraken2
-DB_taxonomy_dir=/projectnb/frpmars/soil_microbe_db/databases/soil_microbe_db/kraken2/taxonomy/
-merge_and_add_lineage $DBNAME $DBDIR $DB_taxonomy_dir "*${DBNAME}_filtered.b2" "species"
+# Define databases and their paths
+declare -A DB_PATHS
+declare -A DB_TAXONOMY_DIRS
 
-DBNAME=gtdb_207
-DBDIR=/projectnb/frpmars/soil_microbe_db/databases/gtdb_207_filtered/kraken2
-DB_taxonomy_dir=/projectnb/frpmars/soil_microbe_db/databases/gtdb_207_filtered/kraken2/taxonomy/
-merge_and_add_lineage $DBNAME $DBDIR $DB_taxonomy_dir "*gtdb_207_filtered.b2" "species"
+# soil_microbe_db
+DB_PATHS[soil_microbe_db]="/projectnb/frpmars/soil_microbe_db/databases/soil_microbe_db/kraken2"
+DB_TAXONOMY_DIRS[soil_microbe_db]="/projectnb/frpmars/soil_microbe_db/databases/soil_microbe_db/kraken2/taxonomy/"
 
-DBNAME=gtdb_207_unfiltered
-DBDIR=/projectnb/microbiome/dgolden/Struo2/custom_dbs/GTDB_release207/kraken2
-DB_taxonomy_dir=/projectnb/microbiome/dgolden/Struo2/custom_dbs/GTDB_release207/taxonomy
-merge_and_add_lineage $DBNAME $DBDIR $DB_taxonomy_dir "*gtdb_207_unfiltered.b2" "species"
+# gtdb_207
+DB_PATHS[gtdb_207]="/projectnb/frpmars/soil_microbe_db/databases/gtdb_207_filtered/kraken2"
+DB_TAXONOMY_DIRS[gtdb_207]="/projectnb/frpmars/soil_microbe_db/databases/gtdb_207_filtered/kraken2/taxonomy/"
 
-DBNAME=pluspf
-DBDIR=/projectnb/frpmars/soil_microbe_db/databases/pluspf
-DB_taxonomy_dir=/projectnb/microbiome/ref_db/NCBI-taxdump
-merge_and_add_lineage $DBNAME $DBDIR $DB_taxonomy_dir "*pluspf_filtered.b2" "species"
+# gtdb_207_unfiltered
+DB_PATHS[gtdb_207_unfiltered]="/projectnb/microbiome/dgolden/Struo2/custom_dbs/GTDB_release207/kraken2"
+DB_TAXONOMY_DIRS[gtdb_207_unfiltered]="/projectnb/microbiome/dgolden/Struo2/custom_dbs/GTDB_release207/taxonomy"
 
-# Process each database at phylum level
-DBNAME=soil_microbe_db
-DBDIR=/projectnb/frpmars/soil_microbe_db/databases/soil_microbe_db/kraken2
-DB_taxonomy_dir=/projectnb/frpmars/soil_microbe_db/databases/soil_microbe_db/kraken2/taxonomy/
-merge_and_add_lineage $DBNAME $DBDIR $DB_taxonomy_dir "*${DBNAME}_phylum_filtered.b2" "phylum"
+# pluspf
+DB_PATHS[pluspf]="/projectnb/frpmars/soil_microbe_db/databases/pluspf"
+DB_TAXONOMY_DIRS[pluspf]="/projectnb/microbiome/ref_db/NCBI-taxdump"
 
-DBNAME=gtdb_207
-DBDIR=/projectnb/frpmars/soil_microbe_db/databases/gtdb_207_filtered/kraken2
-DB_taxonomy_dir=/projectnb/frpmars/soil_microbe_db/databases/gtdb_207_filtered/kraken2/taxonomy/
-merge_and_add_lineage $DBNAME $DBDIR $DB_taxonomy_dir "*gtdb_207_phylum_filtered.b2" "phylum"
+# Define taxonomic ranks to process
+ranks=("species" "genus" "domain" "phylum")
 
-DBNAME=gtdb_207_unfiltered
-DBDIR=/projectnb/microbiome/dgolden/Struo2/custom_dbs/GTDB_release207/kraken2
-DB_taxonomy_dir=/projectnb/microbiome/dgolden/Struo2/custom_dbs/GTDB_release207/taxonomy
-merge_and_add_lineage $DBNAME $DBDIR $DB_taxonomy_dir "*gtdb_207_unfiltered_phylum_filtered.b2" "phylum"
+# Process each database at each taxonomic rank
+for DBNAME in "${!DB_PATHS[@]}"; do
+    DBDIR=${DB_PATHS[$DBNAME]}
+    DB_taxonomy_dir=${DB_TAXONOMY_DIRS[$DBNAME]}
+    
+    for rank in "${ranks[@]}"; do
+        # Determine file pattern based on rank
+        case "$rank" in
+            "species")
+                b2_pattern="*${DBNAME}_filtered.b2"
+                ;;
+            "genus")
+                b2_pattern="*${DBNAME}_genus_filtered.b2"
+                ;;
+            "domain")
+                b2_pattern="*${DBNAME}_domain_filtered.b2"
+                ;;
+            "phylum")
+                b2_pattern="*${DBNAME}_phylum_filtered.b2"
+                ;;
+        esac
+        
+        merge_and_add_lineage "$DBNAME" "$DBDIR" "$DB_taxonomy_dir" "$b2_pattern" "$rank"
+    done
+done
 
-DBNAME=pluspf
-DBDIR=/projectnb/frpmars/soil_microbe_db/databases/pluspf
-DB_taxonomy_dir=/projectnb/microbiome/ref_db/NCBI-taxdump
-merge_and_add_lineage $DBNAME $DBDIR $DB_taxonomy_dir "*pluspf_phylum_filtered.b2" "phylum"
-
-echo "All databases processed at species and phylum levels."
+echo "All databases processed at species, genus, domain, and phylum levels."
 echo ""
 echo "Note: Cleanup of individual .b2 files is handled by scripts/run_workflow/05_cleanup_intermediate_files.sh"
 echo "      This script will delete .b2 files only after verifying merged CSV files exist."

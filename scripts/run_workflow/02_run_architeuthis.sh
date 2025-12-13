@@ -26,10 +26,10 @@ DB_taxonomy_dir=/projectnb/frpmars/soil_microbe_db/databases/soil_microbe_db/kra
 DB_taxo=/projectnb/frpmars/soil_microbe_db/databases/soil_microbe_db/kraken2/taxo.k2d
 
 # Uncomment and modify for other databases:
-# DBNAME=pluspf
-# DBDIR=/projectnb/frpmars/soil_microbe_db/databases/pluspf
-# DB_taxo=/projectnb/frpmars/soil_microbe_db/databases/pluspf/taxo.k2d
-# DB_taxonomy_dir=/projectnb/microbiome/ref_db/NCBI-taxdump
+DBNAME=pluspf
+DBDIR=/projectnb/frpmars/soil_microbe_db/databases/pluspf
+DB_taxo=/projectnb/frpmars/soil_microbe_db/databases/pluspf/taxo.k2d
+DB_taxonomy_dir=/projectnb/microbiome/ref_db/NCBI-taxdump
 #
 # DBNAME=gtdb_207
 # DBDIR=/projectnb/frpmars/soil_microbe_db/databases/gtdb_207_filtered/kraken2
@@ -69,40 +69,84 @@ for samp_file in /projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classif
     BRACKEN_OUTPUT_DOMAIN=${architeuthis_dir_path}/${samp_name}_domain_filtered.b2
     BRACKEN_OUTPUT_PHYLUM=${architeuthis_dir_path}/${samp_name}_phylum_filtered.b2
     
+    # Run architeuthis mapping filter (creates filtered.output)
+    if test -e $ARCHITEUTHIS_FILTERED; then
+        echo "$ARCHITEUTHIS_FILTERED exists; skipping this run."
+    else
+        architeuthis mapping filter $KRAKEN_OUTPUT --db $DBDIR --data-dir $DB_taxonomy_dir --out $ARCHITEUTHIS_FILTERED
+    fi
+    
     # Run architeuthis mapping score
     if test -e $ARCHITEUTHIS_SCORES; then
         echo "$ARCHITEUTHIS_SCORES exists; skipping this run."
     else
-        # Run filter
-        #architeuthis mapping filter $KRAKEN_OUTPUT --db $DBDIR --data-dir $DB_taxonomy_dir --out $ARCHITEUTHIS_FILTERED 
-        #architeuthis mapping summary $KRAKEN_OUTPUT --db $DBDIR --data-dir $DB_taxonomy_dir --out $ARCHITEUTHIS_SUMMARY
         architeuthis mapping score $KRAKEN_OUTPUT --db $DBDIR --data-dir $DB_taxonomy_dir --out $ARCHITEUTHIS_SCORES
     fi
     
     # Convert filtered output to Kraken report format
     if test -e $ARCHITEUTHIS_FILTERED_REPORT; then
-        echo "$ARCHITEUTHIS_FILTERED_REPORT exists; skipping this run."
-    else
-        # Convert back to Kraken output
-        cd /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/misc_scripts/mock_community/kraken2_report/daydream-boost-kraken2-e533c50/src
-        g++ -O3 -std=c++11 mmap_file.cc reports.cc taxonomy.cc kraken2-report.cpp -o kraken2-report
-        ./kraken2-report $DB_taxo $ARCHITEUTHIS_FILTERED $ARCHITEUTHIS_FILTERED_REPORT
-        
-        # Clean up ARCHITEUTHIS_FILTERED after kreport is created (not needed after kreport is created)
-        # ARCHITEUTHIS_SCORES will be processed by 04_reshape_score_reads.r to extract scoring information
-        if test -e $ARCHITEUTHIS_FILTERED_REPORT; then
-            rm -f $ARCHITEUTHIS_FILTERED
+        echo "$ARCHITEUTHIS_FILTERED_REPORT exists; checking validity..."
+        # Remove blank lines from existing file (in case it has them)
+        sed -i '/^$/d' $ARCHITEUTHIS_FILTERED_REPORT
+        # Check if file is still valid after removing blank lines
+        if [ ! -s "$ARCHITEUTHIS_FILTERED_REPORT" ]; then
+            echo "  WARNING: $ARCHITEUTHIS_FILTERED_REPORT is empty after removing blank lines. Will attempt to recreate."
+            rm -f $ARCHITEUTHIS_FILTERED_REPORT
+        fi
+    fi
+    
+    if [ ! -e "$ARCHITEUTHIS_FILTERED_REPORT" ]; then
+        # Check if filtered.output exists and is not empty
+        if [ ! -s "$ARCHITEUTHIS_FILTERED" ]; then
+            echo "  WARNING: $ARCHITEUTHIS_FILTERED is empty or does not exist. Skipping kreport conversion."
+        else
+            # Convert back to Kraken output
+            cd /projectnb/frpmars/soil_microbe_db/scripts/kraken2-master/src
+            g++ -O3 -std=c++11 mmap_file.cc reports.cc taxonomy.cc kraken2-report.cpp -o kraken2-report
+            ./kraken2-report $DB_taxo $ARCHITEUTHIS_FILTERED $ARCHITEUTHIS_FILTERED_REPORT
+            
+            # Validate kreport file was created and is not empty
+            if [ ! -s "$ARCHITEUTHIS_FILTERED_REPORT" ]; then
+                echo "  ERROR: $ARCHITEUTHIS_FILTERED_REPORT is empty or was not created properly."
+            else
+                # Remove leading blank lines and ensure file starts with valid content
+                # Bracken expects first line to start with C or U
+                sed -i '/^$/d' $ARCHITEUTHIS_FILTERED_REPORT
+                # Check if file is still valid after removing blank lines
+                if [ ! -s "$ARCHITEUTHIS_FILTERED_REPORT" ]; then
+                    echo "  ERROR: $ARCHITEUTHIS_FILTERED_REPORT is empty after removing blank lines."
+                else
+                    # Clean up ARCHITEUTHIS_FILTERED after kreport is created (not needed after kreport is created)
+                    # ARCHITEUTHIS_SCORES will be processed by 04_reshape_score_reads.r to extract scoring information
+                    rm -f $ARCHITEUTHIS_FILTERED
+                fi
+            fi
         fi
     fi
     
     # Run Bracken at species, genus, domain, and phylum levels
-    if test -e $BRACKEN_OUTPUT; then
-        echo "$BRACKEN_OUTPUT exists; skipping this run."
+    # Only run if kreport file exists and is valid
+    if [ ! -s "$ARCHITEUTHIS_FILTERED_REPORT" ]; then
+        echo "  WARNING: $ARCHITEUTHIS_FILTERED_REPORT is empty or missing. Skipping Bracken for $samp_name"
     else
-        /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT
-        /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT_GENUS -l G
-        /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT_DOMAIN -l D
-        /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT_PHYLUM -l P
+        # Check if first line of kreport is valid (should NOT start with C or U - that would be .output format)
+        # Valid kreport format starts with percentage (number) or space, not C/U
+        first_char=$(head -n 1 "$ARCHITEUTHIS_FILTERED_REPORT" | cut -c1)
+        if [ -z "$first_char" ]; then
+            echo "  WARNING: $ARCHITEUTHIS_FILTERED_REPORT has empty first line. Skipping Bracken for $samp_name"
+        elif [ "$first_char" = "C" ] || [ "$first_char" = "U" ]; then
+            echo "  WARNING: $ARCHITEUTHIS_FILTERED_REPORT appears to be in .output format (starts with '$first_char'), not .kreport format. Skipping Bracken for $samp_name"
+        else
+            # Valid kreport format - proceed with Bracken
+            if test -e $BRACKEN_OUTPUT; then
+                echo "$BRACKEN_OUTPUT exists; skipping this run."
+            else
+                /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT
+                /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT_GENUS -l G
+                /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT_DOMAIN -l D
+                /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT_PHYLUM -l P
+            fi
+        fi
     fi
 done
 

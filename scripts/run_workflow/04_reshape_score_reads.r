@@ -67,10 +67,10 @@ summarize_filter_scores = function(scores_df, seq_depth_df, max_entropy = .1,
 }
 
 # Set up paths - check both local and HARDDRIVE locations
-filter_reads_dir_local = "data/classification/02_bracken_output"
+filter_reads_dir_local = "data/NEON_metagenome_classification/02_bracken_output"
 filter_reads_dir_harddrive = "/Volumes/HARDDRIVE/SoilMicrobeDB/data/classification/02_bracken_output"
-output_file = "data/classification/analysis_files/filter_results_summary.csv"
-processed_log_file = "data/classification/analysis_files/filter_results_processed_files.txt"
+output_file = "data/summary_files/filter_results_summary.csv"
+processed_log_file = "data/summary_files/filter_results_processed_files.txt"
 
 # Create output directory if it doesn't exist
 output_dir = dirname(output_file)
@@ -99,7 +99,7 @@ if(length(dirs_to_search) == 0) {
 }
 
 # Load sequencing depth data
-seq_depth_file = "data/classification/analysis_files/seq_depth_df.rds"
+seq_depth_file = "data/NEON_metagenome_classification/seq_depth_df.rds"
 if(!file.exists(seq_depth_file)) {
     stop("❌ MISSING FILE: Sequencing depth file not found!\n",
          "   Expected: ", seq_depth_file, "\n",
@@ -175,11 +175,62 @@ cat("This may take several minutes...\n")
 # Set up parallel processing
 plan(multisession, workers = min(18, length(new_files)))
 
+# Function to validate file before reading
+validate_file = function(file_path) {
+    if(!file.exists(file_path)) {
+        return(list(valid = FALSE, reason = "File does not exist"))
+    }
+    
+    file_info = file.info(file_path)
+    
+    # Check if file is empty
+    if(file_info$size == 0) {
+        return(list(valid = FALSE, reason = "File is empty"))
+    }
+    
+    # Check if file size is suspiciously round (multiple of 4096 bytes suggests truncation)
+    if(file_info$size > 0 && file_info$size %% 4096 == 0 && file_info$size >= 4096) {
+        # This could indicate truncation, but not always - check if file ends with newline
+        # Read last few bytes to check
+        con = file(file_path, "rb")
+        seek(con, -min(100, file_info$size), origin = "end")
+        last_bytes = readBin(con, "raw", min(100, file_info$size))
+        close(con)
+        
+        # Check if file ends with newline
+        if(length(last_bytes) > 0 && last_bytes[length(last_bytes)] != as.raw(10)) {
+            return(list(valid = FALSE, reason = "File may be truncated (size is multiple of 4096 and doesn't end with newline)"))
+        }
+    }
+    
+    # Check if file is readable
+    if(!file.access(file_path, mode = 4) == 0) {
+        return(list(valid = FALSE, reason = "File is not readable"))
+    }
+    
+    return(list(valid = TRUE, reason = ""))
+}
+
 start_time = Sys.time()
 summaries_list = future_lapply(new_files, function(x) {
     tryCatch({
-        # Read in the (large) files
-        df_in = data.table::fread(x, showProgress = FALSE)
+        # Validate file before reading
+        validation = validate_file(x)
+        if(!validation$valid) {
+            cat("WARNING: Skipping", basename(x), "-", validation$reason, "\n")
+            return(NULL)
+        }
+        
+        # Read in the (large) files with warning suppression
+        # Suppress warnings about missing newlines - we handle validation separately
+        df_in = suppressWarnings(data.table::fread(x, showProgress = FALSE))
+        
+        # Check if file was read successfully
+        if(is.null(df_in) || nrow(df_in) == 0) {
+            cat("WARNING: File", basename(x), "is empty or could not be read\n")
+            return(NULL)
+        }
+        
         df_in$samp_name = sub("_scores.output", "", basename(x))
         out <- summarize_filter_scores(df_in, seq_depth_df)
         return(out)
