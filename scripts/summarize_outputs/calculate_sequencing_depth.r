@@ -115,12 +115,14 @@ if(length(seq_depth) == 0) {
 
 seq_depth_out = rbindlist(seq_depth)
 
+# Sequencing depth is sample-specific, not database-specific
+# Take the first value for each sampleID (they should all be the same)
 seq_depth_df = seq_depth_out %>%
-    select(sampleID, db_name, seq_depth = number_of_raw_reads, identified_reads) %>%
-    distinct(sampleID, db_name, .keep_all = TRUE)
+    select(sampleID, seq_depth = number_of_raw_reads, identified_reads) %>%
+    distinct(sampleID, .keep_all = TRUE)
 
-cat("✓ Processed", nrow(seq_depth_df), "samples\n")
-cat("  Databases:", paste(unique(seq_depth_df$db_name), collapse = ", "), "\n")
+cat("✓ Processed", nrow(seq_depth_df), "unique samples\n")
+cat("  Total seq_depth records:", nrow(seq_depth_df), "\n")
 
 # Save to both locations for compatibility
 output_file_new = "data/NEON_metagenome_classification/seq_depth_df.rds"

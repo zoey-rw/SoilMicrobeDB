@@ -299,10 +299,11 @@ if(!is.null(existing_results) && nrow(existing_results) > 0) {
 }
 
 # Merge with sequencing depth to calculate percentage
+# Sequencing depth is sample-specific, not database-specific
 if(nrow(all_results) > 0) {
     all_results <- all_results %>%
-        left_join(seq_depth_df %>% select(sampleID, db_name, seq_depth), 
-                 by = c("sampleID", "db_name")) %>%
+        left_join(seq_depth_df %>% select(sampleID, seq_depth), 
+                 by = "sampleID") %>%
         mutate(
             reads_classified = replace_na(reads_classified, 0),
             pct_classified = (reads_classified / seq_depth) * 100
