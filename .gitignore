@@ -81,5 +81,17 @@ po/*~
 # RStudio Connect folder
 rsconnect/
 
+# macOS system files
+.DS_Store
+**/.DS_Store
+*.DS_Store
+
+# VS Code settings
+.vscode/
+.vscode
+
+# R plot outputs (auto-generated)
+Rplots.pdf
+
 # Design documentation (for development, not version controlled)
 DESIGN_DOC.md
