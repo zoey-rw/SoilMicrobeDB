@@ -9,8 +9,14 @@
 # Output: classification_pct_by_rank.csv (summary)
 #         classification_pct_by_rank_per_sample.csv (detailed, preserved)
 #
-# Note: Calculates cumulative proportion (reads classified at this rank OR HIGHER/more specific)
+# Note: Calculates cumulative proportion (reads classified at this rank OR MORE SPECIFIC)
+#       Uses cladeReads (cumulative, includes all children)
 #       Denominator: total sequencing depth (seq_depth)
+#       
+#       For GTDB unfiltered: species and strain may have identical values because
+#       all species-level classifications go to strain level. This is correct cumulative
+#       behavior: species cumulative includes strain children, and if all reads are at
+#       strain level, then species cumulative = strain cumulative.
 
 library(tidyverse)
 library(data.table)
@@ -190,10 +196,10 @@ read_kreport_all_ranks <- function(kreport_file, filter_status, fungal_phyla) {
     for(rank_name in names(rank_map)) {
         rank_letter <- rank_map[rank_name]
         
-        # All-domain: sum cladeReads for this rank
+        # Cumulative: sum cladeReads for this rank (includes all children/more specific ranks)
+        # cladeReads = cumulative reads assigned at this rank OR MORE SPECIFIC
+        # This gives us the proportion of reads classified at this rank or below
         all_domain_reads <- report[taxRank == rank_letter, sum(cladeReads, na.rm = TRUE)]
-        
-        # Fungi-specific: sum cladeReads for this rank where is_fungi == TRUE
         fungi_reads <- report[taxRank == rank_letter & is_fungi == TRUE, sum(cladeReads, na.rm = TRUE)]
         
         # Store results
@@ -262,6 +268,7 @@ all_files <- c(
 
 # Identify new files to process
 new_files <- all_files[!all_files %in% processed_files]
+
 cat("Found", length(all_files), "total kreport files\n")
 cat("Found", length(processed_files), "already processed files\n")
 cat("Found", length(new_files), "new files to process\n")
@@ -273,18 +280,18 @@ if(file.exists(output_file)) {
     existing_results <- read_csv(output_file, show_col_types = FALSE)
     cat("Found", nrow(existing_results), "existing records\n")
     
-    # Get list of files already in results (by sampleID and filter_status)
-    # Use sampleID + filter_status as unique identifier since samp_name format may vary
+    # Get list of files already in results (by sampleID, db_name, and filter_status)
+    # Include db_name to distinguish between different databases for the same sample
     existing_combos <- existing_results %>%
-        distinct(sampleID, filter_status) %>%
-        mutate(file_key = paste0(sampleID, "_", filter_status))
+        distinct(sampleID, db_name, filter_status) %>%
+        mutate(file_key = paste0(sampleID, "_", db_name, "_", filter_status))
     
-    # Create file keys for new files by parsing sampleID from filename
+    # Create file keys for new files by parsing sampleID and db_name from filename
     file_keys_new <- sapply(seq_along(new_files), function(i) {
         kreport_file <- new_files[i]
         filter_status <- names(new_files)[i]
         sample_info <- parse_sample_id(kreport_file, is_filtered = (filter_status == "after"))
-        paste0(sample_info$sampleID, "_", filter_status)
+        paste0(sample_info$sampleID, "_", sample_info$db_name, "_", filter_status)
     })
     
     # Filter out files that are already in results

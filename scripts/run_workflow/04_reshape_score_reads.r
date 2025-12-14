@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-# Extract and reshape scoring information from Architeuthis _scores.output files
+# 04: Extract and reshape scoring information from Architeuthis _scores.output files
 # Processes scoring files incrementally and appends results to a common file
 # Allows deletion of _scores.output files after information is extracted
 #
