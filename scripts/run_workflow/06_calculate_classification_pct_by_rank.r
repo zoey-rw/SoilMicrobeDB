@@ -1,10 +1,16 @@
-# Calculate classification percentage at each taxonomic rank
+#!/usr/bin/env Rscript
+# 06: Calculate classification percentage at each taxonomic rank
 # Shows what % of total sequencing depth was classified to each specific rank
-# Calculates for BOTH before and after Architeuthis filtering
-# Output: Table for supplement showing classification % at phylum → class → order → family → genus → species → strain
-# Note: Calculates CUMULATIVE proportion (reads classified at this rank OR HIGHER/more specific)
-# Denominator: total sequencing depth (seq_depth)
-# Uses kreport files from hard drive
+# Calculates before and after Architeuthis filtering
+#
+# Usage: Rscript scripts/run_workflow/06_calculate_classification_pct_by_rank.r
+#
+# Input:  *_kraken.kreport and *_filtered_kraken.kreport files from Steps 1-2
+# Output: classification_pct_by_rank.csv (summary)
+#         classification_pct_by_rank_per_sample.csv (detailed, preserved)
+#
+# Note: Calculates cumulative proportion (reads classified at this rank OR HIGHER/more specific)
+#       Denominator: total sequencing depth (seq_depth)
 
 library(tidyverse)
 library(data.table)
@@ -13,10 +19,9 @@ library(pavian)
 source("scripts/custom_pavian.r")
 source("https://raw.githubusercontent.com/bhattlab/kraken2_classification/master/scripts/process_classification.R")
 
-# Set up parallel processing
+# Set up parallel processing (will be adjusted later based on files to process)
 n_workers <- min(18, availableCores() - 1)
-plan(multisession, workers = n_workers)
-cat("Using", n_workers, "parallel workers\n")
+cat("Available workers:", n_workers, "\n")
 
 # Read sequencing depth for normalization
 seq_depth_file <- "data/NEON_metagenome_classification/seq_depth_df.rds"
@@ -36,17 +41,26 @@ fungal_phyla <- c("Ascomycota", "Basidiomycota", "Blastocladiomycota",
                   "Chytridiomycota", "Cryptomycota", "Mucoromycota", 
                   "Microsporidia", "Olpidiomycota", "Zoopagomycota")
 
-# Set up paths - check both local and HARDDRIVE locations
+# Set up paths - check both new and old locations, plus HARDDRIVE
 # Before filtering: original Kraken2 kreport files
 kreport_before_local = "data/NEON_metagenome_classification/01_kraken_output"
+kreport_before_local_old = "data/classification/01_kraken_output"
 kreport_before_harddrive = "/Volumes/HARDDRIVE/SoilMicrobeDB/data/classification/01_kraken_output"
 
 # After filtering: filtered kreport files
 kreport_after_local = "data/NEON_metagenome_classification/02_bracken_output"
+kreport_after_local_old = "data/classification/02_bracken_output"
 kreport_after_harddrive = "/Volumes/HARDDRIVE/SoilMicrobeDB/data/classification/02_bracken_output"
 
 # Find kreport files BEFORE filtering (original Kraken2 output)
-kreport_before_files <- list.files(kreport_before_local, pattern = "_kraken.kreport", full.names = TRUE, recursive = TRUE)
+kreport_before_files <- character(0)
+if(dir.exists(kreport_before_local)) {
+    kreport_before_files <- c(kreport_before_files, list.files(kreport_before_local, pattern = "_kraken.kreport", full.names = TRUE, recursive = TRUE))
+}
+if(dir.exists(kreport_before_local_old)) {
+    kreport_before_files <- c(kreport_before_files, list.files(kreport_before_local_old, pattern = "_kraken.kreport", full.names = TRUE, recursive = TRUE))
+    cat("✓ Found", length(list.files(kreport_before_local_old, pattern = "_kraken.kreport", full.names = TRUE, recursive = TRUE)), "kreport files (before filtering) in old location\n")
+}
 if(dir.exists(kreport_before_harddrive)) {
     kreport_before_harddrive_files <- list.files(kreport_before_harddrive, pattern = "_kraken.kreport", full.names = TRUE, recursive = TRUE)
     kreport_before_files <- c(kreport_before_files, kreport_before_harddrive_files)
@@ -54,7 +68,14 @@ if(dir.exists(kreport_before_harddrive)) {
 }
 
 # Find kreport files AFTER filtering (Architeuthis filtered)
-kreport_after_files <- list.files(kreport_after_local, pattern = "_filtered_kraken.kreport", full.names = TRUE, recursive = TRUE)
+kreport_after_files <- character(0)
+if(dir.exists(kreport_after_local)) {
+    kreport_after_files <- c(kreport_after_files, list.files(kreport_after_local, pattern = "_filtered_kraken.kreport", full.names = TRUE, recursive = TRUE))
+}
+if(dir.exists(kreport_after_local_old)) {
+    kreport_after_files <- c(kreport_after_files, list.files(kreport_after_local_old, pattern = "_filtered_kraken.kreport", full.names = TRUE, recursive = TRUE))
+    cat("✓ Found", length(list.files(kreport_after_local_old, pattern = "_filtered_kraken.kreport", full.names = TRUE, recursive = TRUE)), "kreport files (after filtering) in old location\n")
+}
 if(dir.exists(kreport_after_harddrive)) {
     kreport_after_harddrive_files <- list.files(kreport_after_harddrive, pattern = "_filtered_kraken.kreport", full.names = TRUE, recursive = TRUE)
     kreport_after_files <- c(kreport_after_files, kreport_after_harddrive_files)
@@ -66,9 +87,11 @@ cat("Found", length(kreport_after_files), "kreport files AFTER filtering\n")
 
 if(length(kreport_before_files) == 0 && length(kreport_after_files) == 0) {
     stop("No kreport files found! Checked:\n",
-         "  Before (local): ", kreport_before_local, "\n",
+         "  Before (new): ", kreport_before_local, "\n",
+         "  Before (old): ", kreport_before_local_old, "\n",
          "  Before (HARDDRIVE): ", kreport_before_harddrive, "\n",
-         "  After (local): ", kreport_after_local, "\n",
+         "  After (new): ", kreport_after_local, "\n",
+         "  After (old): ", kreport_after_local_old, "\n",
          "  After (HARDDRIVE): ", kreport_after_harddrive, "\n")
 }
 
@@ -153,7 +176,10 @@ read_kreport_all_ranks <- function(kreport_file, filter_status, fungal_phyla) {
                   "family" = "F", "genus" = "G", "species" = "S", "strain" = "S1")
     
     # Extract all ranks at once using data.table for speed
-    setDT(report)
+    # Convert to data.table safely (don't modify in place if it's already a data.table)
+    if(!inherits(report, "data.table")) {
+        setDT(report)
+    }
     
     # Identify fungi once
     report[, is_fungi := grepl(paste(fungal_phyla, collapse = "|"), name, ignore.case = TRUE)]
@@ -205,9 +231,14 @@ read_kreport_all_ranks <- function(kreport_file, filter_status, fungal_phyla) {
     return(bind_rows(results_list))
 }
 
-# Set up output files
-output_file <- "data/NEON_metagenome_classification/summary_files/classification_pct_by_rank_per_sample.csv"
-processed_log_file <- "data/NEON_metagenome_classification/summary_files/classification_pct_by_rank_processed_files.txt"
+# Set up output files - use old location if it exists, otherwise new location
+if(dir.exists("data/classification/analysis_files")) {
+    output_file <- "data/classification/analysis_files/classification_pct_by_rank_per_sample.csv"
+    processed_log_file <- "data/classification/analysis_files/classification_pct_by_rank_processed_files.txt"
+} else {
+    output_file <- "data/NEON_metagenome_classification/summary_files/classification_pct_by_rank_per_sample.csv"
+    processed_log_file <- "data/NEON_metagenome_classification/summary_files/classification_pct_by_rank_processed_files.txt"
+}
 
 # Create output directory if needed
 output_dir <- dirname(output_file)
@@ -263,15 +294,17 @@ if(file.exists(output_file)) {
 
 if(length(new_files) == 0) {
     cat("✓ All files have already been processed. Exiting.\n")
-    quit(status = 0)
-}
-
-# Process new files in parallel
+    plan(sequential)
+} else {
+    # Process new files in parallel
 cat("Processing", length(new_files), "new kreport files in parallel...\n")
 
 # Adjust number of workers based on files to process
-n_workers <- min(n_workers, length(new_files))
-plan(multisession, workers = n_workers)
+n_workers_actual <- min(n_workers, length(new_files))
+cat("Using", n_workers_actual, "parallel workers\n")
+
+# Set up parallel plan
+plan(multisession, workers = n_workers_actual)
 
 # Process files in parallel
 results <- future_lapply(seq_along(new_files), function(i) {
@@ -285,6 +318,9 @@ results <- future_lapply(seq_along(new_files), function(i) {
         return(NULL)
     })
 }, future.seed = TRUE)
+
+# Clean up parallel workers
+plan(sequential)
 
 # Combine new results
 new_results <- bind_rows(Filter(Negate(is.null), results))
@@ -301,13 +337,24 @@ if(!is.null(existing_results) && nrow(existing_results) > 0) {
 # Merge with sequencing depth to calculate percentage
 # Sequencing depth is sample-specific, not database-specific
 if(nrow(all_results) > 0) {
+    # Remove any existing seq_depth columns (from previous runs or conflicts)
     all_results <- all_results %>%
-        left_join(seq_depth_df %>% select(sampleID, seq_depth), 
-                 by = "sampleID") %>%
+        select(-any_of(c("seq_depth", "seq_depth.x", "seq_depth.y", "pct_classified")))
+    
+    # Join with sequencing depth
+    all_results <- all_results %>%
+        left_join(seq_depth_df %>% select(sampleID, seq_depth), by = "sampleID") %>%
         mutate(
             reads_classified = replace_na(reads_classified, 0),
             pct_classified = (reads_classified / seq_depth) * 100
         )
+    
+    # Report missing seq_depth
+    missing_seq_depth <- sum(is.na(all_results$seq_depth))
+    if(missing_seq_depth > 0) {
+        cat("⚠ WARNING:", missing_seq_depth, "records missing seq_depth after join\n")
+        cat("   Missing sampleIDs:", paste(unique(all_results$sampleID[is.na(all_results$seq_depth)]), collapse = ", "), "\n")
+    }
 } else {
     stop("No results generated! Check that kreport files are readable and contain data.")
 }
@@ -350,14 +397,23 @@ fungi_summary <- fungi_results %>%
 classification_by_rank <- bind_rows(all_domain_summary, fungi_summary) %>%
     arrange(taxon_group, db_name, taxonomic_rank, filter_status)
 
-write_csv(classification_by_rank, "data/classification/analysis_files/classification_pct_by_rank.csv")
-cat("✅ Saved classification percentages by rank to: data/classification/analysis_files/classification_pct_by_rank.csv\n")
+# Save summary results - use old location if it exists, otherwise new location
+if(dir.exists("data/classification/analysis_files")) {
+    summary_output <- "data/classification/analysis_files/classification_pct_by_rank.csv"
+} else {
+    summary_output <- "data/NEON_metagenome_classification/summary_files/classification_pct_by_rank.csv"
+    if(!dir.exists(dirname(summary_output))) {
+        dir.create(dirname(summary_output), recursive = TRUE)
+    }
+}
+write_csv(classification_by_rank, summary_output)
+cat("✅ Saved classification percentages by rank to:", summary_output, "\n")
 cat("   Note: Percentages are % of total sequencing depth (seq_depth)\n")
 cat("   Values are CUMULATIVE (reads classified at this rank OR HIGHER/more specific)\n")
 cat("   filter_status indicates 'before' or 'after' Architeuthis filtering\n")
 
 # Also save per-sample results
-output_dir <- "data/NEON_metagenome_classification/summary_files"
+output_dir <- dirname(output_file)
 if(!dir.exists(output_dir)) {
     dir.create(output_dir, recursive = TRUE)
     cat("Created output directory:", output_dir, "\n")
@@ -374,3 +430,5 @@ cat("   Total processed files:", length(processed_files), "\n")
 
 # Clean up parallel workers
 plan(sequential)
+cat("✅ Script completed successfully\n")
+}

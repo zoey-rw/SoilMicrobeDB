@@ -8,9 +8,9 @@ library(rstatix)
 source("scripts/helper_functions.r")
 
 
-#Read in bracken estimates from 3 databases
-species_bracken1 = fread("data/classification/taxonomic_rank_summaries/species/soil_microbe_db_filtered_species_merged.csv")
-species_bracken2 = fread("data/classification/taxonomic_rank_summaries/species/gtdb_species_merged.csv")
+# Read in bracken estimates from 3 databases
+species_bracken1 = fread("data/classification/taxonomic_rank_summaries/soil_microbe_db_species_merged.csv")
+species_bracken2 = fread("data/classification/taxonomic_rank_summaries/gtdb_207_species_merged.csv")
 species_bracken3 = fread("data/classification/taxonomic_rank_summaries/species/pluspf_species_merged.csv")
 
 
@@ -49,4 +49,4 @@ pass_filter_species_long = pass_filter_species %>%
                                   "percent_classified" = "% reads classified")) %>% 
     mutate(siteID = substr(sampleID, 1, 4))
 
-write.csv(pass_filter_species_long, "data/classification/analysis_files/pass_filter_summary.csv")
+write.csv(pass_filter_species_long, "data/classification/analysis_files/pass_filter_summary.csv", row.names = FALSE)

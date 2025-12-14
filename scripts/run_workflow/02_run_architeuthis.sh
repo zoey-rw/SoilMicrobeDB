@@ -1,4 +1,12 @@
 #!/bin/bash -l
+# Run Architeuthis filtering and Bracken abundance estimation
+# Processes Kraken2 output files to filter reads and estimate abundances
+#
+# Usage: Edit DBNAME variable below, then: bash scripts/run_workflow/02_run_architeuthis.sh
+#        Or submit as job: qsub scripts/run_workflow/02_run_architeuthis.sh
+#
+# Input:  *_kraken.output files from Step 1
+# Output: *_scores.output, *_filtered_kraken.kreport, *.b2 files
 
 # Set SCC project
 #$ -P dietzelab
@@ -9,8 +17,6 @@
 
 #$ -j y # Merge stderr into the stdout file, to reduce clutter
 #$ -o /projectnb/frpmars/soil_microbe_db/log_files/run_kraken_mars.log
-
-# load kraken2
 
 module load miniconda
 conda activate struo2
@@ -31,15 +37,15 @@ DBDIR=/projectnb/frpmars/soil_microbe_db/databases/pluspf
 DB_taxo=/projectnb/frpmars/soil_microbe_db/databases/pluspf/taxo.k2d
 DB_taxonomy_dir=/projectnb/microbiome/ref_db/NCBI-taxdump
 #
-# DBNAME=gtdb_207
-# DBDIR=/projectnb/frpmars/soil_microbe_db/databases/gtdb_207_filtered/kraken2
-# DB_taxonomy_dir=/projectnb/frpmars/soil_microbe_db/databases/gtdb_207_filtered/kraken2/taxonomy/
-# DB_taxo=/projectnb/frpmars/soil_microbe_db/databases/gtdb_207_filtered/kraken2/taxo.k2d
+DBNAME=gtdb_207
+DBDIR=/projectnb/frpmars/soil_microbe_db/databases/gtdb_207_filtered/kraken2
+DB_taxonomy_dir=/projectnb/frpmars/soil_microbe_db/databases/gtdb_207_filtered/kraken2/taxonomy/
+DB_taxo=/projectnb/frpmars/soil_microbe_db/databases/gtdb_207_filtered/kraken2/taxo.k2d
 #
-# DBNAME=gtdb_207_unfiltered
-# DBDIR=/projectnb/microbiome/dgolden/Struo2/custom_dbs/GTDB_release207/kraken2
-# DB_taxonomy_dir=/projectnb/microbiome/dgolden/Struo2/custom_dbs/GTDB_release207/taxonomy
-# DB_taxo=/projectnb/microbiome/dgolden/Struo2/custom_dbs/GTDB_release207/kraken2/taxo.k2d
+DBNAME=gtdb_207_unfiltered
+DBDIR=/projectnb/microbiome/dgolden/Struo2/custom_dbs/GTDB_release207/kraken2
+DB_taxonomy_dir=/projectnb/microbiome/dgolden/Struo2/custom_dbs/GTDB_release207/taxonomy
+DB_taxo=/projectnb/microbiome/dgolden/Struo2/custom_dbs/GTDB_release207/kraken2/taxo.k2d
 
 
 time_with_seconds=$(date +%T)
@@ -154,7 +160,6 @@ time_with_seconds=$(date +%T)
 echo "Finished Architeuthis/Bracken loop at: $time_with_seconds"
 
 # Note: Cleanup of intermediate files is handled by scripts/run_workflow/05_cleanup_intermediate_files.sh
-# This script intelligently checks dependencies before deleting files:
 # - Deletes _scores.output only if scores are extracted to CSV
 # - Deletes _filtered.output only if _filtered_kraken.kreport exists
 # - Deletes .b2 files only if merged CSV files exist

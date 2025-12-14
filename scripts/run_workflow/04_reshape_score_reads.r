@@ -1,9 +1,12 @@
 #!/usr/bin/env Rscript
 # Extract and reshape scoring information from Architeuthis _scores.output files
-# This script processes scoring files incrementally and appends results to a common file
+# Processes scoring files incrementally and appends results to a common file
 # Allows deletion of _scores.output files after information is extracted
 #
 # Usage: Rscript scripts/run_workflow/04_reshape_score_reads.r
+#
+# Input:  *_scores.output files from Step 2
+# Output: filter_results_summary.csv (preserved, used by visualization scripts)
 
 library(tidyverse)
 library(data.table)
@@ -59,18 +62,32 @@ summarize_filter_scores = function(scores_df, seq_depth_df, max_entropy = .1,
                percent_passing = n_reads / seq_depth)
     
     # Combine and reshape for output
-    out_df = full_join(score_summary_df, filter_summary_df, by=join_by(samp_name)) %>% 
-        pivot_longer(cols=-c(db_name, sampleID, samp_name), names_to = "metric") %>% 
+    # Check for duplicates before joining to avoid cartesian products
+    score_summary_df_unique = score_summary_df %>% distinct(samp_name, .keep_all = TRUE)
+    filter_summary_df_unique = filter_summary_df %>% distinct(samp_name, .keep_all = TRUE)
+    
+    # Use inner_join to avoid cartesian products that can occur with full_join
+    # This ensures we only keep samples present in both dataframes
+    out_df = inner_join(score_summary_df_unique, filter_summary_df_unique, by=join_by(samp_name)) %>% 
+        pivot_longer(cols=-c(db_name, sampleID, samp_name), names_to = "metric", values_drop_na = TRUE) %>% 
         distinct()
     
     out_df
 }
 
-# Set up paths - check both local and HARDDRIVE locations
+# Set up paths - check both new and old locations, plus HARDDRIVE
 filter_reads_dir_local = "data/NEON_metagenome_classification/02_bracken_output"
+filter_reads_dir_local_old = "data/classification/02_bracken_output"
 filter_reads_dir_harddrive = "/Volumes/HARDDRIVE/SoilMicrobeDB/data/classification/02_bracken_output"
-output_file = "data/summary_files/filter_results_summary.csv"
-processed_log_file = "data/summary_files/filter_results_processed_files.txt"
+
+# Output files - check if old location exists, otherwise use new location
+if(dir.exists("data/classification/analysis_files")) {
+    output_file = "data/classification/analysis_files/filter_results_summary.csv"
+    processed_log_file = "data/classification/analysis_files/filter_results_processed_files.txt"
+} else {
+    output_file = "data/summary_files/filter_results_summary.csv"
+    processed_log_file = "data/summary_files/filter_results_processed_files.txt"
+}
 
 # Create output directory if it doesn't exist
 output_dir = dirname(output_file)
@@ -83,7 +100,11 @@ if(!dir.exists(output_dir)) {
 dirs_to_search = character(0)
 if(dir.exists(filter_reads_dir_local)) {
     dirs_to_search = c(dirs_to_search, filter_reads_dir_local)
-    cat("✓ Found local directory:", filter_reads_dir_local, "\n")
+    cat("✓ Found new location:", filter_reads_dir_local, "\n")
+}
+if(dir.exists(filter_reads_dir_local_old)) {
+    dirs_to_search = c(dirs_to_search, filter_reads_dir_local_old)
+    cat("✓ Found old location:", filter_reads_dir_local_old, "\n")
 }
 if(dir.exists(filter_reads_dir_harddrive)) {
     dirs_to_search = c(dirs_to_search, filter_reads_dir_harddrive)
@@ -93,17 +114,16 @@ if(dir.exists(filter_reads_dir_harddrive)) {
 if(length(dirs_to_search) == 0) {
     stop("❌ MISSING DIRECTORY: Filter scores directory not found!\n",
          "   Checked: ", filter_reads_dir_local, "\n",
+         "   Checked: ", filter_reads_dir_local_old, "\n",
          "   Checked: ", filter_reads_dir_harddrive, "\n",
          "   This directory should contain Architeuthis filter score files (*_scores.output).\n",
          "   Please add this directory and the score files to continue.")
 }
 
-# Load sequencing depth data
+# Load sequencing depth data - check both new and old locations
 seq_depth_file = "data/NEON_metagenome_classification/seq_depth_df.rds"
 if(!file.exists(seq_depth_file)) {
-    stop("❌ MISSING FILE: Sequencing depth file not found!\n",
-         "   Expected: ", seq_depth_file, "\n",
-         "   Please run calculate_sequencing_depth.r first.")
+    seq_depth_file = "data/classification/analysis_files/seq_depth_df.rds"
 }
 seq_depth_df <- readRDS(seq_depth_file) %>% 
     select(-c(db_name, identified_reads))
@@ -127,8 +147,6 @@ if(length(filter_scores_list) == 0) {
          "   Please add the score files to continue.")
 }
 
-# Filter out gtdb_207_unfiltered if desired (can be modified)
-filter_scores_list <- filter_scores_list[!grepl("gtdb_207_unfiltered_scores", filter_scores_list)]
 
 cat("Found", length(filter_scores_list), "scoring files\n")
 
@@ -152,7 +170,19 @@ if(length(new_files) == 0) {
 existing_results = NULL
 if(file.exists(output_file)) {
     cat("Loading existing results from:", output_file, "\n")
-    existing_results = read_csv(output_file, show_col_types = FALSE)
+    
+    # Check file size first
+    file_size_mb = file.info(output_file)$size / 1024 / 1024
+    cat("  File size:", round(file_size_mb, 2), "MB\n")
+    
+    if(file_size_mb > 500) {
+        cat("  WARNING: Large file detected. Using data.table for faster reading...\n")
+        existing_results = data.table::fread(output_file, showProgress = TRUE)
+        existing_results = as_tibble(existing_results)
+    } else {
+        existing_results = read_csv(output_file, show_col_types = FALSE)
+    }
+    
     cat("Found", nrow(existing_results), "existing records\n")
     
     # Get list of samp_names already in results
@@ -251,21 +281,79 @@ if(length(summaries_list) == 0) {
 }
 
 # Combine new results
+cat("Combining new results...\n")
 new_summaries = data.table::rbindlist(summaries_list)
 cat("Processed", nrow(new_summaries), "new records\n")
 
 # Combine with existing results
 if(!is.null(existing_results)) {
-    all_summaries = bind_rows(existing_results, new_summaries) %>%
-        distinct()  # Remove any duplicates
-    cat("Total records after combining:", nrow(all_summaries), "\n")
+    cat("Merging with existing results (", nrow(existing_results), " existing records)...\n")
+    
+    # Convert to data.table for faster operations
+    if(!inherits(existing_results, "data.table")) {
+        existing_dt = as.data.table(existing_results)
+    } else {
+        existing_dt = existing_results
+    }
+    
+    if(!inherits(new_summaries, "data.table")) {
+        new_dt = as.data.table(new_summaries)
+    } else {
+        new_dt = new_summaries
+    }
+    
+    cat("  Combining data.tables...\n")
+    flush.console()  # Ensure output is visible
+    
+    # Use data.table rbindlist for faster combination
+    # Check if columns match, if not use fill=TRUE
+    existing_cols = names(existing_dt)
+    new_cols = names(new_dt)
+    
+    if(!setequal(existing_cols, new_cols)) {
+        cat("  WARNING: Column mismatch detected. Using fill=TRUE\n")
+        cat("  Existing cols:", length(existing_cols), "New cols:", length(new_cols), "\n")
+        combined_dt = rbindlist(list(existing_dt, new_dt), fill = TRUE)
+    } else {
+        combined_dt = rbindlist(list(existing_dt, new_dt))
+    }
+    
+    cat("  Combined records:", nrow(combined_dt), "\n")
+    flush.console()
+    
+    cat("  Removing duplicates...\n")
+    flush.console()
+    
+    # Use data.table unique for faster deduplication
+    # Check which columns exist for unique check
+    key_cols = intersect(c("samp_name", "metric", "db_name", "sampleID"), names(combined_dt))
+    if(length(key_cols) > 0) {
+        cat("  Using key columns for deduplication:", paste(key_cols, collapse=", "), "\n")
+        flush.console()
+        all_summaries = unique(combined_dt, by = key_cols)
+    } else {
+        cat("  WARNING: No key columns found, using all columns for deduplication\n")
+        flush.console()
+        all_summaries = unique(combined_dt)
+    }
+    
+    cat("Total records after combining and deduplication:", nrow(all_summaries), "\n")
+    flush.console()
+    
+    # Convert back to tibble for write_csv compatibility
+    all_summaries = as_tibble(all_summaries)
 } else {
     all_summaries = new_summaries
+    if(!inherits(all_summaries, "tbl")) {
+        all_summaries = as_tibble(all_summaries)
+    }
 }
 
 # Save combined results
 cat("Saving results to:", output_file, "\n")
+cat("  Writing", nrow(all_summaries), "rows...\n")
 write_csv(all_summaries, output_file)
+cat("  ✓ File written successfully\n")
 
 # Update processed files log
 cat("Updating processed files log:", processed_log_file, "\n")

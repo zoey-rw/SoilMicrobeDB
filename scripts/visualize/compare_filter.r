@@ -23,13 +23,6 @@ cat("Loading filter results from:", filter_results_file, "\n")
 summaries <- read_csv(filter_results_file, show_col_types = FALSE)
 cat("Loaded", nrow(summaries), "records\n")
 
-# Get list of samples that have been evaluated by all databases
-sample_count = summaries %>% 
-    distinct(samp_name, .keep_all = T) %>%  
-    group_by(sampleID) %>% tally
-common_samples = sample_count[sample_count$n > 2,]$sampleID
-cat("Found", length(common_samples), "samples evaluated by all databases\n")
-
 # Create prettier values for plotting
 summaries = summaries %>% mutate(value = value * 100,
     Database = recode(db_name, 
@@ -41,14 +34,27 @@ summaries = summaries %>% mutate(value = value * 100,
 
 summaries$pretty_metric = factor(summaries$pretty_metric, levels = c("Read classification","Read classification and quality-filtering"))
 
+# Ensure Database is a factor with correct levels
+summaries$Database = factor(summaries$Database, levels = c("SoilMicrobeDB", "GTDB r207", "PlusPF"))
+
 # Plotting color palette
 myColors <- brewer.pal(5,"Set1")
 names(myColors) <- c("SoilMicrobeDB", "GTDB r207", "PlusPF")
 colScale <- scale_colour_manual(name = "Database",values = myColors)
 
-# Filter data for plotting
+# Filter data for plotting (exclude gtdb_207_unfiltered)
 plot_data = summaries %>% 
-    filter(!db_name %in% c("gtdb_207_unfiltered"))
+    filter(!db_name %in% c("gtdb_207_unfiltered")) %>%
+    # Ensure Database factor is maintained after filtering
+    mutate(Database = factor(Database, levels = c("SoilMicrobeDB", "GTDB r207", "PlusPF")))
+
+# Get list of samples that have been evaluated by all remaining databases (after filtering)
+# Count distinct sampleID values per database (accounting for multiple metrics per sample)
+sample_count = plot_data %>% 
+    distinct(sampleID, db_name) %>%  
+    group_by(sampleID) %>% tally
+common_samples = sample_count[sample_count$n > 2,]$sampleID
+cat("Found", length(common_samples), "samples evaluated by all databases\n")
 
 # Use common_samples if available, otherwise use all samples
 if(length(common_samples) > 0) {

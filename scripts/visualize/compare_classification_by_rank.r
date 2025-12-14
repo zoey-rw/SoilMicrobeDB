@@ -131,3 +131,4 @@ summary_table <- summary_stats %>%
                names_sep = "_") %>%
     arrange(taxonomic_rank_pretty)
 print(summary_table)
+

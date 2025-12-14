@@ -116,9 +116,8 @@ if(length(seq_depth) == 0) {
 seq_depth_out = rbindlist(seq_depth)
 
 # Sequencing depth is sample-specific, not database-specific
-# Take the first value for each sampleID (they should all be the same)
 seq_depth_df = seq_depth_out %>%
-    select(sampleID, seq_depth = number_of_raw_reads, identified_reads) %>%
+    select(sampleID, seq_depth = number_of_raw_reads) %>%
     distinct(sampleID, .keep_all = TRUE)
 
 cat("✓ Processed", nrow(seq_depth_df), "unique samples\n")
