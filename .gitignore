@@ -16,22 +16,73 @@ data/classification/01_kraken_output/*
 data/classification/02_bracken_output/*
 *.kreport
 *.b2
+*.output
 data/classification/01_kraken_output/
 data/classification/02_bracken_output/
+
+# New NEON metagenome classification directory structure
+data/NEON_metagenome_classification/01_kraken_output/*
+data/NEON_metagenome_classification/02_bracken_output/*
+data/NEON_metagenome_classification/01_kraken_output/
+data/NEON_metagenome_classification/02_bracken_output/
 
 # Large merged classification summary files (too large for git)
 # These are multi-GB files that should not be version controlled
 data/classification/taxonomic_rank_summaries/**/*_merged.csv
 data/classification/taxonomic_rank_summaries/**/*_merged_lineage.csv
 data/classification/taxonomic_rank_summaries/**/*_estimates.rds
+data/classification/taxonomic_rank_summaries/**/*.rds
+data/classification/taxonomic_rank_summaries/**/bracken_*.rds
+
+# Large merged CSV files in summary directories (multi-GB files)
+data/NEON_metagenome_classification/summary_files/*_merged.csv
+data/NEON_metagenome_classification/summary_files/*_merged_lineage.csv
+data/summary_files/*_merged.csv
+data/summary_files/*_merged_lineage.csv
 
 # Large analysis files (RDS files can be large)
 data/classification/analysis_files/*.rds
-# Large CSV files in analysis_files (keep small ones, ignore large ones)
+data/NEON_metagenome_classification/*.rds
+data/NEON_metagenome_classification/summary_files/*.rds
+data/summary_files/*.rds
+
+# Large merged CSV files in analysis_files (keep small ones, ignore large merged ones)
+data/classification/analysis_files/*_merged.csv
+data/classification/analysis_files/*_merged_lineage.csv
 data/classification/analysis_files/genus_ITS_metagenome_comparison.csv
 data/classification/analysis_files/soil_microbe_db_genus_fungi_summary.csv
 data/classification/analysis_files/soil_microbe_db_genus_fungi_summary.rds
 data/classification/analysis_files/soil_microbe_db_phyla_fungi_summary.rds
+
+# Large analysis CSV files (outputs from analysis scripts)
+data/classification/analysis_files/classification_pct_by_rank.csv
+data/classification/analysis_files/classification_pct_by_rank_per_sample.csv
+data/classification/analysis_files/filter_results_summary.csv
+data/classification/analysis_files/pass_filter_summary.csv
+data/classification/analysis_files/abundance_MAGs.csv
+data/classification/analysis_files/FUNguild_assignments.csv
+data/classification/analysis_files/plfa_comparison.csv
+data/classification/analysis_files/soil_microbe_db_phyla_fungi_summary.csv
+
+# Large comparison data files
+data/comparison_data/**/*.rds
+data/comparison_data/**/*.csv
+
+# Large environmental data files
+data/environmental_data/*.rds
+data/environmental_data/*.Rda
+data/environmental_data/*.csv
+# Specific NEON environmental data files (already large)
+data/environmental_data/NEON_DP1.10081.001_16S.rds
+data/environmental_data/NEON_DP1.10081.001_ITS.rds
+
+# Large summary CSV files (may be large)
+data/NEON_metagenome_classification/summary_files/filter_results_summary.csv
+data/NEON_metagenome_classification/summary_files/classification_pct_by_rank.csv
+data/NEON_metagenome_classification/summary_files/classification_pct_by_rank_per_sample.csv
+data/summary_files/filter_results_summary.csv
+data/summary_files/classification_pct_by_rank.csv
+data/summary_files/classification_pct_by_rank_per_sample.csv
 
 # Large GTDB metadata files (exceed GitHub's 100MB limit)
 data/genome_database/bac120_metadata_r95.tsv
@@ -114,7 +165,3 @@ Rplots.pdf
 
 # Design documentation (for development, not version controlled)
 DESIGN_DOC.md
-
-# NEON environmental data files
-data/environmental_data/NEON_DP1.10081.001_16S.rds
-data/environmental_data/NEON_DP1.10081.001_ITS.rds
