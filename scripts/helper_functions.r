@@ -396,16 +396,27 @@ assign_biome_presence = function(test_df) {
 	return(df_out)
 }
 
-# Load and prepare soilCores data from NEON soil data RDS file
 # Load NEON soil chemistry data
-# Default path matches the standard location used across scripts
-load_soilChem <- function(neon_soil_file = "/projectnb/dietzelab/zrwerbin/N-cycle/neon_soil_data_2023.rds") {
+# Checks local path first, then falls back to project path
+load_soilChem <- function(neon_soil_file = NULL) {
+    if(is.null(neon_soil_file)) {
+        local_path <- "data/environmental_data/neon_soil_data_2023.rds"
+        project_path <- "/projectnb/dietzelab/zrwerbin/N-cycle/neon_soil_data_2023.rds"
+        
+        if(file.exists(local_path)) {
+            neon_soil_file <- local_path
+        } else if(file.exists(project_path)) {
+            neon_soil_file <- project_path
+        } else {
+            stop("neon_soil_data_2023.rds not found in:\n  ", local_path, "\n  ", project_path)
+        }
+    }
     return(readRDS(neon_soil_file))
 }
 
 # Extract genomic sample mapping (sampleID to genomicsSampleID) from soilChem
 # Can take soilChem as input or load it if not provided
-load_genSampleExample <- function(soilChem = NULL, neon_soil_file = "/projectnb/dietzelab/zrwerbin/N-cycle/neon_soil_data_2023.rds") {
+load_genSampleExample <- function(soilChem = NULL, neon_soil_file = NULL) {
     if(is.null(soilChem)) {
         soilChem <- load_soilChem(neon_soil_file)
     }
@@ -424,7 +435,20 @@ load_genSampleExample <- function(soilChem = NULL, neon_soil_file = "/projectnb/
 
 # Load and process soil cores with transformations
 # Applies transformations: isForest classification, biome recoding, and compositeSampleID addition
-load_soilCores <- function(neon_soil_file = "data/environmental_data/neon_soil_data_2023.rds") {
+# Checks local path first, then falls back to project path
+load_soilCores <- function(neon_soil_file = NULL) {
+    if(is.null(neon_soil_file)) {
+        local_path <- "data/environmental_data/neon_soil_data_2023.rds"
+        project_path <- "/projectnb/dietzelab/zrwerbin/N-cycle/neon_soil_data_2023.rds"
+        
+        if(file.exists(local_path)) {
+            neon_soil_file <- local_path
+        } else if(file.exists(project_path)) {
+            neon_soil_file <- project_path
+        } else {
+            stop("neon_soil_data_2023.rds not found in:\n  ", local_path, "\n  ", project_path)
+        }
+    }
     soilData <- readRDS(neon_soil_file)
     soilCores <- soilData$sls_soilCoreCollection
     
