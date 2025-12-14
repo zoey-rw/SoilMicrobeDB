@@ -38,7 +38,7 @@ if(!file.exists(seq_depth_file)) {
     stop("❌ MISSING FILE: seq_depth_df.rds not found!\n",
          "   Checked: data/NEON_metagenome_classification/seq_depth_df.rds\n",
          "   Checked: data/classification/analysis_files/seq_depth_df.rds\n",
-         "   Please run calculate_sequencing_depth.r first.")
+         "   Please run 01_calculate_sequencing_depth.r first.")
 }
 seq_depth_df <- readRDS(seq_depth_file)
 
