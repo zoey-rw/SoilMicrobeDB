@@ -397,6 +397,32 @@ assign_biome_presence = function(test_df) {
 }
 
 # Load and prepare soilCores data from NEON soil data RDS file
+# Load NEON soil chemistry data
+# Default path matches the standard location used across scripts
+load_soilChem <- function(neon_soil_file = "/projectnb/dietzelab/zrwerbin/N-cycle/neon_soil_data_2023.rds") {
+    return(readRDS(neon_soil_file))
+}
+
+# Extract genomic sample mapping (sampleID to genomicsSampleID) from soilChem
+# Can take soilChem as input or load it if not provided
+load_genSampleExample <- function(soilChem = NULL, neon_soil_file = "/projectnb/dietzelab/zrwerbin/N-cycle/neon_soil_data_2023.rds") {
+    if(is.null(soilChem)) {
+        soilChem <- load_soilChem(neon_soil_file)
+    }
+    if(!"sls_metagenomicsPooling" %in% names(soilChem)) {
+        stop("sls_metagenomicsPooling not found in soilChem")
+    }
+    genomicSamples <- soilChem$sls_metagenomicsPooling %>%
+        tidyr::separate(genomicsPooledIDList, into = c("first", "second", "third"), sep = "\\|", fill = "right") %>%
+        dplyr::select(genomicsSampleID, first, second, third)
+    genSampleExample <- genomicSamples %>%
+        tidyr::pivot_longer(cols = c("first", "second", "third"), values_to = "sampleID") %>%
+        dplyr::select(sampleID, genomicsSampleID) %>%
+        drop_na()
+    return(genSampleExample)
+}
+
+# Load and process soil cores with transformations
 # Applies transformations: isForest classification, biome recoding, and compositeSampleID addition
 load_soilCores <- function(neon_soil_file = "data/environmental_data/neon_soil_data_2023.rds") {
     soilData <- readRDS(neon_soil_file)
@@ -420,13 +446,7 @@ load_soilCores <- function(neon_soil_file = "data/environmental_data/neon_soil_d
     
     # Add compositeSampleID from genomicSamples
     if("sls_metagenomicsPooling" %in% names(soilData)) {
-        genomicSamples <- soilData$sls_metagenomicsPooling %>%
-            tidyr::separate(genomicsPooledIDList, into=c("first","second","third"),sep="\\|",fill="right") %>%
-            dplyr::select(genomicsSampleID,first,second,third)
-        genSampleExample <- genomicSamples %>%
-            tidyr::pivot_longer(cols=c("first","second","third"),values_to = "sampleID") %>%
-            dplyr::select(sampleID,genomicsSampleID) %>%
-            drop_na()
+        genSampleExample <- load_genSampleExample(soilChem = soilData)
         soilCores$compositeSampleID <- genSampleExample[match(soilCores$sampleID, genSampleExample$sampleID),]$genomicsSampleID
     }
     

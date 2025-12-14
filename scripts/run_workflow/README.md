@@ -49,7 +49,7 @@
 **Script**: `04_reshape_score_reads.r`
 - **Input**: 
   - `*_scores.output` files from Step 2 
-  - `data/classification/analysis_files/seq_depth_df.rds` (from `calculate_sequencing_depth.r`)
+  - `data/classification/analysis_files/seq_depth_df.rds` (from `01_calculate_sequencing_depth.r`)
 - **Output**: 
   - `data/classification/analysis_files/filter_results_summary.csv` (preserved, used by visualization scripts)
   - `data/classification/analysis_files/filter_results_processed_files.txt` (log of processed files)
@@ -61,7 +61,7 @@
 - **Input**: 
   - `*_kraken.kreport` files from Step 1
   - `*_filtered_kraken.kreport` files from Step 2
-  - `data/classification/analysis_files/seq_depth_df.rds` (from `calculate_sequencing_depth.r`)
+  - `data/classification/analysis_files/seq_depth_df.rds` (from `01_calculate_sequencing_depth.r`)
 - **Output**: 
   - `data/classification/analysis_files/classification_pct_by_rank.csv` (preserved, used by visualization scripts)
   - `data/classification/analysis_files/classification_pct_by_rank_per_sample.csv` (preserved)
@@ -129,4 +129,4 @@
 - `03_add_lineage.sh` must be run to create merged CSV files
 - `04_reshape_score_reads.r` must be run to extract scoring information
 - `06_calculate_classification_pct_by_rank.r` should be run if you want to enable kreport file deletion (optional)
-- `calculate_sequencing_depth.r` must be run (required by `04_reshape_score_reads.r` and `06_calculate_classification_pct_by_rank.r`)
+- `01_calculate_sequencing_depth.r` must be run (required by `04_reshape_score_reads.r` and `06_calculate_classification_pct_by_rank.r`)
