@@ -368,6 +368,67 @@ cor_fun_moisture <- function(df) cor.test(df$percentage,
 																					method = "spearman", exact = FALSE) %>% 
 	tidy()
 
+# Average pH values (same as mean, but kept for consistency with existing code)
+mean_pH <- function(x, na.rm = TRUE) mean(x, na.rm = na.rm)
+
+# Get abundances by taxon rank from phyloseq object
+get_tax_level_abun <- function(ps, tax_rank_list = c("phylum","class","order","family","genus"), min_seq_depth = 1000) {
+    require("phyloseq")
+    require("speedyseq")
+    require("dplyr")
+    require("data.table")
+    
+    if(taxa_are_rows(ps)){otu_table(ps) <- t(otu_table(ps))}
+    ps_orig <- prune_samples(rowSums(otu_table(ps)) > min_seq_depth, ps)
+    ps_orig <- prune_samples(!duplicated(sample_data(ps_orig)$sampleID), ps_orig)
+    out.list <- list()
+    
+    for (r in 1:length(tax_rank_list)) {
+        ps <- ps_orig
+        tax_rank <- tax_rank_list[[r]]
+        cat(paste("\nEvaluating at rank:", tax_rank))
+        seq_total <- rowSums(otu_table(ps))
+        
+        if (!tax_rank %in% c("phylum","class","order","family","genus","Phylum","Class","Order","Family","Genus")) {
+            tax_table(ps) <- tax_table(ps)[,tax_rank]
+        }
+        
+        glom <- speedyseq::tax_glom(ps, taxrank = tax_rank)
+        glom_melt <- speedyseq::psmelt(glom)
+        
+        if("dnaSampleID" %in% colnames(glom_melt)){
+            form <- as.formula(paste0("dnaSampleID ~ ", tax_rank))
+            glom_wide <- reshape2::dcast(glom_melt, form, value.var = "Abundance", fun.aggregate = sum)
+            out_abun <- transform(glom_wide, row.names = dnaSampleID, dnaSampleID = NULL)
+            out_abun <- out_abun[sample_data(ps)$dnaSampleID,]
+        } else {
+            form <- as.formula(paste0("sampleID ~ ", tax_rank))
+            glom_wide <- reshape2::dcast(glom_melt, form, value.var = "Abundance", fun.aggregate = sum)
+            out_abun <- transform(glom_wide, row.names = sampleID, sampleID = NULL)
+            out_abun <- out_abun[sample_data(ps)$sampleID,]
+        }
+        
+        out_abun$other <- NULL
+        out_abun$other <- seq_total - rowSums(out_abun)
+        
+        out_rel <- out_abun/rowSums(out_abun)
+        
+        prevdf <- apply(X = otu_table(glom), 2, function(x){sum(x > 0)})
+        N.SVs <- data.frame(table(tax_table(ps)[, tax_rank], exclude = NULL))
+        colnames(N.SVs)[2] <- "N.SVs"
+        prevdf <- data.frame(prevalence = prevdf/nsamples(glom),
+                            totalAbundance = taxa_sums(glom),
+                            tax_table(glom)[,tax_rank])
+        prevdf <- merge(prevdf, N.SVs, by.x = colnames(prevdf)[3], by.y = "Var1", all.x = TRUE)
+        
+        out <- list(out_abun, out_rel, seq_total, prevdf)
+        names(out) <- c("abundances","rel.abundances","seq.total","prevalence")
+        out.list[[r]] <- out
+    }
+    names(out.list) <- tax_rank_list
+    return(out.list)
+}
+
 
 assign_biome_presence = function(test_df) {
 	

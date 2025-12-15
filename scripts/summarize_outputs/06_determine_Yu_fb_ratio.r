@@ -25,7 +25,17 @@ sample_lat_lon <- sample_lat_lon %>%
     filter(!is.na(compositeSampleID)) %>% 
     distinct(.keep_all = TRUE)
 
-fun_bac_ratios <- fread("/projectnb/dietzelab/zrwerbin/N-cycle/data/ref_data/fun_bac_ratio.csv") %>%
+fun_bac_ratio_paths <- c(
+    "data/comparison_data/modeled_fb_ratio/fun_bac_ratio.csv",
+    "/projectnb/dietzelab/zrwerbin/N-cycle/data/ref_data/fun_bac_ratio.csv"
+)
+
+fun_bac_ratio_file <- fun_bac_ratio_paths[file.exists(fun_bac_ratio_paths)][1]
+if(is.na(fun_bac_ratio_file)) {
+    stop("fun_bac_ratio.csv not found in:\n  ", paste(fun_bac_ratio_paths, collapse = "\n  "))
+}
+
+fun_bac_ratios <- fread(fun_bac_ratio_file) %>%
     mutate(Lat = round(Lat, 3), Lon = round(Lon, 3)) %>%
     select(-V1) %>%
     group_by(Lat, Lon) %>%

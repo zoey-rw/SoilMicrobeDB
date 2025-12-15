@@ -45,7 +45,7 @@ qc_info <- left_join(qc_info2, qc_info1, relationship = "many-to-many") %>%
     distinct(.keep_all = TRUE) %>% 
     pivot_wider(names_from = "targetTaxonGroup", 
                values_from = c("nucleicAcidConcentration", "meanCqValue", "pcrEfficiency"), 
-               values_fun = "mean")
+               values_fn = mean)
 
 qpcrData_qc <- qpcrData$mga_soilGroupAbundances %>%
     select(siteID, plotID, collectDate, geneticSampleID, dnaSampleID, targetTaxonGroup, dataQF,

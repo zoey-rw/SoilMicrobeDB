@@ -8,6 +8,18 @@
 library(tidyverse)
 source("scripts/helper_functions.r")
 
+required_files <- c(
+    "data/classification/taxonomic_rank_summaries/domain/bracken_domain_estimates.rds",
+    "data/classification/analysis_files/soil_microbe_db_phyla_fungi_summary.csv",
+    "data/classification/analysis_files/soil_microbe_db_genus_fungi_summary.csv",
+    "data/classification/analysis_files/seq_depth_df.rds"
+)
+
+missing_files <- required_files[!file.exists(required_files)]
+if(length(missing_files) > 0) {
+    stop("Required files not found:\n  ", paste(missing_files, collapse = "\n  "))
+}
+
 domain_bracken <- readRDS("data/classification/taxonomic_rank_summaries/domain/bracken_domain_estimates.rds")
 
 domain_metagenome <- domain_bracken %>% 
@@ -27,11 +39,9 @@ genus_fungi_summary <- read_csv("data/classification/analysis_files/soil_microbe
 metagenome <- left_join(domain_metagenome, genus_fungi_summary) %>%
     left_join(phyla_fungi_summary) %>%
     left_join(readRDS("data/classification/analysis_files/seq_depth_df.rds") %>% 
-                 select(-c(db_name, identified_reads)) %>% 
                  rename(compositeSampleID = sampleID)) %>%
     filter(seq_depth > 1000000)
 
-source("scripts/helper_functions.r")
 if(!exists("soilCores")) soilCores <- load_soilCores()
 
 soil_master_df <- soilCores %>% 

@@ -144,12 +144,28 @@ for samp_file in /projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classif
             echo "  WARNING: $ARCHITEUTHIS_FILTERED_REPORT appears to be in .output format (starts with '$first_char'), not .kreport format. Skipping Bracken for $samp_name"
         else
             # Valid kreport format - proceed with Bracken
+            # Check and run each rank independently
             if test -e $BRACKEN_OUTPUT; then
-                echo "$BRACKEN_OUTPUT exists; skipping this run."
+                echo "$BRACKEN_OUTPUT exists; skipping species-level Bracken."
             else
                 /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT
+            fi
+            
+            if test -e $BRACKEN_OUTPUT_GENUS; then
+                echo "$BRACKEN_OUTPUT_GENUS exists; skipping genus-level Bracken."
+            else
                 /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT_GENUS -l G
+            fi
+            
+            if test -e $BRACKEN_OUTPUT_DOMAIN; then
+                echo "$BRACKEN_OUTPUT_DOMAIN exists; skipping domain-level Bracken."
+            else
                 /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT_DOMAIN -l D
+            fi
+            
+            if test -e $BRACKEN_OUTPUT_PHYLUM; then
+                echo "$BRACKEN_OUTPUT_PHYLUM exists; skipping phylum-level Bracken."
+            else
                 /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT_PHYLUM -l P
             fi
         fi
