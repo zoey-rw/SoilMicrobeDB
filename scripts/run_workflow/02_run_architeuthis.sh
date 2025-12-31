@@ -32,38 +32,45 @@ DB_taxonomy_dir=/projectnb/frpmars/soil_microbe_db/databases/soil_microbe_db/kra
 DB_taxo=/projectnb/frpmars/soil_microbe_db/databases/soil_microbe_db/kraken2/taxo.k2d
 
 # Uncomment and modify for other databases:
-DBNAME=pluspf
-DBDIR=/projectnb/frpmars/soil_microbe_db/databases/pluspf
-DB_taxo=/projectnb/frpmars/soil_microbe_db/databases/pluspf/taxo.k2d
-DB_taxonomy_dir=/projectnb/microbiome/ref_db/NCBI-taxdump
+#DBNAME=pluspf
+#DBDIR=/projectnb/frpmars/soil_microbe_db/databases/pluspf
+#DB_taxo=/projectnb/frpmars/soil_microbe_db/databases/pluspf/taxo.k2d
+#DB_taxonomy_dir=/projectnb/microbiome/ref_db/NCBI-taxdump
 #
-DBNAME=gtdb_207
-DBDIR=/projectnb/frpmars/soil_microbe_db/databases/gtdb_207_filtered/kraken2
-DB_taxonomy_dir=/projectnb/frpmars/soil_microbe_db/databases/gtdb_207_filtered/kraken2/taxonomy/
-DB_taxo=/projectnb/frpmars/soil_microbe_db/databases/gtdb_207_filtered/kraken2/taxo.k2d
+#DBNAME=gtdb_207
+#DBDIR=/projectnb/frpmars/soil_microbe_db/databases/gtdb_207_filtered/kraken2
+#DB_taxonomy_dir=/projectnb/frpmars/soil_microbe_db/databases/gtdb_207_filtered/kraken2/taxonomy/
+#DB_taxo=/projectnb/frpmars/soil_microbe_db/databases/gtdb_207_filtered/kraken2/taxo.k2d
 #
 DBNAME=gtdb_207_unfiltered
 DBDIR=/projectnb/microbiome/dgolden/Struo2/custom_dbs/GTDB_release207/kraken2
 DB_taxonomy_dir=/projectnb/microbiome/dgolden/Struo2/custom_dbs/GTDB_release207/taxonomy
 DB_taxo=/projectnb/microbiome/dgolden/Struo2/custom_dbs/GTDB_release207/kraken2/taxo.k2d
 
+# Force reprocessing option - set to "true" to regenerate _scores.output files even if they exist
+# Useful when files need to be regenerated or are incomplete
+FORCE_REPROCESS_SCORES=false
+
 
 time_with_seconds=$(date +%T)
 echo "Beginning Architeuthis/Bracken loop at: $time_with_seconds"
 
-for samp_file in /projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/01_kraken_output/*.kreport; do
-
-    samp_file_basename="$(basename -- $samp_file)"
+# Loop through kraken.output files directly (more reliable than kreport files)
+# This ensures we process all samples that have kraken output, even if kreport files are missing
+for kraken_file in ${kraken_dir_path}/*_kraken.output; do
     
-    samp_name=${samp_file_basename::-15}
-    echo "$samp_name architeuthis loop"
+    # Extract samp_name from kraken.output filename
+    samp_file_basename="$(basename -- $kraken_file)"
+    samp_name=${samp_file_basename::-13}  # Remove "_kraken.output" (13 chars)
     
     # Only process files for the current database
     if [[ $samp_name != *$DBNAME* ]]; then
         continue
     fi
     
-    KRAKEN_OUTPUT=${kraken_dir_path}/${samp_name}_kraken.output
+    echo "$samp_name architeuthis loop"
+    
+    KRAKEN_OUTPUT=$kraken_file
     
     ARCHITEUTHIS_FILTERED=${architeuthis_dir_path}/${samp_name}_filtered.output
     ARCHITEUTHIS_SUMMARY=${architeuthis_dir_path}/${samp_name}_summary.output
@@ -74,6 +81,9 @@ for samp_file in /projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classif
     BRACKEN_OUTPUT_GENUS=${architeuthis_dir_path}/${samp_name}_genus_filtered.b2
     BRACKEN_OUTPUT_DOMAIN=${architeuthis_dir_path}/${samp_name}_domain_filtered.b2
     BRACKEN_OUTPUT_PHYLUM=${architeuthis_dir_path}/${samp_name}_phylum_filtered.b2
+    BRACKEN_OUTPUT_CLASS=${architeuthis_dir_path}/${samp_name}_class_filtered.b2
+    BRACKEN_OUTPUT_ORDER=${architeuthis_dir_path}/${samp_name}_order_filtered.b2
+    BRACKEN_OUTPUT_FAMILY=${architeuthis_dir_path}/${samp_name}_family_filtered.b2
     
     # Run architeuthis mapping filter (creates filtered.output)
     if test -e $ARCHITEUTHIS_FILTERED; then
@@ -83,9 +93,13 @@ for samp_file in /projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classif
     fi
     
     # Run architeuthis mapping score
-    if test -e $ARCHITEUTHIS_SCORES; then
+    if test -e $ARCHITEUTHIS_SCORES && [ "$FORCE_REPROCESS_SCORES" != "true" ]; then
         echo "$ARCHITEUTHIS_SCORES exists; skipping this run."
     else
+        if [ "$FORCE_REPROCESS_SCORES" = "true" ] && test -e $ARCHITEUTHIS_SCORES; then
+            echo "FORCE_REPROCESS_SCORES=true: Regenerating $ARCHITEUTHIS_SCORES"
+            rm -f $ARCHITEUTHIS_SCORES
+        fi
         architeuthis mapping score $KRAKEN_OUTPUT --db $DBDIR --data-dir $DB_taxonomy_dir --out $ARCHITEUTHIS_SCORES
     fi
     
@@ -144,7 +158,7 @@ for samp_file in /projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classif
             echo "  WARNING: $ARCHITEUTHIS_FILTERED_REPORT appears to be in .output format (starts with '$first_char'), not .kreport format. Skipping Bracken for $samp_name"
         else
             # Valid kreport format - proceed with Bracken
-            # Check and run each rank independently
+            # Check and run each rank independently (ensures all ranks are generated even if some already exist)
             if test -e $BRACKEN_OUTPUT; then
                 echo "$BRACKEN_OUTPUT exists; skipping species-level Bracken."
             else
@@ -167,6 +181,24 @@ for samp_file in /projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classif
                 echo "$BRACKEN_OUTPUT_PHYLUM exists; skipping phylum-level Bracken."
             else
                 /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT_PHYLUM -l P
+            fi
+            
+            if test -e $BRACKEN_OUTPUT_CLASS; then
+                echo "$BRACKEN_OUTPUT_CLASS exists; skipping class-level Bracken."
+            else
+                /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT_CLASS -l C
+            fi
+            
+            if test -e $BRACKEN_OUTPUT_ORDER; then
+                echo "$BRACKEN_OUTPUT_ORDER exists; skipping order-level Bracken."
+            else
+                /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT_ORDER -l O
+            fi
+            
+            if test -e $BRACKEN_OUTPUT_FAMILY; then
+                echo "$BRACKEN_OUTPUT_FAMILY exists; skipping family-level Bracken."
+            else
+                /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT_FAMILY -l F
             fi
         fi
     fi

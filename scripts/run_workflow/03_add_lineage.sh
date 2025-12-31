@@ -44,10 +44,34 @@ merge_and_add_lineage() {
     echo "Processing $DBNAME at $rank level..."
     
     # Expand glob pattern to find actual files
-    b2_files=$(find ${bracken_dir} -name "${b2_pattern}" -type f 2>/dev/null | sort)
+    # Files may have single or double underscores after database name (e.g., _filtered or __filtered)
+    # Create alternate pattern by replacing first underscore after DBNAME with double underscore
+    # Examples: *soil_microbe_db_filtered.b2 -> *soil_microbe_db__filtered.b2
+    #           *soil_microbe_db_genus_filtered.b2 -> *soil_microbe_db__genus_filtered.b2
+    if [[ "$b2_pattern" == *"${DBNAME}_"* ]]; then
+        # Replace ${DBNAME}_ with ${DBNAME}__
+        b2_pattern_alt=$(echo "$b2_pattern" | sed "s/${DBNAME}_/${DBNAME}__/")
+    elif [[ "$b2_pattern" == *"${DBNAME}.b2" ]]; then
+        # For patterns like *gtdb_207_unfiltered.b2, add double underscore before .b2
+        b2_pattern_alt=$(echo "$b2_pattern" | sed "s/${DBNAME}\.b2/${DBNAME}__.b2/")
+    else
+        b2_pattern_alt="$b2_pattern"
+    fi
+    # Search for both patterns (single and double underscore)
+    b2_files=$(find ${bracken_dir} \( -name "${b2_pattern}" -o -name "${b2_pattern_alt}" \) -type f 2>/dev/null | sort)
     
     if [ -z "$b2_files" ]; then
         echo "  WARNING: No files found matching pattern ${b2_pattern} in ${bracken_dir}"
+        # Diagnostic: show what .b2 files actually exist
+        all_b2_files=$(find ${bracken_dir} -name "*.b2" -type f 2>/dev/null | head -5)
+        if [ -n "$all_b2_files" ]; then
+            echo "  Diagnostic: Found .b2 files in directory (showing first 5 examples):"
+            echo "$all_b2_files" | while read -r file; do
+                echo "    $(basename "$file")"
+            done
+        else
+            echo "  Diagnostic: No .b2 files found in ${bracken_dir} at all"
+        fi
         echo "  Skipping merge for $DBNAME at $rank level"
         return
     fi
@@ -64,16 +88,61 @@ merge_and_add_lineage() {
         echo "  Merged file doesn't exist, will create"
     else
         # Check if any .b2 file is newer than the merged file
-        merged_file_time=$(stat -f %m "$lineage_file" 2>/dev/null || stat -c %Y "$lineage_file" 2>/dev/null || echo 0)
+        # Suppress all output except the modification time number
+        merged_file_time=$(stat -f %m "$lineage_file" 2>&1 | grep -oE '^[0-9]+$' || stat -c %Y "$lineage_file" 2>&1 | grep -oE '^[0-9]+$' || echo 0)
         
         for b2_file in $b2_files; do
-            b2_file_time=$(stat -f %m "$b2_file" 2>/dev/null || stat -c %Y "$b2_file" 2>/dev/null || echo 0)
+            b2_file_time=$(stat -f %m "$b2_file" 2>&1 | grep -oE '^[0-9]+$' || stat -c %Y "$b2_file" 2>&1 | grep -oE '^[0-9]+$' || echo 0)
             if [ "$b2_file_time" -gt "$merged_file_time" ]; then
                 needs_merge=true
                 echo "  Found newer .b2 file(s), will re-merge"
                 break
             fi
         done
+        
+        # Check if existing file has incorrect sample_ids (ending with _gtdb_207_filtered instead of _gtdb_207)
+        # This can happen if files were created before we removed the normalization logic
+        if [ "$needs_merge" = false ] && [ "$DBNAME" = "gtdb_207" ]; then
+            if Rscript -e "
+                library(data.table)
+                if(file.exists('$lineage_file')) {
+                    df <- fread('$lineage_file', nrows = 1000)
+                    if('sample_id' %in% names(df)) {
+                        has_incorrect <- any(grepl('_gtdb_207_filtered$', df\$sample_id))
+                        if(has_incorrect) {
+                            cat('INCORRECT_IDS')
+                        }
+                    }
+                }
+            " 2>/dev/null | grep -q "INCORRECT_IDS"; then
+                needs_merge=true
+                echo "  Found incorrect sample_ids (ending with _gtdb_207_filtered), will regenerate"
+            fi
+        fi
+        
+        # Check if there are .b2 files with sample_ids not in the merged CSV
+        # This catches cases where merged CSV exists but doesn't include all .b2 files
+        if [ "$needs_merge" = false ] && [ -f "$lineage_file" ] && [ -n "$b2_files" ]; then
+            # Get sample_ids from merged CSV
+            merged_sample_count=$(Rscript -e "
+                library(data.table)
+                if(file.exists('$lineage_file')) {
+                    df <- fread('$lineage_file', select = 'sample_id', showProgress = FALSE)
+                    cat(length(unique(df\$sample_id)))
+                } else {
+                    cat('0')
+                }
+            " 2>/dev/null)
+            
+            # Count unique .b2 files (each .b2 file represents one sample)
+            b2_file_count=$(echo "$b2_files" | wc -l | tr -d ' ')
+            
+            # If we have more .b2 files than unique samples in merged CSV, we need to merge
+            if [ "$b2_file_count" -gt "${merged_sample_count:-0}" ]; then
+                needs_merge=true
+                echo "  Found $b2_file_count .b2 file(s) but merged CSV only has ${merged_sample_count} unique sample(s), will re-merge"
+            fi
+        fi
         
         if [ "$needs_merge" = false ]; then
             echo "  $lineage_file already exists and is up-to-date, skipping merge"
@@ -87,12 +156,13 @@ merge_and_add_lineage() {
             echo "  Existing merged file found, will combine with new .b2 files"
             
             # Identify new .b2 files (newer than existing merged file)
-            merged_file_time=$(stat -f %m "$merged_file" 2>/dev/null || stat -c %Y "$merged_file" 2>/dev/null || echo 0)
+            # Suppress all output except the modification time number
+            merged_file_time=$(stat -f %m "$merged_file" 2>&1 | grep -oE '^[0-9]+$' || stat -c %Y "$merged_file" 2>&1 | grep -oE '^[0-9]+$' || echo 0)
             new_b2_files=""
             old_b2_files=""
             
             for b2_file in $b2_files; do
-                b2_file_time=$(stat -f %m "$b2_file" 2>/dev/null || stat -c %Y "$b2_file" 2>/dev/null || echo 0)
+                b2_file_time=$(stat -f %m "$b2_file" 2>&1 | grep -oE '^[0-9]+$' || stat -c %Y "$b2_file" 2>&1 | grep -oE '^[0-9]+$' || echo 0)
                 if [ "$b2_file_time" -gt "$merged_file_time" ]; then
                     new_b2_files="$new_b2_files $b2_file"
                 else
@@ -187,19 +257,60 @@ for DBNAME in "${!DB_PATHS[@]}"; do
     DB_taxonomy_dir=${DB_TAXONOMY_DIRS[$DBNAME]}
     
     for rank in "${ranks[@]}"; do
-        # Determine file pattern based on rank
+        # Determine file pattern based on database and rank
+        # Patterns must match actual file naming conventions
         case "$rank" in
             "species")
-                b2_pattern="*${DBNAME}_filtered.b2"
+                if [ "$DBNAME" = "soil_microbe_db" ]; then
+                    b2_pattern="*${DBNAME}_filtered.b2"
+                elif [ "$DBNAME" = "gtdb_207_unfiltered" ]; then
+                    b2_pattern="*gtdb_207_unfiltered.b2"
+                elif [ "$DBNAME" = "gtdb_207" ]; then
+                    b2_pattern="*gtdb_207_filtered.b2"
+                elif [ "$DBNAME" = "pluspf" ]; then
+                    b2_pattern="*pluspf_filtered.b2"
+                else
+                    b2_pattern="*${DBNAME}_filtered.b2"
+                fi
                 ;;
             "genus")
-                b2_pattern="*${DBNAME}_genus_filtered.b2"
+                if [ "$DBNAME" = "soil_microbe_db" ]; then
+                    b2_pattern="*${DBNAME}_genus_filtered.b2"
+                elif [ "$DBNAME" = "gtdb_207_unfiltered" ]; then
+                    b2_pattern="*gtdb_207_unfiltered_genus_filtered.b2"
+                elif [ "$DBNAME" = "gtdb_207" ]; then
+                    b2_pattern="*gtdb_207_genus_filtered.b2"
+                elif [ "$DBNAME" = "pluspf" ]; then
+                    b2_pattern="*pluspf_genus_filtered.b2"
+                else
+                    b2_pattern="*${DBNAME}_genus_filtered.b2"
+                fi
                 ;;
             "domain")
-                b2_pattern="*${DBNAME}_domain_filtered.b2"
+                if [ "$DBNAME" = "soil_microbe_db" ]; then
+                    b2_pattern="*${DBNAME}_domain_filtered.b2"
+                elif [ "$DBNAME" = "gtdb_207_unfiltered" ]; then
+                    b2_pattern="*gtdb_207_unfiltered_domain_filtered.b2"
+                elif [ "$DBNAME" = "gtdb_207" ]; then
+                    b2_pattern="*gtdb_207_domain_filtered.b2"
+                elif [ "$DBNAME" = "pluspf" ]; then
+                    b2_pattern="*pluspf_domain_filtered.b2"
+                else
+                    b2_pattern="*${DBNAME}_domain_filtered.b2"
+                fi
                 ;;
             "phylum")
-                b2_pattern="*${DBNAME}_phylum_filtered.b2"
+                if [ "$DBNAME" = "soil_microbe_db" ]; then
+                    b2_pattern="*${DBNAME}_phylum_filtered.b2"
+                elif [ "$DBNAME" = "gtdb_207_unfiltered" ]; then
+                    b2_pattern="*gtdb_207_unfiltered_phylum_filtered.b2"
+                elif [ "$DBNAME" = "gtdb_207" ]; then
+                    b2_pattern="*gtdb_207_phylum_filtered.b2"
+                elif [ "$DBNAME" = "pluspf" ]; then
+                    b2_pattern="*pluspf_phylum_filtered.b2"
+                else
+                    b2_pattern="*${DBNAME}_phylum_filtered.b2"
+                fi
                 ;;
         esac
         

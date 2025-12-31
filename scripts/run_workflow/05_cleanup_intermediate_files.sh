@@ -83,6 +83,16 @@ echo "  Scoring CSV: $scoring_csv"
 echo "  Processed log: $processed_log"
 echo ""
 
+# Function to normalize samp_name (remove trailing underscores)
+normalize_samp_name() {
+    local samp_name="$1"
+    # Remove trailing underscores
+    samp_name=$(echo "$samp_name" | sed 's/_\+$//')
+    # Remove trailing underscores after database names
+    samp_name=$(echo "$samp_name" | sed 's/\(_gtdb_207_unfiltered\|_gtdb_207\|_soil_microbe_db\|_pluspf\)_\+$/\1/')
+    echo "$samp_name"
+}
+
 # Function to check if a file exists
 file_exists() {
     [ -f "$1" ]
@@ -148,6 +158,7 @@ file_is_valid() {
 score_in_csv() {
     local score_file="$1"
     local samp_name=$(basename "$score_file" | sed 's/_scores\.output$//')
+    samp_name=$(normalize_samp_name "$samp_name")
     
     # Check both possible CSV locations (relative and absolute paths)
     local csv_locations=("$scoring_csv")
@@ -173,8 +184,10 @@ score_in_csv() {
     
     for csv_file in "${csv_locations[@]}"; do
         if [ -f "$csv_file" ]; then
-            # Check if samp_name appears in the CSV (simple grep check)
-            if grep -q "$samp_name" "$csv_file" 2>/dev/null; then
+            # Check if samp_name appears in the CSV (normalized version)
+            # samp_name values are unique identifiers, so a simple grep is safe
+            # Also check for version with trailing underscore in case CSV has it
+            if grep -q "$samp_name" "$csv_file" 2>/dev/null || grep -q "${samp_name}_" "$csv_file" 2>/dev/null; then
                 return 0  # Found in CSV
             fi
         fi
@@ -247,23 +260,25 @@ if [ -n "$score_files" ]; then
         [ -z "$score_file" ] && continue
         
         samp_name=$(basename "$score_file" | sed 's/_scores\.output$//')
+        samp_name=$(normalize_samp_name "$samp_name")
         
-        # Check if score is in CSV or processed log
-        if score_in_csv "$score_file" || score_in_log "$score_file"; then
+        # Only delete if score is confirmed in CSV (not just in processed log)
+        # The CSV is the source of truth - processed log is just for tracking
+        if score_in_csv "$score_file"; then
             # Verify CSV file is valid before deleting score file
             if file_is_valid "$scoring_csv" 5; then
                 file_size=$(stat -f%z "$score_file" 2>/dev/null || stat -c%s "$score_file" 2>/dev/null || echo 0)
                 rm -f "$score_file"
                 deleted_count=$((deleted_count + 1))
                 total_size_freed=$((total_size_freed + file_size))
-                echo "  ✓ Deleted: $(basename "$score_file") (score extracted)"
+                echo "  ✓ Deleted: $(basename "$score_file") (score confirmed in CSV)"
             else
                 skipped_count=$((skipped_count + 1))
                 echo "  ⊘ Skipped: $(basename "$score_file") (CSV file not valid or recently modified)"
             fi
         else
             skipped_count=$((skipped_count + 1))
-            echo "  ⊘ Skipped: $(basename "$score_file") (score not yet extracted)"
+            echo "  ⊘ Skipped: $(basename "$score_file") (score not yet in CSV)"
         fi
     done
 else
@@ -291,11 +306,21 @@ if [ -n "$filtered_files" ]; then
         # Skip empty entries
         [ -z "$filtered_file" ] && continue
         
-        samp_name=$(basename "$filtered_file" | sed 's/_filtered\.output$//')
+        raw_samp_name=$(basename "$filtered_file" | sed 's/_filtered\.output$//')
+        samp_name=$(normalize_samp_name "$raw_samp_name")
         
         # Check for kreport in same directory as filtered file
+        # Try normalized version first, then version with trailing underscore
         filtered_dir=$(dirname "$filtered_file")
         kreport_file="$filtered_dir/${samp_name}_filtered_kraken.kreport"
+        
+        # If normalized version doesn't exist, try with trailing underscore
+        if [ ! -f "$kreport_file" ] && [[ "$raw_samp_name" != "$samp_name" ]]; then
+            kreport_file_alt="$filtered_dir/${raw_samp_name}_filtered_kraken.kreport"
+            if [ -f "$kreport_file_alt" ]; then
+                kreport_file="$kreport_file_alt"
+            fi
+        fi
         
         # Verify kreport file is valid (non-empty, not recently modified) before deleting filtered.output
         if file_is_valid "$kreport_file" 5; then

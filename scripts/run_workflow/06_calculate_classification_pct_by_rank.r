@@ -46,6 +46,95 @@ seq_depth_df <- readRDS(seq_depth_file)
 fungal_phyla <- c("Ascomycota", "Basidiomycota", "Blastocladiomycota", 
                   "Chytridiomycota", "Cryptomycota", "Mucoromycota", 
                   "Microsporidia", "Olpidiomycota", "Zoopagomycota")
+fungal_pattern <- paste(fungal_phyla, collapse = "|")
+
+# Build taxonomy_id -> is_fungi mapping from merged lineage files
+# This is more reliable than parsing lineage from kreport files
+cat("Building taxonomy_id -> is_fungi mapping from merged lineage files...\n")
+lineage_dir_new <- "data/NEON_metagenome_classification/summary_files"
+lineage_dir_old <- "data/classification/taxonomic_rank_summaries"
+taxonomy_is_fungi <- data.frame(taxonomy_id = integer(), is_fungi = logical(), stringsAsFactors = FALSE)
+
+databases_to_check <- c("soil_microbe_db", "pluspf", "gtdb_207", "gtdb_207_unfiltered")
+for(db in databases_to_check) {
+    # Check for species-level merged lineage file (most comprehensive)
+    filename <- paste0(db, "_species_merged_lineage.csv")
+    lineage_file <- NULL
+    
+    if(file.exists(file.path(lineage_dir_new, filename))) {
+        lineage_file <- file.path(lineage_dir_new, filename)
+    } else if(file.exists(file.path(lineage_dir_old, "species", filename))) {
+        lineage_file <- file.path(lineage_dir_old, "species", filename)
+    } else if(file.exists(file.path(lineage_dir_old, filename))) {
+        lineage_file <- file.path(lineage_dir_old, filename)
+    }
+    
+    if(!is.null(lineage_file) && file.exists(lineage_file)) {
+        tryCatch({
+            lineage_df <- read_csv(lineage_file, col_select = c("taxonomy_id", "lineage"), show_col_types = FALSE)
+            if(nrow(lineage_df) > 0) {
+                lineage_df <- lineage_df %>%
+                    distinct(taxonomy_id, .keep_all = TRUE) %>%
+                    mutate(is_fungi = grepl(fungal_pattern, lineage, ignore.case = TRUE)) %>%
+                    select(taxonomy_id, is_fungi)
+                taxonomy_is_fungi <- bind_rows(taxonomy_is_fungi, lineage_df)
+                cat("  Loaded", nrow(lineage_df), "taxonomy IDs from", db, "\n")
+            }
+        }, error = function(e) {
+            cat("  Warning: Could not read", lineage_file, ":", e$message, "\n")
+        })
+    }
+}
+
+# Also check genus and phylum files to catch any taxonomy_ids not in species files
+for(rank in c("genus", "phylum")) {
+    for(db in databases_to_check) {
+        filename <- paste0(db, "_", rank, "_merged_lineage.csv")
+        lineage_file <- NULL
+        
+        if(file.exists(file.path(lineage_dir_new, filename))) {
+            lineage_file <- file.path(lineage_dir_new, filename)
+        } else if(file.exists(file.path(lineage_dir_old, rank, filename))) {
+            lineage_file <- file.path(lineage_dir_old, rank, filename)
+        } else if(file.exists(file.path(lineage_dir_old, filename))) {
+            lineage_file <- file.path(lineage_dir_old, filename)
+        }
+        
+        if(!is.null(lineage_file) && file.exists(lineage_file)) {
+            tryCatch({
+                lineage_df <- read_csv(lineage_file, col_select = c("taxonomy_id", "lineage"), show_col_types = FALSE)
+                if(nrow(lineage_df) > 0) {
+                    lineage_df <- lineage_df %>%
+                        distinct(taxonomy_id, .keep_all = TRUE) %>%
+                        mutate(is_fungi = grepl(fungal_pattern, lineage, ignore.case = TRUE)) %>%
+                        select(taxonomy_id, is_fungi)
+                    # Only add taxonomy_ids we haven't seen yet
+                    new_ids <- lineage_df %>%
+                        filter(!taxonomy_id %in% taxonomy_is_fungi$taxonomy_id)
+                    if(nrow(new_ids) > 0) {
+                        taxonomy_is_fungi <- bind_rows(taxonomy_is_fungi, new_ids)
+                    }
+                }
+            }, error = function(e) {
+                # Silently skip if file doesn't exist or can't be read
+            })
+        }
+    }
+}
+
+# Create a lookup table (data.table for fast joins)
+if(nrow(taxonomy_is_fungi) > 0) {
+    taxonomy_is_fungi <- taxonomy_is_fungi %>%
+        group_by(taxonomy_id) %>%
+        summarize(is_fungi = any(is_fungi), .groups = "drop") %>%
+        arrange(taxonomy_id)
+    setDT(taxonomy_is_fungi)
+    cat("✓ Created taxonomy_id -> is_fungi mapping with", nrow(taxonomy_is_fungi), "unique taxonomy IDs\n")
+    cat("  Fungal taxonomy IDs:", sum(taxonomy_is_fungi$is_fungi), "\n")
+} else {
+    cat("⚠ Warning: No taxonomy_id -> is_fungi mapping created. Will fall back to name-based identification.\n")
+    taxonomy_is_fungi <- NULL
+}
 
 # Set up paths - check both new and old locations, plus HARDDRIVE
 # Before filtering: original Kraken2 kreport files
@@ -131,7 +220,7 @@ parse_sample_id <- function(filename, is_filtered = FALSE) {
 }
 
 # Optimized function: Read kreport file once and extract ALL ranks at once
-read_kreport_all_ranks <- function(kreport_file, filter_status, fungal_phyla) {
+read_kreport_all_ranks <- function(kreport_file, filter_status, taxonomy_is_fungi_map) {
     # Read kreport file - handle both 6-column and 8-column formats
     first_line <- readLines(kreport_file, n = 1)
     has_header <- grepl("^[a-zA-Z]", first_line)
@@ -165,8 +254,25 @@ read_kreport_all_ranks <- function(kreport_file, filter_status, fungal_phyla) {
         
         # Process the report to match read_report3 format
         report$depth <- nchar(gsub("\\S.*", "", report$name)) / 2
-        report$name <- gsub("^ *", "", report$name)
-        report$name <- paste(tolower(report$taxRank), report$name, sep = "_")
+        original_name <- gsub("^ *", "", report$name)
+        report$name <- paste(tolower(report$taxRank), original_name, sep = "_")
+        
+        # Build taxLineage if it doesn't exist (needed for fungi identification at lower ranks)
+        if(!"taxLineage" %in% names(report)) {
+            report$taxLineage <- original_name
+            rows_to_consider <- rep(FALSE, nrow(report))
+            for(i in seq_len(nrow(report))) {
+                if(i > 1 && report$depth[i] > 0) {
+                    idx <- report$depth < report$depth[i] & rows_to_consider
+                    if(any(idx)) {
+                        my_row <- max(which(idx))
+                        report$taxLineage[i] <- paste(report$taxLineage[my_row], 
+                                                      report$taxLineage[i], sep = "|")
+                    }
+                }
+                rows_to_consider[i] <- TRUE
+            }
+        }
     }
     
     if(is.null(report) || nrow(report) == 0) {
@@ -187,8 +293,28 @@ read_kreport_all_ranks <- function(kreport_file, filter_status, fungal_phyla) {
         setDT(report)
     }
     
-    # Identify fungi once
-    report[, is_fungi := grepl(paste(fungal_phyla, collapse = "|"), name, ignore.case = TRUE)]
+    # Identify fungi using taxonomy_id mapping (most reliable) or lineage/name (fallback)
+    # Check if we have both the mapping and taxID column
+    has_taxid_mapping <- !is.null(taxonomy_is_fungi_map) && nrow(taxonomy_is_fungi_map) > 0
+    has_taxid_column <- "taxID" %in% names(report)
+    
+    if(has_taxid_mapping && has_taxid_column) {
+        # Use taxonomy_id mapping from merged lineage files (most reliable)
+        # Convert taxID to numeric if needed
+        if(!is.numeric(report$taxID)) {
+            report[, taxID := as.numeric(taxID)]
+        }
+        report <- merge(report, taxonomy_is_fungi_map, by.x = "taxID", by.y = "taxonomy_id", all.x = TRUE)
+        report[, is_fungi := ifelse(is.na(is_fungi), FALSE, is_fungi)]
+    } else {
+        # Fallback: use taxLineage or name for fungi identification
+        # Use global fungal_pattern defined at top of script
+        if("taxLineage" %in% names(report)) {
+            report[, is_fungi := grepl(fungal_pattern, taxLineage, ignore.case = TRUE)]
+        } else {
+            report[, is_fungi := grepl(fungal_pattern, name, ignore.case = TRUE)]
+        }
+    }
     
     # Process all ranks
     results_list <- list()
@@ -319,7 +445,7 @@ results <- future_lapply(seq_along(new_files), function(i) {
     filter_status <- names(new_files)[i]
     
     tryCatch({
-        read_kreport_all_ranks(kreport_file, filter_status, fungal_phyla)
+        read_kreport_all_ranks(kreport_file, filter_status, taxonomy_is_fungi)
     }, error = function(e) {
         cat("    Error processing", basename(kreport_file), ":", e$message, "\n")
         return(NULL)
