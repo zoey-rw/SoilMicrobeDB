@@ -1,106 +1,92 @@
-
 library(tidyverse)
-library(ggrepel)
-library(ggallin)
-library(scales)
-library(ggpmisc)
-library(rstatix)
 library(ggpubr)
 library(ggstatsplot)
 library(patchwork)
 library(RColorBrewer)
 
-# Load pre-processed filter results (extracted by 04_reshape_score_reads.r)
-filter_results_file = "data/classification/analysis_files/filter_results_summary.csv"
+summaries <- read_csv("data/classification/analysis_files/filter_results_summary.csv", show_col_types = FALSE)
 
-if(!file.exists(filter_results_file)) {
-    stop("❌ MISSING FILE: Filter results summary not found!\n",
-         "   Expected: ", filter_results_file, "\n",
-         "   Please run scripts/run_workflow/04_reshape_score_reads.r first to extract scoring information.")
+valid_dbs <- c("gtdb_207", "gtdb_207_unfiltered", "pluspf", "soil_microbe_db")
+
+if("samp_name" %in% names(summaries) && "db_name" %in% names(summaries)) {
+    summaries <- summaries %>%
+        mutate(
+            db_name = case_when(
+                db_name %in% valid_dbs ~ db_name,
+            grepl("gtdb_207_unfiltered", samp_name) ~ "gtdb_207_unfiltered",
+            grepl("gtdb_207", samp_name) & !grepl("gtdb_207_unfiltered", samp_name) ~ "gtdb_207",
+                grepl("_pluspf$", samp_name) ~ "pluspf",
+                grepl("_soil_microbe_db$", samp_name) ~ "soil_microbe_db",
+                grepl("_gtdb_207_unfiltered$", samp_name) ~ "gtdb_207_unfiltered",
+                grepl("_gtdb_207$", samp_name) & !grepl("_gtdb_207_unfiltered", samp_name) ~ "gtdb_207",
+                db_name == "gtdb_207_filtered" ~ "gtdb_207",
+            TRUE ~ db_name
+            )
+        )
 }
 
-cat("Loading filter results from:", filter_results_file, "\n")
-summaries <- read_csv(filter_results_file, show_col_types = FALSE)
-cat("Loaded", nrow(summaries), "records\n")
+plot_data <- summaries %>%
+    filter(metric %in% c("percent_classified", "percent_passing")) %>%
+    mutate(value = value * 100,
+           db_name = ifelse(db_name == "gtdb_207_filtered", "gtdb_207", db_name),
+           Database = recode(db_name,
+                            "gtdb_207" = "GTDB r207 (filtered)",
+                            "gtdb_207_unfiltered" = "GTDB r207 (unfiltered)",
+                            "soil_microbe_db" = "SoilMicrobeDB",
+                            "pluspf" = "PlusPF"),
+           pretty_metric = recode(metric,
+                                 "percent_classified" = "Read classification",
+                                 "percent_passing" = "Read classification and quality-filtering"),
+           pretty_metric = factor(pretty_metric, levels = c("Read classification", "Read classification and quality-filtering"))) %>%
+    filter(db_name %in% c("gtdb_207", "gtdb_207_unfiltered", "pluspf", "soil_microbe_db"))
 
-# Create prettier values for plotting
-summaries = summaries %>% mutate(value = value * 100,
-    Database = recode(db_name, 
-                                                  "gtdb_207" = "GTDB r207",
-                                                  "soil_microbe_db" = "SoilMicrobeDB",
-                                                  "pluspf" = "PlusPF"),
-    pretty_metric = recode(metric,"percent_classified" = "Read classification",
-                           "percent_passing"="Read classification and quality-filtering")) %>% filter(metric %in% c("percent_classified","percent_passing"))
+pluspf_samples <- plot_data %>% filter(db_name == "pluspf") %>% distinct(sampleID) %>% pull(sampleID)
+smdb_samples <- plot_data %>% filter(db_name == "soil_microbe_db") %>% distinct(sampleID) %>% pull(sampleID)
+gtdb_unfiltered_samples <- plot_data %>% filter(db_name == "gtdb_207_unfiltered") %>% distinct(sampleID) %>% pull(sampleID)
+gtdb_filtered_samples <- plot_data %>% filter(db_name == "gtdb_207") %>% distinct(sampleID) %>% pull(sampleID)
 
-summaries$pretty_metric = factor(summaries$pretty_metric, levels = c("Read classification","Read classification and quality-filtering"))
+common_pluspf_smdb <- intersect(pluspf_samples, smdb_samples)
+common_all_unfiltered <- intersect(intersect(pluspf_samples, smdb_samples), gtdb_unfiltered_samples)
+common_all_filtered <- intersect(intersect(pluspf_samples, smdb_samples), gtdb_filtered_samples)
 
-# Ensure Database is a factor with correct levels
-summaries$Database = factor(summaries$Database, levels = c("SoilMicrobeDB", "GTDB r207", "PlusPF"))
-
-# Plotting color palette
-myColors <- brewer.pal(5,"Set1")
-names(myColors) <- c("SoilMicrobeDB", "GTDB r207", "PlusPF")
-colScale <- scale_colour_manual(name = "Database",values = myColors)
-
-# Filter data for plotting (exclude gtdb_207_unfiltered)
-plot_data = summaries %>% 
-    filter(!db_name %in% c("gtdb_207_unfiltered")) %>%
-    # Ensure Database factor is maintained after filtering
-    mutate(Database = factor(Database, levels = c("SoilMicrobeDB", "GTDB r207", "PlusPF")))
-
-# Get list of samples that have been evaluated by all remaining databases (after filtering)
-# Count distinct sampleID values per database (accounting for multiple metrics per sample)
-sample_count = plot_data %>% 
-    distinct(sampleID, db_name) %>%  
-    group_by(sampleID) %>% tally
-common_samples = sample_count[sample_count$n > 2,]$sampleID
-cat("Found", length(common_samples), "samples evaluated by all databases\n")
-
-# Use common_samples if available, otherwise use all samples
-if(length(common_samples) > 0) {
-    plot_data = plot_data %>% filter(sampleID %in% common_samples)
-    cat("Plotting", nrow(plot_data), "records from", length(common_samples), "common samples\n")
+# Use unfiltered GTDB for this comparison (only unfiltered should be in the plot)
+if(length(common_all_unfiltered) > 0) {
+    gtdb_db_to_use <- "gtdb_207_unfiltered"
+    common_samples <- common_all_unfiltered
+    cat("Using GTDB unfiltered with", length(common_samples), "common samples\n")
 } else {
-    cat("No samples evaluated by all databases. Plotting all available samples.\n")
-    cat("Plotting", nrow(plot_data), "records\n")
+    stop("No common samples found across all databases (PlusPF, SoilMicrobeDB, and GTDB unfiltered)")
 }
 
-# Check if we have data to plot
-if(nrow(plot_data) == 0) {
-    stop("❌ ERROR: No data available for plotting!\n",
-         "   Make sure filter_results_summary.csv contains data for the selected metrics.")
-}
+# Only include unfiltered GTDB in the plot (explicitly exclude filtered)
+plot_data <- plot_data %>%
+    filter(db_name %in% c("gtdb_207_unfiltered", "pluspf", "soil_microbe_db")) %>%  # Only unfiltered, explicitly exclude gtdb_207
+    filter(sampleID %in% common_samples) %>%
+    mutate(Database = factor(Database, levels = c("SoilMicrobeDB", 
+                                                   "GTDB r207 (unfiltered)",
+                                                   "PlusPF")))
 
-fig2 = grouped_ggbetweenstats(plot_data,
-                              
-                              #filter(!metric %in% c("seq_depth","n_reads")),
-                              Database, 
-                              #point.args = list(inherit_aes=T, aes(color=Database)),
-                              value, 
-                              ylab="% reads",
-                              xlab="Database",
-                               #type="np",
+myColors <- brewer.pal(5, "Set1")[1:3]
+names(myColors) <- c("SoilMicrobeDB", "GTDB r207 (unfiltered)", "PlusPF")
+colScale <- scale_colour_manual(name = "Database", values = myColors)
+
+fig2 <- grouped_ggbetweenstats(plot_data,
+                              Database,
+                              value,
+                              ylab = "% reads",
+                              xlab = "Database",
                               ggtheme = theme_bw(base_size = 16),
                               pairwise.comparisons = TRUE,
-                              grouping.var = pretty_metric, 
-                              sample.size.label = F,
-                              ggsignif.args    = list(textsize = 4, tip_length = 0.01),
+                              grouping.var = pretty_metric,
+                              sample.size.label = FALSE,
+                              ggsignif.args = list(textsize = 4, tip_length = 0.01),
                               ggplot.component = list(colScale,
-                                  theme(axis.title.y.right = element_blank(), 
-                                                            axis.text.y.right = element_blank(), 
-                                                            axis.ticks.y.right = element_blank())),
-                              results.subtitle=F,
-                              centrality.plotting = F) 
+                                  theme(axis.title.y.right = element_blank(),
+                                        axis.text.y.right = element_blank(),
+                                        axis.ticks.y.right = element_blank())),
+                              results.subtitle = FALSE,
+                              centrality.plotting = FALSE) &
+    plot_annotation(tag_levels = 'A')
 
-fig2 = fig2 & plot_annotation(tag_levels = 'A')
-
-# Save figure
 ggsave("manuscript_figures/fig2.png", fig2, width = 12, height = 6, units = "in", dpi = 300)
-
-cat("✓ Figure saved to: manuscript_figures/fig2.png\n")
-
-# Optional: Print summary statistics (commented out View() for non-interactive use)
-# summaries %>% 
-#     pivot_wider(values_from = "value", names_from = "metric") %>% 
-#     distinct() %>% View
 

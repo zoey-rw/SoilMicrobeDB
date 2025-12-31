@@ -41,6 +41,33 @@ plfa_qpcr_df_long = plfa_qpcr_df %>%
     rename("qPCR" = f_proportion, "PLFA" = proportion_fungi) %>% 
     pivot_longer(cols=c(qPCR, PLFA), names_to = "metric", values_to = "Fungal abundance")
 
+# Add biome from soilCores if missing (for faceted figures)
+if(sum(!is.na(plfa_qpcr_df_long$biome)) == 0) {
+    source("scripts/helper_functions.r")
+    if(!exists("soilCores")) {
+        soilCores <- load_soilCores()
+    }
+    soilCores_subset = soilCores %>% 
+        select(compositeSampleID, nlcdClass) %>% 
+        distinct(compositeSampleID, .keep_all = T) %>%
+        mutate(biome = recode(nlcdClass, 
+                              "mixedForest" = "Forest",
+                              "evergreenForest" = "Forest",
+                              "deciduousForest" = "Forest",
+                              "emergentHerbaceousWetlands" = "Wetlands",
+                              "woodyWetlands" = "Wetlands",
+                              "dwarfScrub" = "Shrubland",
+                              "shrubScrub" = "Shrubland",
+                              "sedgeHerbaceous" = "Herbaceous",
+                              "grasslandHerbaceous" = "Herbaceous",
+                              "pastureHay" = "Cultivated",
+                              "cultivatedCrops" = "Cultivated"))
+    
+    plfa_qpcr_df_long = plfa_qpcr_df_long %>% 
+        left_join(soilCores_subset %>% select(compositeSampleID, biome), 
+                 by = "compositeSampleID")
+}
+
 
 fig_4ab <- grouped_ggscatterstats(
     plfa_qpcr_df_long,
@@ -72,6 +99,98 @@ fig_4ab
 
 fig_4ab %>% 
     ggexport(height = 600, width = 1200, filename = "manuscript_figures/fig4.png")
+
+
+# Figure 4C: qPCR vs PLFA direct comparison
+plfa_qpcr_df_filtered = plfa_qpcr_df %>% 
+    filter(!is.na(f_proportion) & !is.na(proportion_fungi)) %>%
+    filter(f_proportion > 0 & proportion_fungi > 0)
+
+fig_4c <- plfa_qpcr_df_filtered %>%
+    ggplot(aes(x = f_proportion, y = proportion_fungi)) +
+    geom_point(alpha = 0.5) +
+    stat_smooth(method = "lm", se = FALSE) +
+    stat_cor(label.y.npc = .97, size = 7, p.accuracy = .0001,
+             position = position_nudge(x = 0, y = .3)) +
+    stat_regline_equation(aes(label = ..rr.label..),
+                          show.legend = FALSE, size = 7, label.y.npc = .9, 
+                          position = position_nudge(x = 0, y = .3)) +
+    scale_x_log10() +
+    scale_y_log10() +
+    xlab("Fungal relative abundance (qPCR)") +
+    ylab("Fungal relative abundance (PLFA)") +
+    theme_bw(base_size = 18) +
+    theme(plot.margin = unit(c(1.5, 1.5, 1.5, 45), "pt"),
+          axis.title = element_text(face = "bold"))
+
+fig_4c
+
+fig_4c %>% 
+    ggexport(height = 600, width = 600, filename = "manuscript_figures/fig4c.png")
+
+
+# Figure 4A faceted by biome (PLFA)
+plfa_qpcr_df_4a <- plfa_qpcr_df_long %>%
+    filter(metric == "PLFA") %>%
+    filter(!is.na(`Fungal abundance`) & !is.na(genus_fungi_metagenome) & !is.na(biome)) %>%
+    filter(`Fungal abundance` > 0)
+
+if(nrow(plfa_qpcr_df_4a) > 0 && length(unique(plfa_qpcr_df_4a$biome[!is.na(plfa_qpcr_df_4a$biome)])) > 0) {
+    fig_4a_biome <- plfa_qpcr_df_4a %>%
+        ggplot(aes(x = genus_fungi_metagenome, y = `Fungal abundance`)) +
+        geom_point(alpha = 0.5) +
+        stat_smooth(method = "lm", se = FALSE) +
+        stat_cor(label.y.npc = .97, size = 5, p.accuracy = .0001,
+                 position = position_nudge(x = 0, y = .3)) +
+        stat_regline_equation(aes(label = ..rr.label..),
+                              show.legend = FALSE, size = 5, label.y.npc = .9, 
+                              position = position_nudge(x = 0, y = .3)) +
+        scale_x_log10() +
+        scale_y_log10() +
+        xlab("Fungal relative abundance in metagenome") +
+        ylab("Fungal relative abundance (PLFA)") +
+        facet_wrap(~biome) +
+        theme_bw(base_size = 16) +
+        theme(plot.margin = unit(c(1.5, 1.5, 1.5, 45), "pt"),
+              axis.title = element_text(face = "bold"))
+    
+    fig_4a_biome
+    
+    fig_4a_biome %>% 
+        ggexport(height = 800, width = 1200, filename = "manuscript_figures/fig4a_biome.png")
+}
+
+
+# Figure 4B faceted by biome (qPCR)
+plfa_qpcr_df_4b <- plfa_qpcr_df_long %>%
+    filter(metric == "qPCR") %>%
+    filter(!is.na(`Fungal abundance`) & !is.na(genus_fungi_metagenome) & !is.na(biome)) %>%
+    filter(`Fungal abundance` > 0)
+
+if(nrow(plfa_qpcr_df_4b) > 0 && length(unique(plfa_qpcr_df_4b$biome[!is.na(plfa_qpcr_df_4b$biome)])) > 0) {
+    fig_4b_biome <- plfa_qpcr_df_4b %>%
+        ggplot(aes(x = genus_fungi_metagenome, y = `Fungal abundance`)) +
+        geom_point(alpha = 0.5) +
+        stat_smooth(method = "lm", se = FALSE) +
+        stat_cor(label.y.npc = .97, size = 5, p.accuracy = .0001,
+                 position = position_nudge(x = 0, y = .3)) +
+        stat_regline_equation(aes(label = ..rr.label..),
+                              show.legend = FALSE, size = 5, label.y.npc = .9, 
+                              position = position_nudge(x = 0, y = .3)) +
+        scale_x_log10() +
+        scale_y_log10() +
+        xlab("Fungal relative abundance in metagenome") +
+        ylab("Fungal relative abundance (qPCR)") +
+        facet_wrap(~biome) +
+        theme_bw(base_size = 16) +
+        theme(plot.margin = unit(c(1.5, 1.5, 1.5, 45), "pt"),
+              axis.title = element_text(face = "bold"))
+    
+    fig_4b_biome
+    
+    fig_4b_biome %>% 
+        ggexport(height = 800, width = 1200, filename = "manuscript_figures/fig4b_biome.png")
+}
 
 
 ## OLD/TESTING

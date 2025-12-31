@@ -23,53 +23,34 @@ phylum_compare = phylum_output %>% mutate(taxon = recode(taxon,
                               #"Actinobacteria" = "Actinomycetota",
                              # "Actinobacteriota" = "Actinomycetota"
                               ))
-bracken_phylum_taxon_wide = phylum_output %>% filter(sampleID %in% common_samples) %>%
+bracken_phylum_taxon_wide <- phylum_output %>%
+    filter(sampleID %in% common_samples) %>%
     pivot_wider(names_from = "taxon", values_from = percentage, id_cols = c(db_name, sampleID)) %>%
-    group_by(sampleID, db_name) %>% 
-    mutate(Actinomycetota = sum(Actinomycetota, Actinobacteriota),
-         #  Acidobacteriota = sum(Acidobacteriota),
-           Pseudomonadota = sum(Pseudomonadota, Proteobacteria),
-           Bacillota = 	sum(Bacillota, Firmicutes, Firmicutes_A,
-                            Firmicutes_B,
-                            Firmicutes_C,
-                            Firmicutes_D,
-                            Firmicutes_E,
-                            Firmicutes_F,
-                            Firmicutes_G)) %>% select(-c(Firmicutes_A,
-                                                         Firmicutes_B,
-                                                         Firmicutes_C,
-                                                         Firmicutes_D,
-                                                         Firmicutes_E,
-                                                         Firmicutes_F,
-                                                         Firmicutes_G))
-bracken_phylum_long = bracken_phylum_taxon_wide %>%
-    select(-c(`Classified at a higher level`, "Unclassified")) %>% 
-    pivot_longer(3:ncol(.), 
-                 names_to = "taxon",values_to = "percentage")  %>%
-    pivot_wider(names_from = db_name, values_from = percentage)
+    mutate(across(where(is.numeric), ~replace_na(.x, 0)))
 
-phylum_output %>% filter(db_name %in% c("soil_microbe_db","pluspf","gtdb_207")) %>% 
-    #	filter(seq_depth > 5000000) %>%
-    #	filter(taxon %in% c("Archaea","Bacteria","Eukaryota")) %>% 
-    #filter(taxon %in% c("Verrucomicrobiota","Bacillota")) %>% 
-    group_by(db_name,taxon) %>% 
-    dplyr::summarize( mean(percentage))
+cols_to_ensure <- c("Actinomycetota", "Actinobacteriota", "Pseudomonadota", "Proteobacteria",
+                    "Bacillota", "Firmicutes", paste0("Firmicutes_", LETTERS[1:7]))
+for(col in cols_to_ensure) {
+    if(!col %in% names(bracken_phylum_taxon_wide)) {
+        bracken_phylum_taxon_wide[[col]] <- 0
+    }
+}
 
+bracken_phylum_taxon_wide <- bracken_phylum_taxon_wide %>%
+    group_by(sampleID, db_name) %>%
+    mutate(Actinomycetota = sum(Actinomycetota, Actinobacteriota, na.rm = TRUE),
+           Pseudomonadota = sum(Pseudomonadota, Proteobacteria, na.rm = TRUE),
+           Bacillota = sum(Bacillota, Firmicutes, Firmicutes_A, Firmicutes_B, Firmicutes_C,
+                          Firmicutes_D, Firmicutes_E, Firmicutes_F, Firmicutes_G, na.rm = TRUE)) %>%
+    ungroup() %>%
+    select(-any_of(c("Firmicutes_A", "Firmicutes_B", "Firmicutes_C", "Firmicutes_D", "Firmicutes_E", 
+                     "Firmicutes_F", "Firmicutes_G", "Actinobacteriota", "Proteobacteria", "Firmicutes")))
+bracken_phylum_long <- bracken_phylum_taxon_wide %>%
+    select(-any_of(c("Classified at a higher level", "Unclassified"))) %>%
+    pivot_longer(3:ncol(.),
+                 names_to = "taxon", values_to = "percentage") %>%
+    pivot_wider(names_from = db_name, values_from = percentage, values_fill = 0)
 
-pluspf_taxa = bracken_phylum_long %>% ungroup %>%  filter(!is.na(pluspf)) %>% select(taxon) %>% unique %>% unlist
-
-soil_microbe_db_taxa = bracken_phylum_long %>% ungroup %>%  filter(!is.na(soil_microbe_db)) %>% select(taxon) %>% unique %>% unlist
-
-gtdb_taxa = bracken_phylum_long %>% ungroup %>%  filter(!is.na(soil_microbe_db)) %>% select(taxon) %>% unique %>% unlist
-
-
-
-bracken_phylum_long %>%
-    filter(taxon %in% c("Acidobacteriota","Actinomycetota"))
-
-#gtdb207 has Actinomycetota, so do pluspf and soilmicrobedb
-# Actinobacteriota is included but abundance is 0
-# Actinomycetota in 
 
 fungal_phyla = c("Ascomycota","Basidiomycota","Blastocladiomycota","Chytridiomycota","Cryptomycota","Mucoromycota","Microsporidia","Olpidiomycota","Zoopagomycota")
 archaea_phyla = c("Thermoproteota","Euryarchaeota","Nitrososphaerota")
@@ -82,119 +63,47 @@ colScale <- scale_colour_manual(name = "Domain",values = myColors)
 
 
 
-also_plot = c("Bacillota",
-"Bacteroidota",
-"Chytridiomycota",
-"Thermoproteota",
-#"Cyanobacteriota",
-"Euryarchaeota",
-#"Myxococcota",
-"Nitrososphaerota",
-#"Planctomycetota",
-"Spirochaetota",
-#"Thermodesulfobacteriota",
-#"Vulcanimicrobiota",
-"Basidiomycota",
-"Ascomycota","Mucoromycota",
-#"Zoopagomycota",
-"Verrucomicrobiota",
-#"Nitrospirota",
-"Actinomycetota",
-"Pseudomonadota",
-#"Gemmatimonadota",
-"Acidobacteriota")
+also_plot <- c("Bacillota", "Bacteroidota", "Chytridiomycota", "Thermoproteota",
+               "Euryarchaeota", "Nitrososphaerota", "Spirochaetota", "Basidiomycota",
+               "Ascomycota", "Mucoromycota", "Verrucomicrobiota", "Actinomycetota",
+               "Pseudomonadota", "Acidobacteriota")
 
-fig_pluspf_vs_smd_fun = ggplot(bracken_phylum_long %>% 
-                                   filter(taxon %in% also_plot & Domain == "Eukaryota")) +
-    
-                                 #  filter(taxon %in% c("Basidiomycota",
-                                                       # "Ascomycota","Mucoromycota",
-                                                       # "Zoopagomycota"))) +
-    geom_point(aes(x = soil_microbe_db, y = pluspf, color = Domain),
-               size=3, alpha=.4,
-               #position=position_dodge(width = 1)
-    ) +
-    geom_smooth(aes(x = soil_microbe_db, y = pluspf, color = Domain), 
-                method = "lm",
-                formula = y ~ x) +
-    geom_abline(slope = 1, intercept=0, color=1, linetype=2, linewidth=1.2) +
-    facet_wrap(~taxon,ncol=1, scales = "free")  +
-    #facet_grid(rows=vars(taxon), scales = "free")  +
-    theme_bw(base_size = 16) +
-    ylab("PlusPF rel. abundance") +
-    xlab("SoilMicrobeDB rel. abundance") + labs(color = NULL) + colScale
+create_comparison_plot <- function(data, y_var, y_lab, domain_filter) {
+    if(!"soil_microbe_db" %in% names(data) || !y_var %in% names(data)) {
+        return(NULL)
+    }
+    data_filtered <- data %>%
+        filter(taxon %in% also_plot & Domain == domain_filter) %>%
+        filter(!is.na(soil_microbe_db) & !is.na(!!sym(y_var)))
+    if(nrow(data_filtered) == 0) {
+        return(NULL)
+    }
+    ggplot(data_filtered, aes(x = soil_microbe_db, y = !!sym(y_var), color = Domain)) +
+        geom_point(size = 3, alpha = 0.4) +
+        geom_smooth(method = "lm", formula = y ~ x) +
+        geom_abline(slope = 1, intercept = 0, color = 1, linetype = 2, linewidth = 1.2) +
+        facet_wrap(~taxon, ncol = 1, scales = "free") +
+        theme_bw(base_size = 16) +
+        labs(x = "SoilMicrobeDB rel. abundance", y = y_lab, color = NULL) +
+        colScale
+}
 
-fig_pluspf_vs_smd_arc = ggplot(bracken_phylum_long %>% 
-                                   filter(taxon %in% also_plot & Domain == "Archaea")) +
-    
-    #  filter(taxon %in% c("Basidiomycota",
-    # "Ascomycota","Mucoromycota",
-    # "Zoopagomycota"))) +
-    geom_point(aes(x = soil_microbe_db, y = pluspf, color = Domain),
-               size=3, alpha=.4,
-               #position=position_dodge(width = 1)
-    ) +
-    geom_smooth(aes(x = soil_microbe_db, y = pluspf, color = Domain), 
-                method = "lm",
-                formula = y ~ x) +
-    geom_abline(slope = 1, intercept=0, color=1, linetype=2, linewidth=1.2) +
-    facet_wrap(~taxon,ncol=1, scales = "free")  +
-    #facet_grid(rows=vars(taxon), scales = "free")  +
-    theme_bw(base_size = 16) +
-    ylab("PlusPF rel. abundance") +
-    xlab("SoilMicrobeDB rel. abundance")+ labs(color = NULL) + colScale
+available_dbs <- intersect(c("soil_microbe_db", "pluspf", "gtdb_207"), names(bracken_phylum_long))
 
+if("pluspf" %in% available_dbs && "soil_microbe_db" %in% available_dbs) {
+    fig_pluspf_vs_smd_fun <- create_comparison_plot(bracken_phylum_long, "pluspf", "PlusPF rel. abundance", "Eukaryota")
+    fig_pluspf_vs_smd_arc <- create_comparison_plot(bracken_phylum_long, "pluspf", "PlusPF rel. abundance", "Archaea")
+    fig_pluspf_vs_smd_bac <- create_comparison_plot(bracken_phylum_long, "pluspf", "PlusPF rel. abundance", "Bacteria")
+} else {
+    fig_pluspf_vs_smd_fun <- fig_pluspf_vs_smd_arc <- fig_pluspf_vs_smd_bac <- NULL
+}
 
-
-fig_pluspf_vs_smd_bac = ggplot(bracken_phylum_long %>%
-           filter(taxon %in% also_plot & Domain == "Bacteria")) +
-    geom_point(aes(x = soil_microbe_db, y = pluspf, color = Domain),
-               size=3, alpha=.4,
-               #position=position_dodge(width = 1)
-    ) +
-    geom_smooth(aes(x = soil_microbe_db, y = pluspf, color = Domain), 
-                method = "lm",
-                formula = y ~ x) +
-    geom_abline(slope = 1, intercept=0, color=1, linetype=2, linewidth=1.2) +
-    facet_wrap(~taxon,ncol=1, scales = "free")  +
-    #facet_grid(rows=vars(taxon), scales = "free")  +
-    theme_bw(base_size = 16) +
-    ylab("PlusPF rel. abundance") +
-    xlab("SoilMicrobeDB rel. abundance") + labs(color = NULL) + colScale
-
-
-
-fig_gtdb_vs_smd_bac = ggplot(bracken_phylum_long %>%
-                             filter(taxon %in% also_plot & Domain == "Bacteria")) +    geom_point(aes(x = soil_microbe_db, y = gtdb_207, color = Domain),
-               size=3, alpha=.4,
-               #position=position_dodge(width = 1)
-    ) +
-    geom_smooth(aes(x = soil_microbe_db, y = gtdb_207, color = Domain), 
-                method = "lm",
-                formula = y ~ x) +
-    geom_abline(slope = 1, intercept=0, color=1, linetype=2, linewidth=1.2) +
-    facet_wrap(~taxon,ncol=1, scales = "free")  +
-    #facet_grid(rows=vars(taxon), scales = "free")  +
-    theme_bw(base_size = 16) +
-    ylab("GTDB r207 rel. abundance") +
-    xlab("SoilMicrobeDB rel. abundance")+ labs(color = NULL) + colScale
-
-
-
-fig_gtdb_vs_smd_arc = ggplot(bracken_phylum_long %>%
-                                 filter(taxon %in% also_plot & Domain == "Archaea")) +    geom_point(aes(x = soil_microbe_db, y = gtdb_207, color = Domain),
-                                                                                                      size=3, alpha=.4,
-                                                                                                      #position=position_dodge(width = 1)
-                                 ) +
-    geom_smooth(aes(x = soil_microbe_db, y = gtdb_207, color = Domain), 
-                method = "lm",
-                formula = y ~ x) +
-    geom_abline(slope = 1, intercept=0, color=1, linetype=2, linewidth=1.2) +
-    facet_wrap(~taxon,ncol=1, scales = "free")  +
-    #facet_grid(rows=vars(taxon), scales = "free")  +
-    theme_bw(base_size = 16) +
-    ylab("GTDB r207 rel. abundance") +
-    xlab("SoilMicrobeDB rel. abundance") + labs(color = NULL) + colScale
+if("gtdb_207" %in% available_dbs && "soil_microbe_db" %in% available_dbs) {
+    fig_gtdb_vs_smd_bac <- create_comparison_plot(bracken_phylum_long, "gtdb_207", "GTDB r207 rel. abundance", "Bacteria")
+    fig_gtdb_vs_smd_arc <- create_comparison_plot(bracken_phylum_long, "gtdb_207", "GTDB r207 rel. abundance", "Archaea")
+} else {
+    fig_gtdb_vs_smd_bac <- fig_gtdb_vs_smd_arc <- NULL
+}
 
 fixed_scales = facetted_pos_scales(x = list(
     taxon == "Acidobacteriota" ~ scale_x_continuous(limits = c(0,30)),
@@ -210,8 +119,7 @@ fixed_scales = facetted_pos_scales(x = list(
     taxon == "Nitrososphaerota" ~ scale_x_continuous(limits = c(0,3)),
     taxon == "Euryarchaeota" ~ scale_x_continuous(limits = c(0,1.5)),
     taxon == "Thermoproteota" ~ scale_x_continuous(limits = c(0,.1)),
-    taxon == "Spirochaetota" ~ scale_x_continuous(#labels = label_number(accuracy = 1), 
-                                                  limits = c(0,2.5)),
+    taxon == "Spirochaetota" ~ scale_x_continuous(limits = c(0, 2.5)),
     taxon == "Bacillota" ~ scale_x_continuous(labels = label_number(accuracy = 1), limits = c(0,6)),
     taxon == "Bacteroidota" ~ scale_x_continuous(labels = label_number(accuracy = 1), limits = c(0,7)),
     taxon == "Verrucomicrobiota" ~ scale_x_continuous(limits = c(0,5))
@@ -239,42 +147,62 @@ taxon == "Verrucomicrobiota" ~ scale_y_continuous(limits = c(0,5))
 
 )
 
-a <- fig_pluspf_vs_smd_bac + fixed_scales + guides(color = "none") + theme(panel.spacing = unit(0, "lines"),
-                                                                             strip.background = element_rect(fill ="white"))
+if(!is.null(fig_pluspf_vs_smd_bac)) {
+    a <- fig_pluspf_vs_smd_bac + fixed_scales + guides(color = "none") + 
+        theme(panel.spacing = unit(0, "lines"), strip.background = element_rect(fill = "white"))
+} else {
+    a <- NULL
+}
 
-b <- fig_gtdb_vs_smd_bac + fixed_scales  + guides(color = "none")  + theme(panel.spacing = unit(0, "lines"),
-                                                                           strip.background = element_rect(fill ="white"))
+if(!is.null(fig_gtdb_vs_smd_bac)) {
+    b <- fig_gtdb_vs_smd_bac + fixed_scales + guides(color = "none") + 
+        theme(panel.spacing = unit(0, "lines"), strip.background = element_rect(fill = "white"))
+} else {
+    b <- NULL
+}
 
-c <- fig_pluspf_vs_smd_arc + fixed_scales + guides(color = "none") + theme(panel.spacing = unit(0, "lines"),
-                                                                             strip.background = element_rect(fill ="white"))
-d <- fig_gtdb_vs_smd_arc + fixed_scales  + guides(color = "none")  + theme(panel.spacing = unit(0, "lines"),
-                                                                           strip.background = element_rect(fill ="white"))
+if(!is.null(fig_pluspf_vs_smd_arc)) {
+    c <- fig_pluspf_vs_smd_arc + fixed_scales + guides(color = "none") + 
+        theme(panel.spacing = unit(0, "lines"), strip.background = element_rect(fill = "white"))
+} else {
+    c <- NULL
+}
 
-e <- fig_pluspf_vs_smd_fun + 
-    fixed_scales + 
-    guides(color = "none")  + 
-    theme(panel.spacing = unit(0, "lines"),
-          strip.background = element_rect(fill ="white"))
+if(!is.null(fig_gtdb_vs_smd_arc)) {
+    d <- fig_gtdb_vs_smd_arc + fixed_scales + guides(color = "none") + 
+        theme(panel.spacing = unit(0, "lines"), strip.background = element_rect(fill = "white"))
+} else {
+    d <- NULL
+}
 
+if(!is.null(fig_pluspf_vs_smd_fun)) {
+    e <- fig_pluspf_vs_smd_fun + fixed_scales + guides(color = "none") + 
+        theme(panel.spacing = unit(0, "lines"), strip.background = element_rect(fill = "white"))
+} else {
+    e <- NULL
+}
 
+if("soil_microbe_db" %in% names(bracken_phylum_long) && 
+   any(c("gtdb_207", "pluspf") %in% names(bracken_phylum_long))) {
+    y_col <- intersect(c("gtdb_207", "pluspf"), names(bracken_phylum_long))[1]
+    plot_for_legend <- ggplot(bracken_phylum_long %>% filter(taxon %in% also_plot),
+                              aes_string(x = "soil_microbe_db", y = y_col, color = "Domain")) +
+        geom_point() + theme_bw() + theme(legend.text = element_text(size = 16),
+                                          legend.title = element_text(size = 16))
+    legend_df <- get_legend(plot_for_legend)
+    legend_plot <- as_ggplot(legend_df) + 
+        theme(panel.spacing = unit(0, "lines"), strip.background = element_rect(fill = "white"))
+} else {
+    legend_plot <- NULL
+}
 
-
-plot_for_legend = ggplot(bracken_phylum_long %>%
-                                 filter(taxon %in% also_plot)) +    
-    geom_point(aes(x = soil_microbe_db, y = gtdb_207, color = Domain))  + theme_bw() + theme(legend.text=element_text(size=16),
-                                                                                             legend.title=element_text(size=16))
-legend_df <- get_legend(plot_for_legend)
-
-
-legend_plot <- as_ggplot(legend_df) + theme(panel.spacing = unit(0, "lines"), strip.background = element_rect(fill ="white")) 
-
-fig_s5 = ((a | b) | 
-        ((c | d) + plot_layout(axis_titles = "collect")) / 
-        (e | legend_plot) + plot_layout(heights = c(3, 4))) + 
-    plot_layout(axis_titles = "collect", widths = c(1,1,2.4)) + 
-    plot_annotation(tag_levels = list(c('A',"B","C","D","E")),
-                    theme = theme(plot.margin = unit(c(5,5,5,5), 
-                                                     'mm')))
-
-ggsave("manuscript_figures/fig_s5.png", fig_s5, height = 14, width = 16, units = "in", dpi = 300)
-cat("✅ Saved figure to: manuscript_figures/fig_s5.png\n")
+if(!is.null(a) && !is.null(b) && !is.null(c) && !is.null(d) && !is.null(e) && !is.null(legend_plot)) {
+    fig_s5 <- ((a | b) | 
+              ((c | d) + plot_layout(axis_titles = "collect")) / 
+              (e | legend_plot) + plot_layout(heights = c(3, 4))) + 
+        plot_layout(axis_titles = "collect", widths = c(1,1,2.4)) + 
+        plot_annotation(tag_levels = list(c('A',"B","C","D","E")),
+                        theme = theme(plot.margin = unit(c(5,5,5,5), 'mm')))
+    ggsave("manuscript_figures/fig_s5.png", fig_s5, height = 14, width = 16, units = "in", dpi = 300)
+    cat("✅ Saved figure to: manuscript_figures/fig_s5.png\n")
+}
