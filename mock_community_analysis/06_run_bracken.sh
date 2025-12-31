@@ -58,12 +58,52 @@ ARCHITEUTHIS_FILTERED_REPORT=${architeuthis_kraken_dir_path}${samp_name}_${DBNAM
 BRACKEN_OUTPUT=${bracken_dir_path}/${samp_name}_${DBNAME}_filtered.b2
 BRACKEN_OUTPUT_GENUS=${bracken_dir_path}/${samp_name}_${DBNAME}_genus_filtered.b2
 BRACKEN_OUTPUT_DOMAIN=${bracken_dir_path}/${samp_name}_${DBNAME}_domain_filtered.b2
+BRACKEN_OUTPUT_PHYLUM=${bracken_dir_path}/${samp_name}_${DBNAME}_phylum_filtered.b2
+BRACKEN_OUTPUT_CLASS=${bracken_dir_path}/${samp_name}_${DBNAME}_class_filtered.b2
+BRACKEN_OUTPUT_ORDER=${bracken_dir_path}/${samp_name}_${DBNAME}_order_filtered.b2
+BRACKEN_OUTPUT_FAMILY=${bracken_dir_path}/${samp_name}_${DBNAME}_family_filtered.b2
 
-/projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT
+if test -e $BRACKEN_OUTPUT; then
+    echo "$BRACKEN_OUTPUT exists; skipping species-level Bracken."
+else
+    /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT
+fi
 
-/projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT_GENUS -l G
+if test -e $BRACKEN_OUTPUT_GENUS; then
+    echo "$BRACKEN_OUTPUT_GENUS exists; skipping genus-level Bracken."
+else
+    /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT_GENUS -l G
+fi
 
-/projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT_DOMAIN -l D
+if test -e $BRACKEN_OUTPUT_DOMAIN; then
+    echo "$BRACKEN_OUTPUT_DOMAIN exists; skipping domain-level Bracken."
+else
+    /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT_DOMAIN -l D
+fi
+
+if test -e $BRACKEN_OUTPUT_PHYLUM; then
+    echo "$BRACKEN_OUTPUT_PHYLUM exists; skipping phylum-level Bracken."
+else
+    /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT_PHYLUM -l P
+fi
+
+if test -e $BRACKEN_OUTPUT_CLASS; then
+    echo "$BRACKEN_OUTPUT_CLASS exists; skipping class-level Bracken."
+else
+    /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT_CLASS -l C
+fi
+
+if test -e $BRACKEN_OUTPUT_ORDER; then
+    echo "$BRACKEN_OUTPUT_ORDER exists; skipping order-level Bracken."
+else
+    /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT_ORDER -l O
+fi
+
+if test -e $BRACKEN_OUTPUT_FAMILY; then
+    echo "$BRACKEN_OUTPUT_FAMILY exists; skipping family-level Bracken."
+else
+    /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT_FAMILY -l F
+fi
 
 done
 

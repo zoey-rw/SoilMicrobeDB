@@ -30,8 +30,10 @@ parse_sample_id <- function(filename) {
 }
 
 kreport_dirs <- c("data/NEON_metagenome_classification/01_kraken_output",
+                  "data/classification/01_kraken_output",
                   "/Volumes/HARDDRIVE/SoilMicrobeDB/data/classification/01_kraken_output",
                   "data/NEON_metagenome_classification/02_bracken_output",
+                  "data/classification/02_bracken_output",
                   "/Volumes/HARDDRIVE/SoilMicrobeDB/data/classification/02_bracken_output")
 
 samp_files <- unlist(lapply(kreport_dirs[dir.exists(kreport_dirs)], function(dir) {
