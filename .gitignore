@@ -165,3 +165,20 @@ Rplots.pdf
 
 # Design documentation (for development, not version controlled)
 DESIGN_DOC.md
+
+# Sample-level results with -COMP in filename (except misclassification_categorization.csv)
+data/classification/analysis_files/*-COMP*
+!data/classification/analysis_files/ORNL_046-O-20170621-COMP_misclassification_categorization.csv
+
+# Markdown files
+*.md
+
+# Text files
+*.txt
+
+# Log files
+*.log
+
+# Remote mount scripts
+mount_remote.sh
+unmount_remote.sh
