@@ -561,3 +561,49 @@ load_soilCores <- function(neon_soil_file = NULL) {
 # df_biome_wide = df_biome %>% 
 # 	select(-c(biome_count, prevalence)) %>% 
 # 	pivot_wider(names_from = nlcdClass, values_from = present_in_biome)
+
+# Read files from remote server over SSH
+# Uses SSH config at ~/.ssh/config (will prompt for password if needed)
+# Usage: fread_remote("/projectnb/frpmars/soil_microbe_db/data/file.csv")
+fread_remote = function(remote_path, 
+                        host = "scc2.bu.edu",
+                        ...) {
+  # Create temporary local file
+  temp_file = tempfile()
+  
+  # Use scp with SSH config (will use ~/.ssh/config settings)
+  system_command = sprintf(
+    'scp %s:"%s" "%s"',
+    host, remote_path, temp_file
+  )
+  
+  result = system(system_command, intern = FALSE)
+  
+  if (result != 0) {
+    stop(sprintf("Failed to copy file from remote server: %s", remote_path))
+  }
+  
+  # Read the file
+  data = data.table::fread(temp_file, ...)
+  
+  # Clean up temporary file
+  unlink(temp_file)
+  
+  return(data)
+}
+
+# Alternative: Read remote file using SSH command (for text files)
+read_remote = function(remote_path,
+                       host = "scc2.bu.edu",
+                       ...) {
+  system_command = sprintf(
+    'ssh %s "cat \\"%s\\""',
+    host, remote_path
+  )
+  
+  con = pipe(system_command)
+  data = readLines(con, ...)
+  close(con)
+  
+  return(data)
+}

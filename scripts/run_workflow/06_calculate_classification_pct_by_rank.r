@@ -71,9 +71,14 @@ for(db in databases_to_check) {
     
     if(!is.null(lineage_file) && file.exists(lineage_file)) {
         tryCatch({
-            lineage_df <- read_csv(lineage_file, col_select = c("taxonomy_id", "lineage"), show_col_types = FALSE)
+            lineage_df <- read_csv(lineage_file, col_select = c("taxonomy_id", "lineage"), 
+                                  col_types = cols(taxonomy_id = col_integer(), lineage = col_character()),
+                                  show_col_types = FALSE)
             if(nrow(lineage_df) > 0) {
+                # Ensure taxonomy_id is integer (handle any fractional values)
                 lineage_df <- lineage_df %>%
+                    mutate(taxonomy_id = as.integer(round(taxonomy_id))) %>%
+                    filter(!is.na(taxonomy_id)) %>%
                     distinct(taxonomy_id, .keep_all = TRUE) %>%
                     mutate(is_fungi = grepl(fungal_pattern, lineage, ignore.case = TRUE)) %>%
                     select(taxonomy_id, is_fungi)
@@ -102,9 +107,14 @@ for(rank in c("genus", "phylum")) {
         
         if(!is.null(lineage_file) && file.exists(lineage_file)) {
             tryCatch({
-                lineage_df <- read_csv(lineage_file, col_select = c("taxonomy_id", "lineage"), show_col_types = FALSE)
+                lineage_df <- read_csv(lineage_file, col_select = c("taxonomy_id", "lineage"),
+                                      col_types = cols(taxonomy_id = col_integer(), lineage = col_character()),
+                                      show_col_types = FALSE)
                 if(nrow(lineage_df) > 0) {
+                    # Ensure taxonomy_id is integer (handle any fractional values)
                     lineage_df <- lineage_df %>%
+                        mutate(taxonomy_id = as.integer(round(taxonomy_id))) %>%
+                        filter(!is.na(taxonomy_id)) %>%
                         distinct(taxonomy_id, .keep_all = TRUE) %>%
                         mutate(is_fungi = grepl(fungal_pattern, lineage, ignore.case = TRUE)) %>%
                         select(taxonomy_id, is_fungi)
@@ -122,13 +132,18 @@ for(rank in c("genus", "phylum")) {
     }
 }
 
-# Create a lookup table (data.table for fast joins)
+# Create a lookup table
 if(nrow(taxonomy_is_fungi) > 0) {
     taxonomy_is_fungi <- taxonomy_is_fungi %>%
+        # Ensure taxonomy_id is integer (handle any fractional values from CSV reading)
+        mutate(taxonomy_id = as.integer(round(taxonomy_id))) %>%
+        filter(!is.na(taxonomy_id)) %>%
         group_by(taxonomy_id) %>%
         summarize(is_fungi = any(is_fungi), .groups = "drop") %>%
         arrange(taxonomy_id)
     setDT(taxonomy_is_fungi)
+    # Ensure taxonomy_id column is integer type in data.table
+    taxonomy_is_fungi[, taxonomy_id := as.integer(taxonomy_id)]
     cat("✓ Created taxonomy_id -> is_fungi mapping with", nrow(taxonomy_is_fungi), "unique taxonomy IDs\n")
     cat("  Fungal taxonomy IDs:", sum(taxonomy_is_fungi$is_fungi), "\n")
 } else {
@@ -191,11 +206,13 @@ if(length(kreport_before_files) == 0 && length(kreport_after_files) == 0) {
 }
 
 # Function to parse sample ID from kreport filename
+# Handles both single and double underscores (e.g., _filtered_kraken.kreport or __filtered_kraken.kreport)
 parse_sample_id <- function(filename, is_filtered = FALSE) {
     if(is_filtered) {
-        samp_name <- gsub("_filtered_kraken.kreport", "", basename(filename))
+        # Remove _filtered_kraken.kreport or __filtered_kraken.kreport (handle both single and double underscores)
+        samp_name <- gsub("_{1,2}filtered_kraken\\.kreport$", "", basename(filename))
     } else {
-        samp_name <- gsub("_kraken.kreport", "", basename(filename))
+        samp_name <- gsub("_kraken\\.kreport$", "", basename(filename))
     }
     
     # Parse sampleID and db_name
@@ -203,13 +220,19 @@ parse_sample_id <- function(filename, is_filtered = FALSE) {
     if(length(parts) >= 2) {
         sampleID_temp <- parts[1]
         db_name <- parts[2]
-        # Remove db_name suffix from sampleID
-        sampleID <- sub(paste0("_", db_name), "", samp_name, fixed = TRUE)
-        db_name <- gsub("_filtered|_kraken", "", db_name)
+        # Remove db_name suffix from sampleID (handle both single and double underscores before db_name)
+        # Try double underscore first, then single underscore
+        sampleID <- sub(paste0("__", db_name), "", samp_name, fixed = TRUE)
+        if(sampleID == samp_name) {
+            # Double underscore didn't match, try single underscore
+            sampleID <- sub(paste0("_", db_name), "", samp_name, fixed = TRUE)
+        }
+        # Clean up db_name (remove _filtered or __filtered, and _kraken)
+        db_name <- gsub("_{1,2}filtered|_kraken", "", db_name)
     } else {
         # Try alternative parsing for files without COMP_ separator
         if(grepl("soil_microbe_db", samp_name)) {
-            sampleID <- gsub("_soil_microbe_db", "", samp_name)
+            sampleID <- gsub("_{1,2}soil_microbe_db", "", samp_name)
             db_name <- "soil_microbe_db"
         } else {
             sampleID <- samp_name
@@ -300,10 +323,16 @@ read_kreport_all_ranks <- function(kreport_file, filter_status, taxonomy_is_fung
     
     if(has_taxid_mapping && has_taxid_column) {
         # Use taxonomy_id mapping from merged lineage files (most reliable)
-        # Convert taxID to numeric if needed
+        # Convert both taxID and taxonomy_id to integer to ensure type compatibility
         if(!is.numeric(report$taxID)) {
             report[, taxID := as.numeric(taxID)]
         }
+        # Convert taxID to integer (handle integer64 from data.table)
+        report[, taxID := as.integer(taxID)]
+        
+        # Ensure taxonomy_id in mapping is also integer
+        taxonomy_is_fungi_map[, taxonomy_id := as.integer(taxonomy_id)]
+        
         report <- merge(report, taxonomy_is_fungi_map, by.x = "taxID", by.y = "taxonomy_id", all.x = TRUE)
         report[, is_fungi := ifelse(is.na(is_fungi), FALSE, is_fungi)]
     } else {

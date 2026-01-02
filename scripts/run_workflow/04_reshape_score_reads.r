@@ -21,6 +21,247 @@ normalize_samp_name = function(samp_name) {
     return(samp_name)
 }
 
+# Helper function to extract database name from samp_name
+extract_db_name = function(samp_name) {
+    case_when(
+        grepl("gtdb_207_unfiltered", samp_name) ~ "gtdb_207_unfiltered",
+        grepl("gtdb_207", samp_name) ~ "gtdb_207",
+        grepl("soil_microbe_db", samp_name) ~ "soil_microbe_db",
+        grepl("pluspf", samp_name) ~ "pluspf",
+        TRUE ~ NA_character_
+    )
+}
+
+# Function to aggregate very large files using command-line tools (for files > 2GB)
+# Uses awk to calculate statistics without loading entire file into R
+# Returns summary dataframe or NULL if error
+aggregate_with_cli = function(file_path, samp_name, seq_depth_df,
+                              max_entropy = 0.1, max_multiplicity = 2, min_consistency = 0.9) {
+    samp_name = normalize_samp_name(samp_name)
+    
+    tryCatch({
+        # First, check if awk is available
+        awk_check = system2("which", "awk", stdout = TRUE, stderr = TRUE)
+        if(length(awk_check) == 0 || awk_check == "") {
+            cat("    ERROR: awk not found - cannot use CLI aggregation\n")
+            return(NULL)
+        }
+        
+        # Read header to detect delimiter and get column positions
+        header_line = readLines(file_path, n = 1)
+        
+        # Detect delimiter (comma or tab)
+        if(grepl(",", header_line) && !grepl("\t", header_line)) {
+            delimiter = ","
+            FS_char = ","
+        } else if(grepl("\t", header_line)) {
+            delimiter = "\t"
+            FS_char = "\t"
+        } else {
+            # Try comma first, then tab
+            delimiter = ","
+            FS_char = ","
+        }
+        
+        header_cols = strsplit(header_line, delimiter)[[1]]
+        
+        # Find column indices (0-indexed for awk)
+        n_kmers_idx = which(header_cols == "n_kmers") - 1
+        consistency_idx = which(header_cols == "consistency") - 1
+        multiplicity_idx = which(header_cols == "multiplicity") - 1
+        entropy_idx = which(header_cols == "entropy") - 1
+        confidence_idx = which(header_cols == "confidence") - 1
+        
+        # Check all required columns are found
+        missing_cols = character(0)
+        if(length(n_kmers_idx) == 0 || n_kmers_idx < 0) missing_cols = c(missing_cols, "n_kmers")
+        if(length(consistency_idx) == 0 || consistency_idx < 0) missing_cols = c(missing_cols, "consistency")
+        if(length(multiplicity_idx) == 0 || multiplicity_idx < 0) missing_cols = c(missing_cols, "multiplicity")
+        if(length(entropy_idx) == 0 || entropy_idx < 0) missing_cols = c(missing_cols, "entropy")
+        if(length(confidence_idx) == 0 || confidence_idx < 0) missing_cols = c(missing_cols, "confidence")
+        
+        if(length(missing_cols) > 0) {
+            cat("    ERROR: Required columns not found in header:", paste(missing_cols, collapse=", "), "\n")
+            cat("    Header columns found:", paste(header_cols, collapse=", "), "\n")
+            return(NULL)
+        }
+        
+        # Use awk to calculate aggregates in one pass
+        # Strategy: Calculate sums and counts without loading data into R
+        # Note: awk uses 1-based indexing for fields
+        n_kmers_col = n_kmers_idx + 1
+        consistency_col = consistency_idx + 1
+        multiplicity_col = multiplicity_idx + 1
+        entropy_col = entropy_idx + 1
+        confidence_col = confidence_idx + 1
+        
+        # Escape delimiter for awk if it's a comma (need to use -F flag instead)
+        if(FS_char == ",") {
+            FS_flag = "-F,"
+        } else {
+            FS_flag = ""
+        }
+        
+        # Build awk script - if using -F flag, don't set FS in BEGIN (let -F handle it)
+        # Build awk script using paste to avoid sprintf argument counting issues
+        if(FS_flag != "") {
+            # Using -F flag, so don't set FS in BEGIN block
+            awk_script = paste0('
+BEGIN {
+    sum_consistency = 0
+    sum_multiplicity = 0
+    sum_entropy = 0
+    sum_confidence = 0
+    n_valid = 0
+    n_passing = 0
+}
+')
+        } else {
+            # Not using -F flag, so set FS in BEGIN block
+            awk_script = paste0('
+BEGIN {
+    FS = "', FS_char, '"
+    sum_consistency = 0
+    sum_multiplicity = 0
+    sum_entropy = 0
+    sum_confidence = 0
+    n_valid = 0
+    n_passing = 0
+}
+')
+        }
+        
+        # Append the rest of the script
+        awk_script = paste0(awk_script, '
+NR > 1 && $', n_kmers_col, ' > 0 {
+    sum_consistency += $', consistency_col, '
+    sum_multiplicity += $', multiplicity_col, '
+    sum_entropy += $', entropy_col, '
+    sum_confidence += $', confidence_col, '
+    n_valid++
+    if ($', multiplicity_col, ' <= ', max_multiplicity, ' && $', consistency_col, ' >= ', min_consistency, ' && $', entropy_col, ' <= ', max_entropy, ') {
+        n_passing++
+    }
+}
+END {
+    if (n_valid > 0) {
+        printf "%.10f %.10f %.10f %.10f %d %d\\n", 
+            sum_consistency/n_valid, 
+            sum_multiplicity/n_valid, 
+            sum_entropy/n_valid, 
+            sum_confidence/n_valid,
+            n_valid,
+            n_passing
+    } else {
+        printf "0 0 0 0 0 0\\n"
+    }
+}')
+        
+        # Write awk script to temp file
+        awk_file = tempfile(fileext = ".awk")
+        writeLines(awk_script, awk_file)
+        
+        # Run awk with appropriate field separator flag
+        # Note: system2 with stderr=TRUE combines stdout and stderr
+        # We'll capture stderr separately to see actual errors
+        stderr_file = tempfile(fileext = ".stderr")
+        
+        if(FS_flag != "") {
+            awk_args = c(FS_flag, "-f", awk_file, file_path)
+        } else {
+            awk_args = c("-f", awk_file, file_path)
+        }
+        
+        # Run awk and capture stderr separately
+        awk_result = tryCatch({
+            system2("awk", awk_args, stdout = TRUE, stderr = stderr_file, wait = TRUE)
+        }, error = function(e) {
+            cat("    ERROR running awk:", e$message, "\n")
+            return(NULL)
+        })
+        
+        # Check for errors in stderr
+        if(file.exists(stderr_file) && file.info(stderr_file)$size > 0) {
+            stderr_content = readLines(stderr_file, warn = FALSE)
+            if(length(stderr_content) > 0 && any(nchar(stderr_content) > 0)) {
+                cat("    awk stderr:", paste(stderr_content, collapse="; "), "\n")
+            }
+        }
+        unlink(stderr_file)
+        
+        # Clean up
+        unlink(awk_file)
+        
+        if(is.null(awk_result) || length(awk_result) == 0) {
+            cat("    ERROR: awk aggregation failed (no output)\n")
+            return(NULL)
+        }
+        
+        if(length(awk_result) > 1) {
+            # If stderr was captured, it might be in the result
+            # Check if any line looks like an error
+            error_lines = grep("error|Error|ERROR|warning|Warning", awk_result, ignore.case = TRUE, value = TRUE)
+            if(length(error_lines) > 0) {
+                cat("    ERROR: awk reported:", paste(error_lines, collapse="; "), "\n")
+                return(NULL)
+            }
+            # If multiple lines but no errors, take the last one (should be the printf output)
+            awk_result = awk_result[length(awk_result)]
+        }
+        
+        # Parse results
+        stats = as.numeric(strsplit(awk_result, " ")[[1]])
+        if(length(stats) != 6) {
+            cat("    ERROR: Unexpected awk output format\n")
+            return(NULL)
+        }
+        
+        mean_consistency = stats[1]
+        mean_multiplicity = stats[2]
+        mean_entropy = stats[3]
+        mean_confidence = stats[4]
+        n_valid_rows = as.integer(stats[5])
+        n_passing = as.integer(stats[6])
+        
+        if(n_valid_rows == 0) {
+            return(NULL)
+        }
+        
+        # Extract sampleID and db_name
+        db_name_val = extract_db_name(samp_name)
+        sampleID = sub("_(gtdb_207_unfiltered|gtdb_207|soil_microbe_db|pluspf)$", "", samp_name)
+        
+        # Get sequencing depth
+        seq_depth_row = seq_depth_df %>% filter(sampleID == !!sampleID)
+        if(nrow(seq_depth_row) > 0) {
+            seq_depth = seq_depth_row$seq_depth[1]
+            percent_classified = n_valid_rows / seq_depth
+            percent_passing_overall = n_passing / seq_depth
+        } else {
+            seq_depth = NA
+            percent_classified = NA
+            percent_passing_overall = NA
+        }
+        
+        # Create summary dataframe
+        file_summary = tibble(
+            db_name = db_name_val,
+            sampleID = sampleID,
+            samp_name = samp_name,
+            metric = c("mean_consistency", "mean_multiplicity", "mean_entropy", "mean_confidence", 
+                      "percent_classified", "percent_passing"),
+            value = c(mean_consistency, mean_multiplicity, mean_entropy, mean_confidence,
+                     percent_classified, percent_passing_overall)
+        ) %>% filter(!is.na(value))
+        
+        return(file_summary)
+        
+    }, error = function(e) {
+        cat("    ERROR in CLI aggregation:", e$message, "\n")
+        return(NULL)
+    })
+}
+
 # Function to read and summarize large files in chunks
 # Returns summary dataframe or NULL if error
 read_and_summarize_chunked = function(file_path, samp_name, seq_depth_df, 
@@ -39,160 +280,113 @@ read_and_summarize_chunked = function(file_path, samp_name, seq_depth_df,
         n_valid_rows = 0
         n_passing = 0
         
-        # Read header to get column names
-        header_chunk = NULL
-        tryCatch({
-            header_chunk = suppressWarnings(data.table::fread(
-                file_path, 
-                nrows = 1,
-                showProgress = FALSE
-            ))
-        }, error = function(e) {
-            if(grepl("character strings are limited to 2\\^31-1 bytes", e$message)) {
-                cat("    ERROR: File contains lines too long for R to process\n")
-            } else {
-                cat("    ERROR reading header:", e$message, "\n")
-            }
-        })
+        # Use file connection for efficient chunked reading (avoids re-scanning from top)
+        # Only load required numeric columns to avoid 2^31-1 byte limit on string columns
+        required_cols = c("n_kmers", "consistency", "multiplicity", "entropy", "confidence")
         
-        if(is.null(header_chunk) || nrow(header_chunk) == 0) {
-            return(NULL)
+        # Read header to get column names and detect delimiter
+        header_line = readLines(file_path, n = 1)
+        
+        # Detect delimiter
+        if(grepl(",", header_line) && !grepl("\t", header_line)) {
+            delimiter = ","
+        } else if(grepl("\t", header_line)) {
+            delimiter = "\t"
+        } else {
+            delimiter = ","
         }
         
+        header_cols = strsplit(header_line, delimiter)[[1]]
+        
         # Check required columns exist
-        required_cols = c("n_kmers", "consistency", "multiplicity", "entropy", "confidence")
-        missing_cols = setdiff(required_cols, names(header_chunk))
+        missing_cols = setdiff(required_cols, header_cols)
         if(length(missing_cols) > 0) {
             cat("    ERROR: Missing required columns:", paste(missing_cols, collapse=", "), "\n")
             return(NULL)
         }
         
-        # Read first data chunk (skip header row)
-        first_chunk = NULL
-        tryCatch({
-            first_chunk = suppressWarnings(data.table::fread(
-                file_path, 
-                skip = 1,
-                nrows = chunk_size,
-                showProgress = FALSE
-            ))
-        }, error = function(e) {
-            if(grepl("character strings are limited to 2\\^31-1 bytes", e$message)) {
-                cat("    ERROR: File contains lines too long for R to process\n")
-            } else {
-                cat("    ERROR reading first chunk:", e$message, "\n")
+        # Open file connection for efficient sequential reading
+        con = file(file_path, "r")
+        on.exit(close(con), add = TRUE)
+        
+        # Read and skip header
+        readLines(con, n = 1)
+        
+        # Process chunks using connection (much faster than skip-based reading)
+        chunk_num = 0
+        lines_processed = 0
+        
+        while(TRUE) {
+            chunk_num = chunk_num + 1
+            
+            # Read chunk of lines
+            chunk_lines = readLines(con, n = chunk_size, warn = FALSE)
+            
+            if(length(chunk_lines) == 0) {
+                break  # End of file
             }
-        })
-        
-        if(is.null(first_chunk) || nrow(first_chunk) == 0) {
-            return(NULL)
-        }
-        
-        # Set column names from header
-        if(!identical(names(first_chunk), names(header_chunk))) {
-            names(first_chunk) = names(header_chunk)
-        }
-        
-        # Process first chunk
-        valid_chunk = first_chunk %>% filter(n_kmers > 0)
-        if(nrow(valid_chunk) > 0) {
-            sum_consistency = sum_consistency + sum(valid_chunk$consistency, na.rm = TRUE)
-            sum_multiplicity = sum_multiplicity + sum(valid_chunk$multiplicity, na.rm = TRUE)
-            sum_entropy = sum_entropy + sum(valid_chunk$entropy, na.rm = TRUE)
-            sum_confidence = sum_confidence + sum(valid_chunk$confidence, na.rm = TRUE)
-            n_valid_rows = n_valid_rows + nrow(valid_chunk)
             
-            # Count passing reads
-            passing = valid_chunk %>%
-                filter(multiplicity <= max_multiplicity & 
-                       consistency >= min_consistency & 
-                       entropy <= max_entropy)
-            n_passing = n_passing + nrow(passing)
-        }
-        
-        total_rows = total_rows + nrow(first_chunk)
-        
-        # Check if we've already read the entire file (first chunk was smaller than chunk_size)
-        # If so, we don't need to read more chunks
-        if(nrow(first_chunk) < chunk_size) {
-            # Already read entire file in first chunk
-        } else {
-            # Read remaining chunks (skip header + rows already read)
-            skip_rows = 1 + nrow(first_chunk)  # 1 for header + rows already read
-            chunk_num = 1
+            # Process chunk using fread on text (only load required numeric columns)
+            chunk_df = NULL
+            tryCatch({
+                # Create temporary text with header + chunk lines
+                chunk_text = c(header_line, chunk_lines)
+                
+                # Use fread with select to only load numeric columns (avoids 2^31-1 byte limit)
+                chunk_df = suppressWarnings(data.table::fread(
+                    text = chunk_text,
+                    select = required_cols,  # Only load needed columns
+                    colClasses = list(
+                        numeric = c("n_kmers", "consistency", "multiplicity", "entropy", "confidence")
+                    ),
+                    showProgress = FALSE
+                ))
+            }, error = function(e) {
+                if(grepl("character strings are limited to 2\\^31-1 bytes", e$message)) {
+                    cat("    ERROR: File contains lines too long for R to process at chunk", chunk_num, "\n")
+                    cat("    This usually means a single column value exceeds 2GB - file may be corrupted\n")
+                } else {
+                    cat("    ERROR reading chunk", chunk_num, ":", e$message, "\n")
+                }
+                chunk_df <<- NULL
+            })
             
-            while(TRUE) {
-                chunk_num = chunk_num + 1
-                chunk_df = NULL
-                tryCatch({
-                    chunk_df = suppressWarnings(data.table::fread(
-                        file_path, 
-                        skip = skip_rows, 
-                        nrows = chunk_size,
-                        showProgress = FALSE
-                    ))
-                }, error = function(e) {
-                    if(grepl("character strings are limited to 2\\^31-1 bytes", e$message)) {
-                        cat("    ERROR: File contains lines too long for R to process at chunk", chunk_num, "\n")
-                    } else if(grepl("skip=.*but the input only has", e$message)) {
-                        # End of file reached - this is expected, not an error
-                        # Don't print error, just break
-                    } else {
-                        cat("    ERROR reading chunk", chunk_num, ":", e$message, "\n")
-                    }
-                    # Set chunk_df to NULL to signal end of file
-                    chunk_df <<- NULL
-                })
+            if(is.null(chunk_df) || nrow(chunk_df) == 0) {
+                break  # End of file or error
+            }
+            
+            # Aggregate statistics from this chunk
+            valid_chunk = chunk_df[n_kmers > 0]
+            if(nrow(valid_chunk) > 0) {
+                sum_consistency = sum_consistency + sum(valid_chunk$consistency, na.rm = TRUE)
+                sum_multiplicity = sum_multiplicity + sum(valid_chunk$multiplicity, na.rm = TRUE)
+                sum_entropy = sum_entropy + sum(valid_chunk$entropy, na.rm = TRUE)
+                sum_confidence = sum_confidence + sum(valid_chunk$confidence, na.rm = TRUE)
+                n_valid_rows = n_valid_rows + nrow(valid_chunk)
                 
-                if(is.null(chunk_df) || nrow(chunk_df) == 0) {
-                    break  # End of file
-                }
-                
-                # Set column names from header (fread with skip might not preserve them)
-                if(!identical(names(chunk_df), names(header_chunk))) {
-                    if(length(names(chunk_df)) == length(names(header_chunk))) {
-                        names(chunk_df) = names(header_chunk)
-                    } else {
-                        cat("    WARNING: Chunk", chunk_num, "column count mismatch, skipping remainder\n")
-                        break
-                    }
-                }
-                
-                # Check if required columns exist
-                if(!all(required_cols %in% names(chunk_df))) {
-                    cat("    WARNING: Chunk", chunk_num, "missing required columns, skipping remainder\n")
-                    break
-                }
-                
-                # Aggregate statistics from this chunk
-                valid_chunk = chunk_df %>% filter(n_kmers > 0)
-                if(nrow(valid_chunk) > 0) {
-                    sum_consistency = sum_consistency + sum(valid_chunk$consistency, na.rm = TRUE)
-                    sum_multiplicity = sum_multiplicity + sum(valid_chunk$multiplicity, na.rm = TRUE)
-                    sum_entropy = sum_entropy + sum(valid_chunk$entropy, na.rm = TRUE)
-                    sum_confidence = sum_confidence + sum(valid_chunk$confidence, na.rm = TRUE)
-                    n_valid_rows = n_valid_rows + nrow(valid_chunk)
-                    
-                    # Count passing reads
-                    passing = valid_chunk %>%
-                        filter(multiplicity <= max_multiplicity & 
-                               consistency >= min_consistency & 
-                               entropy <= max_entropy)
-                    n_passing = n_passing + nrow(passing)
-                }
-                
-                total_rows = total_rows + nrow(chunk_df)
-                skip_rows = skip_rows + nrow(chunk_df)
-                
-                if(nrow(chunk_df) < chunk_size) {
-                    break  # Last chunk
-                }
-                
-                if(chunk_num %% 20 == 0) {
-                    cat("    Processed", chunk_num, "chunks (", format(total_rows, big.mark=","), "rows)...\n")
-                }
-            }  # end while
-        }  # end else
+                # Count passing reads (using data.table syntax for speed)
+                n_passing = n_passing + nrow(valid_chunk[
+                    multiplicity <= max_multiplicity & 
+                    consistency >= min_consistency & 
+                    entropy <= max_entropy
+                ])
+            }
+            
+            total_rows = total_rows + nrow(chunk_df)
+            lines_processed = lines_processed + length(chunk_lines)
+            
+            # Clean up chunk from memory
+            rm(chunk_df, valid_chunk, chunk_lines, chunk_text)
+            gc(verbose = FALSE)
+            
+            if(length(chunk_lines) < chunk_size) {
+                break  # Last chunk
+            }
+            
+            if(chunk_num %% 20 == 0) {
+                cat("    Processed", chunk_num, "chunks (", format(total_rows, big.mark=","), "rows)...\n")
+            }
+        }  # end while
         
         if(n_valid_rows == 0) {
             return(NULL)
@@ -304,9 +498,27 @@ summarize_filter_scores = function(scores_df, seq_depth_df, max_entropy = .1,
     
     # Use inner_join to avoid cartesian products that can occur with full_join
     # This ensures we only keep samples present in both dataframes
-    out_df = inner_join(score_summary_df_unique, filter_summary_df_unique, by=join_by(samp_name)) %>% 
-        pivot_longer(cols=-c(db_name, sampleID, samp_name), names_to = "metric", values_drop_na = TRUE) %>% 
-        distinct()
+    # Use data.table::melt instead of pivot_longer for better memory efficiency
+    joined_df = inner_join(score_summary_df_unique, filter_summary_df_unique, by=join_by(samp_name))
+    
+    # Convert to data.table for efficient melting
+    joined_dt = as.data.table(joined_df)
+    
+    # Identify metric columns (all columns except db_name, sampleID, samp_name)
+    id_cols = c("db_name", "sampleID", "samp_name")
+    measure_cols = setdiff(names(joined_dt), id_cols)
+    
+    # Use data.table::melt (more memory-efficient than pivot_longer)
+    out_df = melt(
+        joined_dt,
+        id.vars = id_cols,
+        measure.vars = measure_cols,
+        variable.name = "metric",
+        value.name = "value",
+        na.rm = TRUE
+    ) %>%
+        distinct() %>%
+        as_tibble()
     
     out_df
 }
@@ -484,11 +696,14 @@ if(!is.null(existing_results)) {
 }
 
 # ============================================================================
-# STEP 1: Build comprehensive inventory of expected vs actual state
+# STEP 1: Build inventory of expected vs actual state
 # ============================================================================
-cat("\n=== Building comprehensive file inventory ===\n")
+cat("\n=== Building file inventory ===\n")
 
 # Load lineage files to determine what samples SHOULD exist
+# NOTE: This is for DIAGNOSTICS ONLY - we process ALL _scores.output files that exist,
+# regardless of whether they're in lineage files. Some samples may have _scores.output
+# files but not be in lineage files yet (e.g., if script 3 skipped them due to missing .b2 files)
 lineage_dir_new = "data/NEON_metagenome_classification/summary_files"
 lineage_dir_old = "data/classification/taxonomic_rank_summaries/species"
 databases_to_check = c("soil_microbe_db", "pluspf", "gtdb_207", "gtdb_207_unfiltered")
@@ -510,30 +725,23 @@ for(db in databases_to_check) {
             if("sample_id" %in% names(lineage_df) && nrow(lineage_df) > 0) {
                 lineage_samples = unique(lineage_df$sample_id)
                 
-                # Extract sampleID and determine expected samp_name format
-                # Lineage files have format: {sampleID}-COMP_{db} or {sampleID}_{db}
-                lineage_sampleIDs = sapply(lineage_samples, function(samp_name) {
-                    samp_name = sub("_filtered$", "", samp_name)  # Remove _filtered if present
-                    # Remove database suffix to get base sampleID
-                    base_id = sub("_(soil_microbe_db|pluspf|gtdb_207_unfiltered|gtdb_207)$", "", samp_name)
-                    # Remove -COMP if present (some lineage files already have it)
-                    base_id = sub("-COMP$", "", base_id)
-                    return(base_id)
-                })
-                
-                # Build expected samp_names (format: {sampleID}-COMP_{db})
-                # Note: Actual files use this format, so we match it
-                expected_samp_names = sapply(lineage_sampleIDs, function(samp_id) {
-                    if(db == "gtdb_207_unfiltered") {
-                        paste0(samp_id, "-COMP_gtdb_207_unfiltered")
-                    } else if(db == "gtdb_207") {
-                        paste0(samp_id, "-COMP_gtdb_207")
-                    } else {
-                        paste0(samp_id, "-COMP_", db)
-                    }
-                })
+                # After script 3 normalization, sample_id format is: {sampleID}-COMP_{db}_filtered
+                # Actual _scores.output files have format: {sampleID}-COMP_{db}_scores.output
+                # So we just need to remove _filtered to get the expected samp_name
+                expected_samp_names = sub("_filtered$", "", lineage_samples)
                 # Normalize to remove any trailing underscores
                 expected_samp_names = normalize_samp_name(expected_samp_names)
+                
+                # Extract sampleID for reference (remove database suffix and -COMP)
+                lineage_sampleIDs = sapply(expected_samp_names, function(samp_name) {
+                    # Remove database suffix (handle both -COMP_ and _ formats)
+                    base_id = sub("[-_]COMP?_(soil_microbe_db|pluspf|gtdb_207_unfiltered|gtdb_207)$", "", samp_name)
+                    # Also try removing just the database suffix if -COMP_ removal didn't work
+                    if(base_id == samp_name) {
+                        base_id = sub("_(soil_microbe_db|pluspf|gtdb_207_unfiltered|gtdb_207)$", "", samp_name)
+                    }
+                    return(base_id)
+                })
                 
                 expected_samples = bind_rows(
                     expected_samples,
@@ -541,7 +749,8 @@ for(db in databases_to_check) {
                         sampleID = lineage_sampleIDs,
                         samp_name = expected_samp_names,
                         db_name = db,
-                        expected_scores_file = paste0(expected_samp_names, "_scores.output")
+                        expected_scores_file = paste0(expected_samp_names, "_scores.output"),
+                        expected_scores_file_alt = paste0(expected_samp_names, "__scores.output")
                     )
                 )
             }
@@ -562,17 +771,9 @@ if(nrow(expected_samples) > 0) {
 found_files_inventory = tibble(
     file_path = filter_scores_list,
     basename = filter_scores_basenames,
-    samp_name = normalize_samp_name(sub("_scores.output$", "", filter_scores_basenames))
+    samp_name = normalize_samp_name(sub("_+scores.output$", "", filter_scores_basenames))
 ) %>%
-    mutate(
-        db_name = case_when(
-            grepl("soil_microbe_db", samp_name) ~ "soil_microbe_db",
-            grepl("pluspf", samp_name) ~ "pluspf",
-            grepl("gtdb_207_unfiltered", samp_name) ~ "gtdb_207_unfiltered",
-            grepl("gtdb_207", samp_name) ~ "gtdb_207",  # More specific: gtdb_207 (not unfiltered)
-            TRUE ~ NA_character_
-        )
-    )
+    mutate(db_name = extract_db_name(samp_name))
 
 cat("  Found files:", nrow(found_files_inventory), "\n")
 if(nrow(found_files_inventory) > 0) {
@@ -586,17 +787,9 @@ if(nrow(found_files_inventory) > 0) {
 # Build inventory of processed log entries
 processed_inventory = tibble(
     basename = processed_basenames,
-    samp_name = normalize_samp_name(sub("_scores.output$", "", processed_basenames))
+    samp_name = normalize_samp_name(sub("_+scores.output$", "", processed_basenames))
 ) %>%
-    mutate(
-        db_name = case_when(
-            grepl("soil_microbe_db", samp_name) ~ "soil_microbe_db",
-            grepl("pluspf", samp_name) ~ "pluspf",
-            grepl("gtdb_207_unfiltered", samp_name) ~ "gtdb_207_unfiltered",
-            grepl("gtdb_207", samp_name) ~ "gtdb_207",  # More specific: gtdb_207 (not unfiltered)
-            TRUE ~ NA_character_
-        )
-    )
+    mutate(db_name = extract_db_name(samp_name))
 
 cat("  Files in processed log:", nrow(processed_inventory), "\n")
 
@@ -617,7 +810,7 @@ if(!is.null(existing_results) && "samp_name" %in% names(existing_results) && "db
 }
 
 # ============================================================================
-# STEP 2: Make intelligent processing decisions
+# STEP 2: Make processing decisions
 # ============================================================================
 cat("\n=== Determining which files need processing ===\n")
 
@@ -665,125 +858,42 @@ files_to_process = files_to_process %>%
     )
 
 # Count decisions
-new_files_count = sum(!files_to_process$in_results & files_to_process$needs_processing, na.rm = TRUE)
+new_files_count = sum(!files_to_process$in_results, na.rm = TRUE)
 wrong_db_count = sum(files_to_process$in_results & !is.na(files_to_process$db_name) & 
                      !is.na(files_to_process$results_db_name) & 
                      files_to_process$db_name != files_to_process$results_db_name, na.rm = TRUE)
-total_needs_processing = sum(files_to_process$needs_processing, na.rm = TRUE)
 
-cat("  New files to process (not in results):", new_files_count, "\n")
-cat("  Files with wrong db_name in results:", wrong_db_count, "\n")
-cat("    (db_name will be fixed in existing results, files won't be reprocessed)\n")
-cat("  Total files to process:", new_files_count, "\n")
-
-# Show examples
-if(total_needs_processing > 0) {
-    examples = files_to_process %>%
-        filter(needs_processing) %>%
-        head(5) %>%
-        select(samp_name, reason)
-    cat("  Examples:\n")
-    for(i in 1:nrow(examples)) {
-        cat("    -", examples$samp_name[i], ":", examples$reason[i], "\n")
-    }
+cat("  Files to process (not in results):", new_files_count, "\n")
+if(wrong_db_count > 0) {
+    cat("  Files with wrong db_name in results:", wrong_db_count, " (will fix in results)\n")
 }
 
 # Extract files to process - only files that are NOT in results
 # Files with wrong db_name will be fixed in existing results, not reprocessed
+# IMPORTANT: Process ALL files that exist and aren't in results, regardless of lineage files
+# Lineage files are only for diagnostics - some samples may have _scores.output files
+# but not be in lineage files yet (e.g., if script 3 skipped them due to missing .b2 files)
 new_files = files_to_process %>%
     filter(needs_processing & !in_results) %>%
     pull(file_path)
 
-cat("\n=== Final processing queue ===\n")
+cat("\n=== Processing queue ===\n")
 cat("  Files to process:", length(new_files), "\n")
 
-# Diagnostic: Show breakdown of why files are/aren't being processed
-cat("\n=== Diagnostic: File processing breakdown ===\n")
-cat("  Total files found:", nrow(files_to_process), "\n")
-cat("  Files in processed log:", sum(files_to_process$in_processed_log, na.rm = TRUE), "\n")
-cat("  Files in results:", sum(files_to_process$in_results, na.rm = TRUE), "\n")
-cat("  Files NOT in results:", sum(!files_to_process$in_results, na.rm = TRUE), "\n")
-cat("  Files marked as needs_processing:", sum(files_to_process$needs_processing, na.rm = TRUE), "\n")
-cat("  Files to actually process (not in results):", length(new_files), "\n")
-
-# Show sample of files in results vs not in results
-if(sum(files_to_process$in_results, na.rm = TRUE) > 0) {
-    cat("\n  Sample of files IN results:\n")
-    in_results_sample = files_to_process %>% 
-        filter(in_results) %>% 
-        head(3) %>% 
-        select(samp_name, db_name, results_db_name)
-    print(in_results_sample)
-}
-
-if(sum(!files_to_process$in_results, na.rm = TRUE) > 0) {
-    cat("\n  Sample of files NOT in results:\n")
-    not_in_results_sample = files_to_process %>% 
-        filter(!in_results) %>% 
-        head(10) %>% 
-        select(samp_name, db_name, in_processed_log)
-    print(not_in_results_sample)
-}
-
-# Check if expected samples from lineage are being found
+# Diagnostic: Compare with expected samples from lineage (for info only)
 if(nrow(expected_samples) > 0) {
-    cat("\n  Expected samples from lineage:", nrow(expected_samples), "\n")
+    cat("\n  Diagnostic: Expected samples from lineage:", nrow(expected_samples), "\n")
     expected_samp_names = expected_samples$samp_name
-    found_samp_names = files_to_process$samp_name
+    found_samp_names = unique(files_to_process$samp_name)
     
     missing_expected = setdiff(expected_samp_names, found_samp_names)
-    if(length(missing_expected) > 0) {
-        cat("  ⚠️  Found", length(missing_expected), "expected samples from lineage that don't have files\n")
-        cat("  Examples:", paste(head(missing_expected, 5), collapse=", "), "\n")
-        
-        # Check if these expected samples have files that exist but weren't found
-        cat("  Checking if files exist for missing expected samples...\n")
-        missing_with_files = character(0)
-        for(samp_name in head(missing_expected, 50)) {  # Check first 50
-            expected_file = paste0(samp_name, "_scores.output")
-            for(dir_path in dirs_to_search) {
-                if(dir.exists(dir_path)) {
-                    file_path = file.path(dir_path, expected_file)
-                    if(file.exists(file_path)) {
-                        missing_with_files = c(missing_with_files, file_path)
-                        break
-                    }
-                }
-            }
-        }
-        
-        if(length(missing_with_files) > 0) {
-            cat("  ⚠️  Found", length(missing_with_files), "files for expected samples that weren't in initial file search!\n")
-            cat("  Adding these files to processing queue...\n")
-            new_files = c(new_files, missing_with_files)
-            new_files = unique(new_files)
-            cat("  ➕ Added", length(missing_with_files), "missing files. Total files to process now:", length(new_files), "\n")
-        }
-    }
-    
     found_but_not_expected = setdiff(found_samp_names, expected_samp_names)
-    if(length(found_but_not_expected) > 0) {
-        cat("  Found", length(found_but_not_expected), "files that aren't in expected samples from lineage\n")
-    }
     
-    # Check if expected samples that ARE found are incorrectly marked as "in results"
-    expected_found = intersect(expected_samp_names, found_samp_names)
-    if(length(expected_found) > 0) {
-        expected_found_in_results = files_to_process %>%
-            filter(samp_name %in% expected_found & in_results) %>%
-            nrow()
-        expected_found_not_in_results = files_to_process %>%
-            filter(samp_name %in% expected_found & !in_results) %>%
-            nrow()
-        
-        cat("  Expected samples that were found:", length(expected_found), "\n")
-        cat("    In results:", expected_found_in_results, "\n")
-        cat("    NOT in results:", expected_found_not_in_results, "\n")
-        
-        if(expected_found_not_in_results < length(missing_expected)) {
-            cat("  ⚠️  WARNING: Many expected samples are marked as 'in results' but diagnostic shows they're missing!\n")
-            cat("  This suggests samp_name matching between files and results might be incorrect.\n")
-        }
+    if(length(missing_expected) > 0) {
+        cat("    ⚠️  ", length(missing_expected), "expected samples from lineage don't have _scores.output files\n")
+    }
+    if(length(found_but_not_expected) > 0) {
+        cat("    ℹ️  ", length(found_but_not_expected), "files exist but aren't in lineage (will still be processed)\n")
     }
 }
 
@@ -847,12 +957,9 @@ if(length(new_files) == 0) {
             return(list(valid = FALSE, reason = "File is empty"))
         }
         
-        # Skip very large files (> 2 GB) that exceed R's character string limits
-        # These files cause "R character strings are limited to 2^31-1 bytes" errors
-        # even with chunked reading
-        file_size_gb = file_info$size / 1024^3
-        if(file_size_gb > 2.0) {
-            return(list(valid = FALSE, reason = sprintf("File too large (%.2f GB) - exceeds R processing limits", file_size_gb)))
+        # Check if file is readable
+        if(!file.access(file_path, mode = 4) == 0) {
+            return(list(valid = FALSE, reason = "File is not readable"))
         }
         
         # Check if file size is suspiciously round (multiple of 4096 bytes suggests truncation)
@@ -870,12 +977,13 @@ if(length(new_files) == 0) {
             }
         }
         
-        # Check if file is readable
-        if(!file.access(file_path, mode = 4) == 0) {
-            return(list(valid = FALSE, reason = "File is not readable"))
-        }
+        # Determine processing strategy based on file size
+        # Note: Very large files (> 2 GB) will use command-line aggregation strategy
+        # instead of R's chunked reading to avoid character string limits
+        file_size_gb = file_info$size / 1024^3
+        use_cli = file_size_gb > 2.0
         
-        return(list(valid = TRUE, reason = ""))
+        return(list(valid = TRUE, reason = "", use_cli_aggregation = use_cli))
     }
     
     start_time = Sys.time()
@@ -896,7 +1004,10 @@ if(length(new_files) == 0) {
     save_interval = 10  # Save every 10 files (reduced I/O)
     print_interval = 5  # Print progress every 5 files
     processed_count = 0
+    skipped_count = 0
     processed_files_list = character(0)
+    skipped_files_list = character(0)  # Track skipped files to log them
+    skip_reasons = character(0)  # Track why files were skipped
     new_summaries_list = list()  # Accumulate new summaries in memory
     
     cat("Processing", length(new_files), "files (saving every", save_interval, "files, progress every", print_interval, "files)...\n")
@@ -911,45 +1022,83 @@ if(length(new_files) == 0) {
             validation = validate_file(file_path)
             if(!validation$valid) {
                 cat("WARNING: Skipping", basename(file_path), "-", validation$reason, "\n")
+                skipped_files_list = c(skipped_files_list, normalizePath(file_path))
+                skip_reasons = c(skip_reasons, validation$reason)
+                skipped_count = skipped_count + 1
                 next
             }
             
-            # Read in the file with chunked reading for large files
-            samp_name_from_file = normalize_samp_name(sub("_scores.output", "", basename(file_path)))
+            # Read in the file with appropriate strategy based on size
+            samp_name_from_file = normalize_samp_name(sub("_+scores.output", "", basename(file_path)))
             file_size_gb = file.info(file_path)$size / 1024^3
             file_summary = NULL
             
-            # Skip files > 2 GB that exceed R's processing limits
-            if(file_size_gb > 2.0) {
-                cat("WARNING: Skipping", basename(file_path), sprintf("- file too large (%.2f GB) for R to process\n", file_size_gb))
-                next
-            }
-            
-            # Use chunked reading for files > 500MB or if normal read fails
-            if(file_size_gb > 0.5) {
+            # Strategy selection based on file size:
+            # - > 2GB: Use command-line aggregation (awk) to avoid R memory limits
+            # - > 500MB: Use R chunked reading
+            # - < 500MB: Try normal reading first, fall back to chunked if needed
+            if(validation$use_cli_aggregation) {
+                # Very large file - use command-line aggregation
+                cat("  Processing very large file", basename(file_path), sprintf("(%.2f GB) with CLI aggregation...\n", file_size_gb))
+                file_summary = aggregate_with_cli(file_path, samp_name_from_file, seq_depth_df)
+                if(is.null(file_summary)) {
+                    reason = "CLI aggregation failed"
+                    cat("WARNING: Skipping", basename(file_path), "-", reason, "\n")
+                    skipped_files_list = c(skipped_files_list, normalizePath(file_path))
+                    skip_reasons = c(skip_reasons, reason)
+                    skipped_count = skipped_count + 1
+                    next
+                }
+            } else if(file_size_gb > 0.5) {
                 # Large file - use chunked reading
                 cat("  Reading large file", basename(file_path), sprintf("(%.2f GB) in chunks...\n", file_size_gb))
                 file_summary = read_and_summarize_chunked(file_path, samp_name_from_file, seq_depth_df)
                 if(is.null(file_summary)) {
-                    cat("WARNING: Failed to process", basename(file_path), "with chunked reading\n")
+                    reason = "failed to process with chunked reading"
+                    cat("WARNING: Skipping", basename(file_path), "-", reason, "\n")
+                    skipped_files_list = c(skipped_files_list, normalizePath(file_path))
+                    skip_reasons = c(skip_reasons, reason)
+                    skipped_count = skipped_count + 1
                     next
                 }
             } else {
-                # Small file - try normal reading first
+                # Small file - try normal reading first (only load required columns to avoid 2^31-1 limit)
                 tryCatch({
-                    df_in = suppressWarnings(data.table::fread(file_path, showProgress = FALSE))
+                    # Only load numeric columns needed for aggregation (avoids loading large string columns)
+                    required_cols = c("n_kmers", "consistency", "multiplicity", "entropy", "confidence")
+                    df_in = suppressWarnings(data.table::fread(
+                        file_path, 
+                        select = required_cols,  # Only load needed columns
+                        colClasses = list(
+                            numeric = required_cols
+                        ),
+                        showProgress = FALSE
+                    ))
                     if(is.null(df_in) || nrow(df_in) == 0) {
+                        reason = "file is empty or has no data rows"
+                        cat("WARNING: Skipping", basename(file_path), "-", reason, "\n")
+                        skipped_files_list = c(skipped_files_list, normalizePath(file_path))
+                        skip_reasons = c(skip_reasons, reason)
+                        skipped_count = skipped_count + 1
                         next
                     }
                     df_in$samp_name = samp_name_from_file
                     file_summary <- summarize_filter_scores(df_in, seq_depth_df)
+                    
+                    # Clean up immediately
+                    rm(df_in)
+                    gc(verbose = FALSE)
                 }, error = function(e) {
                     if(grepl("character strings are limited to 2\\^31-1 bytes", e$message)) {
                         # Fall back to chunked reading
                         cat("  File hit character limit, switching to chunked reading...\n")
                         file_summary <<- read_and_summarize_chunked(file_path, samp_name_from_file, seq_depth_df)
                         if(is.null(file_summary)) {
-                            cat("WARNING: Failed to process", basename(file_path), "even with chunked reading\n")
+                            reason = "failed to process even with chunked reading"
+                            cat("WARNING: Skipping", basename(file_path), "-", reason, "\n")
+                            skipped_files_list = c(skipped_files_list, normalizePath(file_path))
+                            skip_reasons = c(skip_reasons, reason)
+                            skipped_count = skipped_count + 1
                         }
                     } else {
                         cat("WARNING: Error reading", basename(file_path), ":", e$message, "\n")
@@ -958,6 +1107,11 @@ if(length(new_files) == 0) {
             }
             
             if(is.null(file_summary) || nrow(file_summary) == 0) {
+                reason = "no valid data extracted from file"
+                cat("WARNING: Skipping", basename(file_path), "-", reason, "\n")
+                skipped_files_list = c(skipped_files_list, normalizePath(file_path))
+                skip_reasons = c(skip_reasons, reason)
+                skipped_count = skipped_count + 1
                 next
             }
             
@@ -999,6 +1153,14 @@ if(length(new_files) == 0) {
             processed_files_list = c(processed_files_list, normalizePath(file_path))
             processed_count = processed_count + 1
             
+            # Clean up file_summary from memory
+            rm(file_summary)
+            
+            # Force garbage collection periodically (every 10 files or after large files)
+            if(processed_count %% 10 == 0 || file_size_gb > 0.5) {
+                gc(verbose = FALSE)
+            }
+            
             # Save periodically (every save_interval files) instead of after each file
             if(processed_count %% save_interval == 0 || i == length(new_files)) {
                 # Combine all new summaries
@@ -1030,14 +1192,13 @@ if(length(new_files) == 0) {
             
             # Update processed log periodically (every save_interval) instead of after each file
             if(processed_count %% save_interval == 0 || i == length(new_files)) {
-                normalized_processed = if(length(processed_files) > 0) {
-                    sapply(processed_files, function(x) {
-                        if(file.exists(x)) normalizePath(x) else x
-                    })
+                # Load existing processed files from log
+                existing_processed = if(file.exists(processed_log_file)) {
+                    readLines(processed_log_file)
                 } else {
                     character(0)
                 }
-                all_processed = unique(c(normalized_processed, processed_files_list))
+                all_processed = unique(c(existing_processed, processed_files_list))
                 writeLines(all_processed, processed_log_file)
             }
             
@@ -1057,13 +1218,35 @@ if(length(new_files) == 0) {
     cat("\n=== Processing completed ===\n")
     cat("Total processing time:", round(as.numeric(difftime(end_time, start_time, units = "mins")), 2), "minutes\n")
     cat("Successfully processed", processed_count, "files\n")
+    if(skipped_count > 0) {
+        cat("Skipped", skipped_count, "files (empty, too large, or failed to process)\n")
+        # Add skipped files to processed log so they don't get re-queued
+        if(length(skipped_files_list) > 0) {
+            # Load existing processed files from log
+            existing_processed = if(file.exists(processed_log_file)) {
+                readLines(processed_log_file)
+            } else {
+                character(0)
+            }
+            all_processed = unique(c(existing_processed, processed_files_list, skipped_files_list))
+            writeLines(all_processed, processed_log_file)
+            cat("  Added skipped files to processed log to prevent re-queuing\n")
+            
+            # Show summary of skip reasons
+            skip_summary = table(skip_reasons)
+            cat("  Skip reasons:\n")
+            for(i in 1:length(skip_summary)) {
+                cat(sprintf("    %s: %d files\n", names(skip_summary)[i], skip_summary[i]))
+            }
+        }
+    }
     
     # Load final results for compatibility with rest of script
     if(file.exists(output_file)) {
         new_summaries = data.table::fread(output_file, showProgress = FALSE)
         # Filter to only newly processed samples
         if(length(processed_files_list) > 0) {
-            processed_samp_names = normalize_samp_name(sub("_scores.output$", "", basename(processed_files_list)))
+            processed_samp_names = normalize_samp_name(sub("_+scores.output$", "", basename(processed_files_list)))
             new_summaries = new_summaries %>%
                 filter(samp_name %in% processed_samp_names)
         }
@@ -1111,376 +1294,28 @@ if("samp_name" %in% names(all_summaries) && "db_name" %in% names(all_summaries))
     cat("  Applied final database name corrections\n")
 }
 
-# Additional diagnostic: Check newest files and compare with results
-cat("\n=== Diagnostic: Checking newest scores files ===\n")
-if(length(filter_scores_list) > 0) {
-    # Get file modification times
-    file_info = file.info(filter_scores_list)
-    file_info$file_path = rownames(file_info)
-    file_info = file_info[order(file_info$mtime, decreasing = TRUE), ]
-    
-    # Show newest files
-    newest_files = head(file_info, 20)
-    cat("  Newest 20 _scores.output files (by modification time):\n")
-    for(i in 1:min(20, nrow(newest_files))) {
-        samp_name = normalize_samp_name(sub("_scores.output$", "", basename(newest_files$file_path[i])))
-        in_results = if(!is.null(existing_results)) samp_name %in% existing_samp_names else FALSE
-        status = if(in_results) "✓" else "✗ MISSING"
-        cat(sprintf("    %d. %s %s (modified: %s)\n", 
-                   i, status, basename(newest_files$file_path[i]), 
-                   format(newest_files$mtime[i], "%Y-%m-%d %H:%M:%S")))
-    }
-    
-    # Count how many newest files are missing
-    newest_samp_names = normalize_samp_name(sub("_scores.output$", "", basename(newest_files$file_path)))
-    if(!is.null(existing_results)) {
-        newest_missing = sum(!newest_samp_names %in% existing_samp_names)
-        cat("  Of the newest 20 files,", newest_missing, "are missing from results\n")
-        
-        if(newest_missing > 0) {
-            missing_newest = newest_files[!newest_samp_names %in% existing_samp_names, ]
-            cat("  ➕ Adding", nrow(missing_newest), "newest missing files to processing queue\n")
-            new_files = c(new_files, missing_newest$file_path)
-            new_files = unique(new_files)
-        }
-    }
-}
 
-# Additional diagnostic: Check if there are files that should be in results but aren't
-cat("\n=== Diagnostic: Checking for missing samples ===\n")
-cat("  Total files found:", length(filter_scores_list), "\n")
-cat("  Files after processed log check:", length(new_files), "\n")
-
+# Simple diagnostic summary
+cat("\n=== Summary ===\n")
+cat("  Total _scores.output files found:", length(filter_scores_list), "\n")
 if(!is.null(existing_results) && length(existing_samp_names) > 0) {
-    cat("  Existing results contain", length(existing_samp_names), "unique samp_names\n")
-    
-    # Get all samp_names from existing files
-    all_file_samp_names = normalize_samp_name(sub("_scores.output$", "", filter_scores_basenames))
-    cat("  Total unique samp_names in files:", length(unique(all_file_samp_names)), "\n")
-    
-    # Find files that exist but aren't in results
-    missing_samp_names = setdiff(unique(all_file_samp_names), existing_samp_names)
-    
-    if(length(missing_samp_names) > 0) {
-        cat("  ⚠️  Found", length(missing_samp_names), "samp_names in files but NOT in results\n")
-        cat("  Example missing samp_names:", paste(head(missing_samp_names, 5), collapse=", "), "\n")
-        if(length(missing_samp_names) > 5) {
-            cat("  ... and", length(missing_samp_names) - 5, "more\n")
-        }
-        
-        # Check if these are in the processed log
-        missing_basenames = paste0(missing_samp_names, "_scores.output")
-        in_processed_log = sum(missing_basenames %in% processed_basenames)
-        cat("  Of these,", in_processed_log, "are incorrectly marked as processed in the log\n")
-        
-        # Find the actual files that need to be processed
-        missing_files = filter_scores_list[filter_scores_basenames %in% missing_basenames]
-        if(length(missing_files) > 0) {
-            cat("  ➕ Adding", length(missing_files), "missing files to processing queue\n")
-            new_files = c(new_files, missing_files)
-            new_files = unique(new_files)  # Remove duplicates
-            cat("  Total files to process now:", length(new_files), "\n")
-        } else {
-            cat("  ⚠️  WARNING: Found", length(missing_samp_names), "missing samp_names but couldn't find their files\n")
-            cat("  This suggests files may be in a location not being searched\n")
-        }
-    } else {
-        cat("  ✓ All file samp_names are in results\n")
-        
-        # But check if they're in results with correct db_name
-        if("db_name" %in% names(existing_results)) {
-            # Check if any files have samp_names that exist but with wrong db_name
-            file_db_check = tibble(
-                samp_name = all_file_samp_names,
-                file_path = filter_scores_list
-            ) %>%
-                mutate(
-                    file_db_name = case_when(
-                        grepl("soil_microbe_db", samp_name) ~ "soil_microbe_db",
-                        grepl("pluspf", samp_name) ~ "pluspf",
-                        grepl("gtdb_207_unfiltered", samp_name) ~ "gtdb_207_unfiltered",
-                        grepl("gtdb", samp_name) ~ "gtdb_207",
-                        TRUE ~ NA_character_
-                    )
-                ) %>%
-                filter(!is.na(file_db_name))
-            
-            # Check if samp_name exists but with wrong db_name
-            existing_by_db = existing_results %>%
-                filter(db_name %in% c("soil_microbe_db", "pluspf", "gtdb_207", "gtdb_207_unfiltered")) %>%
-                distinct(samp_name, db_name) %>%
-                rename(db_name_existing = db_name)
-            
-            wrong_db_files = file_db_check %>%
-                left_join(existing_by_db, by = "samp_name") %>%
-                filter(
-                    !is.na(db_name_existing) &  # samp_name exists in results
-                    file_db_name != db_name_existing  # but with wrong db_name
-                )
-            
-            if(nrow(wrong_db_files) > 0) {
-                cat("  ⚠️  Found", nrow(wrong_db_files), "files whose samp_names exist but with wrong db_name\n")
-                cat("  These need to be reprocessed with correct db_name\n")
-                new_files = c(new_files, wrong_db_files$file_path)
-                new_files = unique(new_files)
-                cat("  ➕ Added", nrow(wrong_db_files), "files with wrong db_name to processing queue\n")
-                cat("  Total files to process now:", length(new_files), "\n")
-            }
-        }
-        
-        # But check if they have complete data - count records per samp_name
-        if("samp_name" %in% names(existing_results) && "db_name" %in% names(existing_results)) {
-            records_per_sample = existing_results %>%
-                group_by(samp_name, db_name) %>%
-                summarize(n_records = n(), .groups = "drop")
-            
-            # Check if any samp_names have suspiciously few records (less than expected metrics)
-            # Expected: should have multiple metrics per sample
-            suspicious_samples = records_per_sample %>%
-                filter(n_records < 3)  # Less than 3 records suggests incomplete data
-            
-            if(nrow(suspicious_samples) > 0) {
-                cat("  ⚠️  Found", nrow(suspicious_samples), "samp_names with suspiciously few records (< 3)\n")
-                cat("  These may have incomplete data and should be reprocessed\n")
-                
-                # Get the files for these suspicious samples
-                suspicious_samp_names = suspicious_samples$samp_name
-                suspicious_basenames = paste0(suspicious_samp_names, "_scores.output")
-                suspicious_files = filter_scores_list[filter_scores_basenames %in% suspicious_basenames]
-                
-                if(length(suspicious_files) > 0) {
-                    cat("  ➕ Adding", length(suspicious_files), "suspicious files to processing queue for reprocessing\n")
-                    new_files = c(new_files, suspicious_files)
-                    new_files = unique(new_files)
-                }
-            }
-        }
+    all_file_samp_names = unique(normalize_samp_name(sub("_+scores.output$", "", filter_scores_basenames)))
+    missing_count = length(setdiff(all_file_samp_names, existing_samp_names))
+    cat("  Files already in results:", sum(files_to_process$in_results, na.rm = TRUE), "\n")
+    cat("  Files to process:", length(new_files), "\n")
+    if(missing_count > 0) {
+        cat("  Missing samp_names:", missing_count, "\n")
     }
 } else {
-    cat("  No existing results to compare against\n")
+    cat("  Files to process:", length(new_files), "\n")
 }
 
-# Final check: If we still have no files but there are files that exist, something is wrong
-cat("\n=== Final Summary ===\n")
-cat("  Total _scores.output files found:", length(filter_scores_list), "\n")
-cat("  Files marked as processed in log:", length(processed_basenames), "\n")
-if(!is.null(existing_results)) {
-    cat("  Unique samp_names in existing results:", length(existing_samp_names), "\n")
-    cat("  Total records in existing results:", nrow(existing_results), "\n")
-}
-cat("  Files in processing queue:", length(new_files), "\n")
-
-if(length(new_files) == 0) {
-    cat("\n⚠️  WARNING: No files to process!\n")
-    
-    # Double-check: Are there files that should be processed?
-    if(length(filter_scores_list) > 0) {
-        cat("  But", length(filter_scores_list), "files exist - checking for discrepancies...\n")
-        
-        # AGGRESSIVE: If we have files but none in queue, process ALL files that aren't in processed log
-        # This catches cases where files exist but diagnostic logic missed them
-        if(length(processed_basenames) < length(filter_scores_list)) {
-            cat("  ⚠️  Found", length(filter_scores_list) - length(processed_basenames), 
-                "files not in processed log - adding ALL to queue\n")
-            new_files = filter_scores_list[!filter_scores_basenames %in% processed_basenames]
-            cat("  ➕ Added", length(new_files), "files to processing queue\n")
-        }
-        
-        if(!is.null(existing_results) && length(existing_samp_names) > 0) {
-            all_file_samp_names = unique(normalize_samp_name(sub("_scores.output$", "", filter_scores_basenames)))
-            missing_count = length(setdiff(all_file_samp_names, existing_samp_names))
-            
-            cat("  Unique samp_names in files:", length(all_file_samp_names), "\n")
-            cat("  Unique samp_names in results:", length(existing_samp_names), "\n")
-            cat("  Missing samp_names:", missing_count, "\n")
-            
-            if(missing_count > 0) {
-                cat("  ⚠️  DISCREPANCY DETECTED: Found", missing_count, "samp_names in files but not in results!\n")
-                cat("  This suggests files need to be processed but were incorrectly filtered out.\n")
-                cat("  FORCING processing of missing files...\n")
-                
-                # Force add all missing files
-                missing_samp_names = setdiff(all_file_samp_names, existing_samp_names)
-                missing_basenames = paste0(missing_samp_names, "_scores.output")
-                missing_files = filter_scores_list[filter_scores_basenames %in% missing_basenames]
-                new_files = missing_files
-                cat("  ➕ Added", length(new_files), "missing files to processing queue\n")
-            } else {
-                # Even if all samp_names are present, check if counts match and data is complete
-                cat("  All samp_names present, but checking record counts and data completeness...\n")
-                if(length(all_file_samp_names) != length(existing_samp_names)) {
-                    cat("  ⚠️  Count mismatch: files have", length(all_file_samp_names), "unique samp_names,")
-                    cat("  but results have", length(existing_samp_names), "\n")
-                }
-                
-                # Check if results have complete data for each samp_name
-                if("samp_name" %in% names(existing_results) && "db_name" %in% names(existing_results)) {
-                    # Count records per samp_name per database
-                    records_per_sample = existing_results %>%
-                        group_by(samp_name, db_name) %>%
-                        summarize(n_records = n(), .groups = "drop")
-                    
-                    # Expected: each samp_name should have multiple metrics (at least 3-4)
-                    incomplete_samples = records_per_sample %>%
-                        filter(n_records < 3) %>%
-                        group_by(samp_name) %>%
-                        summarize(n_databases = n(), .groups = "drop")
-                    
-                    if(nrow(incomplete_samples) > 0) {
-                        cat("  ⚠️  Found", nrow(incomplete_samples), "samp_names with incomplete data (< 3 records)\n")
-                        cat("  These may need to be reprocessed\n")
-                        
-                        # Get files for incomplete samples
-                        incomplete_samp_names = incomplete_samples$samp_name
-                        incomplete_basenames = paste0(incomplete_samp_names, "_scores.output")
-                        incomplete_files = filter_scores_list[filter_scores_basenames %in% incomplete_basenames]
-                        
-                        if(length(incomplete_files) > 0) {
-                            cat("  ➕ Adding", length(incomplete_files), "incomplete files to processing queue\n")
-                            new_files = c(new_files, incomplete_files)
-                            new_files = unique(new_files)
-                        }
-                    }
-                    
-                    # Check for incorrectly assigned database names (sample IDs as db_name)
-                    valid_databases = c("soil_microbe_db", "pluspf", "gtdb_207", "gtdb_207_unfiltered")
-                    invalid_db_names = existing_results %>%
-                        filter(!db_name %in% valid_databases) %>%
-                        distinct(samp_name, db_name)
-                    
-                    if(nrow(invalid_db_names) > 0) {
-                        cat("  ⚠️  Found", nrow(invalid_db_names), "samp_names with invalid db_name assignments:\n")
-                        print(invalid_db_names)
-                        cat("  These need to be reprocessed with correct database assignment\n")
-                        
-                        # Get files for these samples
-                        invalid_samp_names = invalid_db_names$samp_name
-                        invalid_basenames = paste0(invalid_samp_names, "_scores.output")
-                        invalid_files = filter_scores_list[filter_scores_basenames %in% invalid_basenames]
-                        
-                        if(length(invalid_files) > 0) {
-                            cat("  ➕ Adding", length(invalid_files), "files with invalid db_name to processing queue\n")
-                            new_files = c(new_files, invalid_files)
-                            new_files = unique(new_files)
-                        }
-                    }
-                    
-                    # Check database distribution
-                    cat("  Records per database in results:\n")
-                    db_counts = existing_results %>%
-                        filter(db_name %in% valid_databases) %>%
-                        group_by(db_name) %>%
-                        summarize(
-                            n_samples = length(unique(samp_name)),
-                            n_records = n(),
-                            .groups = "drop"
-                        )
-                    print(db_counts)
-                    
-                    # Check file distribution by database
-                    cat("  Files per database:\n")
-                    # Use full file list, not unique samp_names (since there are multiple files per samp_name)
-                    file_db_map = tibble(
-                        file_path = filter_scores_list,
-                        basename = filter_scores_basenames
-                    ) %>%
-                        mutate(
-                            samp_name = normalize_samp_name(sub("_scores.output$", "", basename)),
-                            db_name = case_when(
-                                grepl("soil_microbe_db", samp_name) ~ "soil_microbe_db",
-                                grepl("pluspf", samp_name) ~ "pluspf",
-                                grepl("gtdb_207_unfiltered", samp_name) ~ "gtdb_207_unfiltered",
-                                grepl("gtdb", samp_name) ~ "gtdb_207",
-                                TRUE ~ NA_character_
-                            )
-                        ) %>%
-                        filter(!is.na(db_name))
-                    
-                    file_db_dist = file_db_map %>%
-                        group_by(db_name) %>%
-                        summarize(n_files = n(), .groups = "drop")
-                    print(file_db_dist)
-                    
-                    # Compare file counts vs result counts per database
-                    comparison = left_join(file_db_dist, db_counts, by = "db_name") %>%
-                        mutate(
-                            n_samples = ifelse(is.na(n_samples), 0, n_samples),
-                            missing = n_files - n_samples
-                        )
-                    
-                    missing_by_db = comparison %>% filter(missing > 0)
-                    if(nrow(missing_by_db) > 0) {
-                        cat("  ⚠️  Database count mismatches (files vs results):\n")
-                        print(missing_by_db %>% select(db_name, n_files, n_samples, missing))
-                        
-                        # Find missing samp_names per database
-                        for(i in 1:nrow(missing_by_db)) {
-                            db = missing_by_db$db_name[i]
-                            n_missing = missing_by_db$missing[i]
-                            
-                            # Get samp_names in files for this database
-                            db_file_samp_names = file_db_map %>%
-                                filter(db_name == db) %>%
-                                pull(samp_name)
-                            
-                            # Get samp_names in results for this database
-                            db_result_samp_names = existing_results %>%
-                                filter(db_name == db) %>%
-                                distinct(samp_name) %>%
-                                pull(samp_name)
-                            
-                            # Find missing
-                            db_missing_samp_names = setdiff(db_file_samp_names, db_result_samp_names)
-                            
-                            if(length(db_missing_samp_names) > 0) {
-                                cat("  ➕ Found", length(db_missing_samp_names), "missing samp_names for", db, "\n")
-                                if(length(db_missing_samp_names) <= 5) {
-                                    cat("    Missing:", paste(db_missing_samp_names, collapse=", "), "\n")
-                                } else {
-                                    cat("    Examples:", paste(head(db_missing_samp_names, 3), collapse=", "), "...\n")
-                                }
-                                
-                                db_missing_basenames = paste0(db_missing_samp_names, "_scores.output")
-                                db_missing_files = filter_scores_list[filter_scores_basenames %in% db_missing_basenames]
-                                
-                                if(length(db_missing_files) > 0) {
-                                    cat("  ➕ Adding", length(db_missing_files), "missing files for", db, "to processing queue\n")
-                                    new_files = c(new_files, db_missing_files)
-                                    new_files = unique(new_files)
-                                } else {
-                                    cat("  ⚠️  Could not find files for", length(db_missing_samp_names), "missing samp_names\n")
-                                    cat("  Files may be in a location not being searched (e.g., on cluster)\n")
-                                }
-                            } else if(n_missing > 0) {
-                                # Count mismatch but no missing samp_names found - this is suspicious
-                                cat("  ⚠️  Count mismatch (", n_missing, "missing) but no missing samp_names found\n")
-                                cat("  This suggests files may not be accessible or matching logic is incorrect\n")
-                            }
-                        }
-                    }
-                }
-            }
-        } else {
-            cat("  ⚠️  No existing results to compare against\n")
-        }
-    }
-}
-
-# Final aggressive check: If we still have very few files but know there should be more
-if(length(new_files) > 0 && length(new_files) < 50) {
-    cat("\n⚠️  WARNING: Only", length(new_files), "files in processing queue, but diagnostic shows many missing samples\n")
-    cat("  This suggests most files are not accessible locally.\n")
-    cat("  Script should be run on the cluster where all files are located.\n")
-    
-    # AGGRESSIVE: Process ALL files that aren't in processed log
-    # This ensures we catch any files that should be processed
-    all_unprocessed = filter_scores_list[!filter_scores_basenames %in% processed_basenames]
-    if(length(all_unprocessed) > length(new_files)) {
-        cat("  ➕ Found", length(all_unprocessed), "total files not in processed log\n")
-        cat("  Adding all", length(all_unprocessed), "unprocessed files to queue\n")
-        new_files = all_unprocessed
-        cat("  Total files to process now:", length(new_files), "\n")
-    }
+# Final safety check: If no files to process but files exist, process all unprocessed
+if(length(new_files) == 0 && length(filter_scores_list) > 0) {
+    cat("\n⚠️  No files in queue, but", length(filter_scores_list), "files exist\n")
+    cat("  Processing all files not in processed log...\n")
+    new_files = filter_scores_list[!filter_scores_basenames %in% processed_basenames]
+    cat("  ➕ Added", length(new_files), "files to processing queue\n")
 }
 
 # Note: All file processing is handled in the first processing loop above
@@ -1589,7 +1424,8 @@ for(db in databases_to_check) {
                 lineage_sampleIDs = sapply(lineage_samples, function(samp_name) {
                     # Remove database suffix to get sampleID
                     # Database names are: gtdb_207, gtdb_207_unfiltered, soil_microbe_db, pluspf
-                    # Also remove _filtered if present (it's part of filename pattern, not database name)
+                    # After script 3 normalization, all sample_ids have _filtered (rank suffixes removed)
+                    # Remove _filtered (always present after normalization) then database suffix
                     samp_name = sub("_filtered$", "", samp_name)  # Remove _filtered first
                     sub("_(soil_microbe_db|pluspf|gtdb_207_unfiltered|gtdb_207)$", "", samp_name)
                 })
@@ -1622,12 +1458,14 @@ for(db in databases_to_check) {
                             }
                             
                             expected_scores_file = paste0(expected_samp_name, "_scores.output")
+                            expected_scores_file_alt = paste0(expected_samp_name, "__scores.output")
                             
-                            # Check all directories
+                            # Check all directories (try both single and double underscore)
                             scores_found = FALSE
                             for(dir_path in dirs_to_search) {
                                 scores_path = file.path(dir_path, expected_scores_file)
-                                if(file.exists(scores_path)) {
+                                scores_path_alt = file.path(dir_path, expected_scores_file_alt)
+                                if(file.exists(scores_path) || file.exists(scores_path_alt)) {
                                     missing_with_scores = c(missing_with_scores, samp_id)
                                     scores_found = TRUE
                                     break
@@ -1656,11 +1494,16 @@ for(db in databases_to_check) {
                                     expected_samp_name = paste0(samp_id, "-COMP_", db)
                                 }
                                 expected_scores_file = paste0(expected_samp_name, "_scores.output")
+                                expected_scores_file_alt = paste0(expected_samp_name, "__scores.output")
                                 
                                 for(dir_path in dirs_to_search) {
                                     scores_path = file.path(dir_path, expected_scores_file)
+                                    scores_path_alt = file.path(dir_path, expected_scores_file_alt)
                                     if(file.exists(scores_path)) {
                                         all_missing_with_scores = c(all_missing_with_scores, scores_path)
+                                        break
+                                    } else if(file.exists(scores_path_alt)) {
+                                        all_missing_with_scores = c(all_missing_with_scores, scores_path_alt)
                                         break
                                     }
                                 }
@@ -1692,5 +1535,3 @@ for(db in databases_to_check) {
         })
     }
 }
-cat("\n")
-}  # End of if(length(new_files) > 0) block

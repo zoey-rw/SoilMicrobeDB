@@ -104,6 +104,67 @@ if(file.exists(cache_file)) {
     }
 }
 
+# Cache for read_report3 results
+kreport_cache <- new.env()
+kreport_cache_dir <- "data/classification/analysis_files/kreport_cache"
+dir.create(kreport_cache_dir, recursive = TRUE, showWarnings = FALSE)
+
+# Function to read and cache kreport files
+read_kreport_cached <- function(kreport_file) {
+    # Create cache key from file path and modification time
+    file_mtime <- file.mtime(kreport_file)
+    cache_key <- paste0(basename(kreport_file), "_", as.numeric(file_mtime))
+    cache_file <- file.path(kreport_cache_dir, paste0(cache_key, ".rds"))
+    
+    # Check if cached version exists
+    if(file.exists(cache_file)) {
+        return(readRDS(cache_file))
+    }
+    
+    # Read the file
+    first_line <- readLines(kreport_file, n = 1)
+    has_header <- grepl("^[a-zA-Z]", first_line)
+    
+    # Read with all ranks needed (R, U for overall; D-K-P-C-O-F-G-S-S1 for both)
+    if(has_header) {
+        report <- read_report3(kreport_file, keep_taxRanks = c("R", "U", "D", "K", "P", "C", "O", "F", "G", "S", "S1"), has_header = TRUE)
+    } else {
+        report <- read_report3(kreport_file, keep_taxRanks = c("R", "U", "D", "K", "P", "C", "O", "F", "G", "S", "S1"), has_header = FALSE)
+    }
+    
+    if(is.null(report) || nrow(report) == 0) {
+        return(NULL)
+    }
+    
+    if(!inherits(report, "data.table")) {
+        setDT(report)
+    }
+    
+    # Build taxLineage for fungi identification (needed for fungi calculations)
+    if("depth" %in% names(report)) {
+        original_name <- gsub("^[a-z]+_", "", report$name)
+        report$taxLineage <- original_name
+        if(nrow(report) > 1) {
+            parent_stack <- list()
+            for(i in seq_len(nrow(report))) {
+                current_depth <- report$depth[i]
+                while(length(parent_stack) > 0 && parent_stack[[length(parent_stack)]]$depth >= current_depth) {
+                    parent_stack <- parent_stack[-length(parent_stack)]
+                }
+                if(length(parent_stack) > 0) {
+                    parent_lineage <- parent_stack[[length(parent_stack)]]$lineage
+                    report$taxLineage[i] <- paste(parent_lineage, original_name[i], sep = "|")
+                }
+                parent_stack[[length(parent_stack) + 1]] <- list(depth = current_depth, lineage = report$taxLineage[i])
+            }
+        }
+    }
+    
+    # Cache the result
+    saveRDS(report, cache_file)
+    return(report)
+}
+
 # Function to parse sample ID from kreport filename
 # Handles both patterns: _filtered_kraken.kreport and __filtered_kraken.kreport
 parse_sample_id_from_kreport <- function(filename) {
@@ -141,61 +202,20 @@ parse_sample_id_from_kreport <- function(filename) {
 }
 
 # Function to read filtered kreport and extract fungal reads by rank
-read_filtered_kreport_fungi_by_rank <- function(kreport_file, taxonomy_is_fungi_map) {
-    first_line <- readLines(kreport_file, n = 1)
-    has_header <- grepl("^[a-zA-Z]", first_line)
-    
-    # Use read_report3 which properly handles indentation
-    if(has_header) {
-        report <- read_report3(kreport_file, keep_taxRanks = c("D", "K", "P", "C", "O", "F", "G", "S", "S1"), has_header = TRUE)
-    } else {
-        report <- read_report3(kreport_file, keep_taxRanks = c("D", "K", "P", "C", "O", "F", "G", "S", "S1"), has_header = FALSE)
-    }
-    
-    # Build taxLineage from depth to ensure full hierarchy is included
-    # read_report3's taxLineage may not include all parent ranks due to collapse.taxRanks
-    if(!"depth" %in% names(report)) {
-        warning("depth not found in kreport file: ", kreport_file, ". Skipping.")
-        return(NULL)
-    }
-    
-    # Get original names (without rank prefix)
-    original_name <- gsub("^[a-z]+_", "", report$name)
-    
-    # Build taxLineage from depth - this ensures we get the full hierarchy
-    report$taxLineage <- original_name
-    rows_to_consider <- rep(FALSE, nrow(report))
-    for(i in seq_len(nrow(report))) {
-        if(i > 1 && report$depth[i] > 0) {
-            # Find the most recent ancestor (row with highest depth < current depth)
-            idx <- report$depth < report$depth[i] & rows_to_consider
-            if(any(idx)) {
-                my_row <- max(which(idx))
-                report$taxLineage[i] <- paste(report$taxLineage[my_row], 
-                                              original_name[i], sep = "|")
-            }
-        }
-        rows_to_consider[i] <- TRUE
-    }
-    
+read_filtered_kreport_fungi_by_rank <- function(report, sample_info, taxonomy_is_fungi_map) {
     if(is.null(report) || nrow(report) == 0) {
         return(NULL)
     }
     
-    sample_info <- parse_sample_id_from_kreport(kreport_file)
-    
-    if(!inherits(report, "data.table")) {
-        setDT(report)
+    # Check if taxLineage exists (should be built by read_kreport_cached)
+    if(!"taxLineage" %in% names(report)) {
+        warning("taxLineage not found in report. Skipping.")
+        return(NULL)
     }
     
     # Identify fungi: use ONLY taxLineage (consistent method for all ranks)
     # taxLineage is built from depth information and includes full hierarchy
     # This ensures consistent identification across all ranks (phylum, class, order, family, genus, species)
-    
-    if(!"taxLineage" %in% names(report)) {
-        warning("taxLineage not found in kreport file: ", kreport_file, ". Skipping.")
-        return(NULL)
-    }
     
     # Check if entry is in Fungi kingdom lineage using taxLineage
     # This works for all ranks since taxLineage includes full hierarchy
@@ -216,7 +236,6 @@ read_filtered_kreport_fungi_by_rank <- function(kreport_file, taxonomy_is_fungi_
     
     # Require taxonReads - no fallback
     if(total_fungal_reads == 0) {
-        warning("No fungal reads found in: ", kreport_file, ". Skipping.")
         return(NULL)
     }
     
@@ -274,47 +293,54 @@ read_filtered_kreport_fungi_by_rank <- function(kreport_file, taxonomy_is_fungi_
     return(bind_rows(results_list))
 }
 
-# Function to read filtered kreport and extract overall classification percentages by rank
-read_filtered_kreport_overall_by_rank <- function(kreport_file) {
-    first_line <- readLines(kreport_file, n = 1)
-    has_header <- grepl("^[a-zA-Z]", first_line)
-    
-    # Use read_report3 which properly handles indentation
-    # Include "R" (root) and "U" (unclassified) to get total reads
-    if(has_header) {
-        report <- read_report3(kreport_file, keep_taxRanks = c("R", "U", "D", "K", "P", "C", "O", "F", "G", "S", "S1"), has_header = TRUE)
-    } else {
-        report <- read_report3(kreport_file, keep_taxRanks = c("R", "U", "D", "K", "P", "C", "O", "F", "G", "S", "S1"), has_header = FALSE)
+# Load sequencing depth data (original total read counts, same across databases)
+seq_depth_df <- readRDS("data/classification/analysis_files/seq_depth_df.rds")
+
+# Function to get original total reads from seq_depth_df.rds
+get_original_total_reads <- function(sampleID, db_name) {
+    if(is.null(sampleID) || is.null(db_name)) {
+        return(NULL)
     }
     
+    match_row <- seq_depth_df[seq_depth_df$sampleID == sampleID & seq_depth_df$db_name == db_name, ]
+    if(nrow(match_row) > 0 && !is.na(match_row$seq_depth[1]) && match_row$seq_depth[1] > 0) {
+        return(match_row$seq_depth[1])
+    }
+    
+    return(NULL)
+}
+
+# Function to read filtered kreport and extract overall classification percentages by rank
+read_filtered_kreport_overall_by_rank <- function(report, sample_info, kreport_file) {
     if(is.null(report) || nrow(report) == 0) {
         return(NULL)
     }
     
-    sample_info <- parse_sample_id_from_kreport(kreport_file)
+    # Get original total reads from seq_depth_df.rds (original sequencing depth, same across databases)
+    original_total <- get_original_total_reads(sample_info$sampleID, sample_info$db_name)
     
-    if(!inherits(report, "data.table")) {
-        setDT(report)
-    }
-    
-    # Calculate total reads: use root's cladeReads (includes classified + unclassified)
-    # Root entry has taxRank "R" and represents all reads in the sample
-    root_entry <- report[taxRank == "R" | name == "root" | name == "r_root"]
-    if(nrow(root_entry) > 0) {
-        total_reads <- root_entry$cladeReads[1]
+    if(!is.null(original_total) && original_total > 0) {
+        total_reads <- original_total
     } else {
-        # Fallback: check for unclassified entry and add to classified reads
-        unclassified_entry <- report[taxRank == "U" | grepl("unclassified", name, ignore.case = TRUE)]
-        rank_hierarchy_letters <- c("D", "K", "P", "C", "O", "F", "G", "S", "S1")
-        total_reads <- 0
-        for(rank_letter in rank_hierarchy_letters) {
-            reads_at_rank <- report[taxRank == rank_letter]
-            if(nrow(reads_at_rank) > 0) {
-                total_reads <- total_reads + sum(reads_at_rank$taxonReads, na.rm = TRUE)
+        # Fallback: use root's cladeReads from Bracken file
+        # This should rarely happen if seq_depth_df.rds is complete
+        root_entry <- report[taxRank == "R" | name == "root" | name == "r_root"]
+        if(nrow(root_entry) > 0) {
+            total_reads <- root_entry$cladeReads[1]
+        } else {
+            # Last resort: sum classified reads
+            unclassified_entry <- report[taxRank == "U" | grepl("unclassified", name, ignore.case = TRUE)]
+            rank_hierarchy_letters <- c("D", "K", "P", "C", "O", "F", "G", "S", "S1")
+            total_reads <- 0
+            for(rank_letter in rank_hierarchy_letters) {
+                reads_at_rank <- report[taxRank == rank_letter]
+                if(nrow(reads_at_rank) > 0) {
+                    total_reads <- total_reads + sum(reads_at_rank$taxonReads, na.rm = TRUE)
+                }
             }
-        }
-        if(nrow(unclassified_entry) > 0) {
-            total_reads <- total_reads + sum(unclassified_entry$cladeReads, na.rm = TRUE)
+            if(nrow(unclassified_entry) > 0) {
+                total_reads <- total_reads + sum(unclassified_entry$cladeReads, na.rm = TRUE)
+            }
         }
     }
     
@@ -323,6 +349,8 @@ read_filtered_kreport_overall_by_rank <- function(kreport_file) {
     }
     
     # Calculate cumulative reads at each rank (reads at this rank OR MORE SPECIFIC)
+    # Use cladeReads which already includes all descendants (cumulative)
+    # cladeReads = reads at this rank AND all more specific ranks
     rank_hierarchy <- c("domain", "kingdom", "phylum", "class", "order", "family", "genus", "species", "strain")
     rank_hierarchy_letters <- c("D", "K", "P", "C", "O", "F", "G", "S", "S1")
     
@@ -330,22 +358,9 @@ read_filtered_kreport_overall_by_rank <- function(kreport_file) {
     for(rank_name in names(rank_map)) {
         rank_letter <- rank_map[rank_name]
         
-        # Get all ranks at this level or more specific
-        rank_idx <- which(rank_hierarchy == rank_name)
-        if(length(rank_idx) == 0) next
-        
-        ranks_to_sum <- rank_hierarchy[rank_idx:length(rank_hierarchy)]
-        ranks_to_sum_letters <- rank_hierarchy_letters[rank_idx:length(rank_hierarchy_letters)]
-        
-        # Sum taxonReads (reads specifically at each rank) across all ranks from target down
-        # This gives cumulative reads at target rank or more specific
-        reads_at_rank <- 0
-        for(r_letter in ranks_to_sum_letters) {
-            reads_at_r <- report[taxRank == r_letter]
-            if(nrow(reads_at_r) > 0) {
-                reads_at_rank <- reads_at_rank + sum(reads_at_r$taxonReads, na.rm = TRUE)
-            }
-        }
+        # Get all entries at this rank and sum their cladeReads
+        # cladeReads already includes all descendants, so this gives cumulative reads
+        reads_at_rank <- report[taxRank == rank_letter, sum(cladeReads, na.rm = TRUE)]
         
         if(reads_at_rank > 0) {
             pct_at_rank <- (reads_at_rank / total_reads) * 100
@@ -409,13 +424,27 @@ if(length(filtered_kreport_files) == 0) {
 }
 
 # Process each filtered kreport file
-for(kreport_file in filtered_kreport_files) {
-    result_fungi <- read_filtered_kreport_fungi_by_rank(kreport_file, taxonomy_is_fungi)
+# Read each file once and use for both fungi and overall calculations
+for(i in seq_along(filtered_kreport_files)) {
+    kreport_file <- filtered_kreport_files[i]
+    
+    # Read and cache the report (includes taxLineage building)
+    report <- read_kreport_cached(kreport_file)
+    if(is.null(report)) {
+        next
+    }
+    
+    # Get sample info once
+    sample_info <- parse_sample_id_from_kreport(kreport_file)
+    
+    # Process for fungi
+    result_fungi <- read_filtered_kreport_fungi_by_rank(report, sample_info, taxonomy_is_fungi)
     if(!is.null(result_fungi)) {
         bracken_results[[length(bracken_results) + 1]] <- result_fungi
     }
     
-    result_overall <- read_filtered_kreport_overall_by_rank(kreport_file)
+    # Process for overall (using same report)
+    result_overall <- read_filtered_kreport_overall_by_rank(report, sample_info, kreport_file)
     if(!is.null(result_overall)) {
         overall_results[[length(overall_results) + 1]] <- result_overall
     }

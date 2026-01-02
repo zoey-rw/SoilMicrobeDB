@@ -387,61 +387,99 @@ for dbname in "${databases[@]}"; do
         
         # Only proceed if merged file exists and is valid (not empty, not recently modified)
         if file_is_valid "$merged_file" 5; then
-            # Determine pattern based on database and rank
+            # Determine pattern based on database and rank (must match script 3 patterns)
+            # Also create alternate pattern for double underscores
             case "$rank" in
                 "species")
                     if [ "$dbname" = "soil_microbe_db" ]; then
                         pattern="*${dbname}_filtered.b2"
+                        pattern_alt="*${dbname}__filtered.b2"
                     elif [ "$dbname" = "gtdb_207_unfiltered" ]; then
-                        pattern="*gtdb_207_unfiltered.b2"
+                        pattern="*gtdb_207_unfiltered*filtered.b2"
+                        pattern_alt="*gtdb_207_unfiltered__filtered.b2"
                     elif [ "$dbname" = "gtdb_207" ]; then
-                        pattern="*gtdb_207_filtered.b2"
+                        pattern="*gtdb_207__filtered.b2"
+                        pattern_alt="*gtdb_207_filtered.b2"
                     elif [ "$dbname" = "pluspf" ]; then
-                        pattern="*pluspf_filtered.b2"
+                        pattern="*pluspf__filtered.b2"
+                        pattern_alt="*pluspf_filtered.b2"
+                    else
+                        pattern="*${dbname}_filtered.b2"
+                        pattern_alt="*${dbname}__filtered.b2"
                     fi
                     ;;
                 "genus")
                     if [ "$dbname" = "soil_microbe_db" ]; then
                         pattern="*${dbname}_genus_filtered.b2"
+                        pattern_alt="*${dbname}__genus_filtered.b2"
                     elif [ "$dbname" = "gtdb_207_unfiltered" ]; then
                         pattern="*gtdb_207_unfiltered_genus_filtered.b2"
+                        pattern_alt="*gtdb_207_unfiltered__genus_filtered.b2"
                     elif [ "$dbname" = "gtdb_207" ]; then
-                        pattern="*gtdb_207_genus_filtered.b2"
+                        pattern="*gtdb_207__genus_filtered.b2"
+                        pattern_alt="*gtdb_207_genus_filtered.b2"
                     elif [ "$dbname" = "pluspf" ]; then
-                        pattern="*pluspf_genus_filtered.b2"
+                        pattern="*pluspf__genus_filtered.b2"
+                        pattern_alt="*pluspf_genus_filtered.b2"
+                    else
+                        pattern="*${dbname}_genus_filtered.b2"
+                        pattern_alt="*${dbname}__genus_filtered.b2"
                     fi
                     ;;
                 "domain")
                     if [ "$dbname" = "soil_microbe_db" ]; then
                         pattern="*${dbname}_domain_filtered.b2"
+                        pattern_alt="*${dbname}__domain_filtered.b2"
                     elif [ "$dbname" = "gtdb_207_unfiltered" ]; then
                         pattern="*gtdb_207_unfiltered_domain_filtered.b2"
+                        pattern_alt="*gtdb_207_unfiltered__domain_filtered.b2"
                     elif [ "$dbname" = "gtdb_207" ]; then
-                        pattern="*gtdb_207_domain_filtered.b2"
+                        pattern="*gtdb_207__domain_filtered.b2"
+                        pattern_alt="*gtdb_207_domain_filtered.b2"
                     elif [ "$dbname" = "pluspf" ]; then
-                        pattern="*pluspf_domain_filtered.b2"
+                        pattern="*pluspf__domain_filtered.b2"
+                        pattern_alt="*pluspf_domain_filtered.b2"
+                    else
+                        pattern="*${dbname}_domain_filtered.b2"
+                        pattern_alt="*${dbname}__domain_filtered.b2"
                     fi
                     ;;
                 "phylum")
                     if [ "$dbname" = "soil_microbe_db" ]; then
                         pattern="*${dbname}_phylum_filtered.b2"
+                        pattern_alt="*${dbname}__phylum_filtered.b2"
                     elif [ "$dbname" = "gtdb_207_unfiltered" ]; then
                         pattern="*gtdb_207_unfiltered_phylum_filtered.b2"
+                        pattern_alt="*gtdb_207_unfiltered__phylum_filtered.b2"
                     elif [ "$dbname" = "gtdb_207" ]; then
-                        pattern="*gtdb_207_phylum_filtered.b2"
+                        pattern="*gtdb_207__phylum_filtered.b2"
+                        pattern_alt="*gtdb_207_phylum_filtered.b2"
                     elif [ "$dbname" = "pluspf" ]; then
-                        pattern="*pluspf_phylum_filtered.b2"
+                        pattern="*pluspf__phylum_filtered.b2"
+                        pattern_alt="*pluspf_phylum_filtered.b2"
+                    else
+                        pattern="*${dbname}_phylum_filtered.b2"
+                        pattern_alt="*${dbname}__phylum_filtered.b2"
                     fi
                     ;;
             esac
             
-            # Find and delete matching .b2 files (check both local and HARDDRIVE)
+            # Find and delete matching .b2 files (check both single and double underscore patterns)
+            # Check both local and HARDDRIVE
             b2_files=""
             if [ -d "$architeuthis_dir_path" ]; then
-                b2_files="$b2_files $(find "$architeuthis_dir_path" -name "$pattern" -type f 2>/dev/null)"
+                if [ -n "$pattern_alt" ] && [ "$pattern_alt" != "$pattern" ]; then
+                    b2_files="$b2_files $(find "$architeuthis_dir_path" \( -name "$pattern" -o -name "$pattern_alt" \) -type f 2>/dev/null)"
+                else
+                    b2_files="$b2_files $(find "$architeuthis_dir_path" -name "$pattern" -type f 2>/dev/null)"
+                fi
             fi
             if [ -d "$architeuthis_dir_harddrive" ]; then
-                b2_files="$b2_files $(find "$architeuthis_dir_harddrive" -name "$pattern" -type f 2>/dev/null)"
+                if [ -n "$pattern_alt" ] && [ "$pattern_alt" != "$pattern" ]; then
+                    b2_files="$b2_files $(find "$architeuthis_dir_harddrive" \( -name "$pattern" -o -name "$pattern_alt" \) -type f 2>/dev/null)"
+                else
+                    b2_files="$b2_files $(find "$architeuthis_dir_harddrive" -name "$pattern" -type f 2>/dev/null)"
+                fi
             fi
             
             if [ -n "$b2_files" ]; then
