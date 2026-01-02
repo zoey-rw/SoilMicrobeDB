@@ -151,21 +151,60 @@ def blast_fasta_file(fasta_file, output_file, sample_size, num_threads=4):
     
     if file_exists:
         print(f"  Existing BLAST file found: {output_file}")
+        # Check what sequences have results (including "no_hits" which are valid results)
         with open(output_file, 'r') as f:
-            header = f.readline()  # Skip header
+            f.readline()  # Skip header
+            all_processed = set()
+            failed_only = set()
             for line in f:
                 parts = line.strip().split('\t')
                 if len(parts) > 1:
                     read_id = parts[0]
-                    accession = parts[1] if len(parts) > 1 else ""
-                    # Only skip if we have a successful hit (not "no_hits" or "blast_failed")
-                    if accession and accession not in ["no_hits", "blast_failed"]:
-                        successfully_processed.add(read_id)
-        print(f"  Already successfully processed: {len(successfully_processed)} sequences")
-        print(f"  (Will retry sequences with 'no_hits' or 'blast_failed' results)")
+                    result = parts[1] if len(parts) > 1 else ""
+                    if result == "blast_failed":
+                        # Only retry actual failures, not "no_hits" (which are valid results)
+                        failed_only.add(read_id)
+                    else:
+                        # Any other result (successful hit or "no_hits") means sequence was processed
+                        all_processed.add(read_id)
+        
+        # If file has sufficient results (>=500), treat as complete and skip entirely
+        # "no_hits" is a valid result and shouldn't be retried
+        # This handles cases where FASTA has more sequences than were originally BLASTed
+        if len(all_processed) >= 500:
+            print(f"  File has {len(all_processed)} results (sufficient for analysis)")
+            if len(failed_only) == 0:
+                print(f"  All sequences processed (including 'no_hits' which are valid). Skipping.")
+                return
+            else:
+                # Only retry the specific "blast_failed" sequences, not all missing ones
+                print(f"  Will retry {len(failed_only)} sequences with 'blast_failed' results only")
+                sequences_to_retry = [s for s in sequences if s.id in failed_only]
+                if len(sequences_to_retry) == 0:
+                    print(f"  No sequences to retry. Skipping.")
+                    return
+                # Skip to processing only the failed sequences
+                sequences_to_process = sequences_to_retry
+                successfully_processed = all_processed  # Mark all processed as done
+        elif (len(all_processed) + len(failed_only)) >= len(sequences) * 0.9:
+            # File has results for 90%+ of sequences (including failed) - treat as complete
+            # Skip entirely, even if there are some "blast_failed" results
+            # (User indicated these files are already complete)
+            total_with_results = len(all_processed) + len(failed_only)
+            print(f"  File has results for {total_with_results}/{len(sequences)} sequences (90%+ complete)")
+            print(f"  Treating as complete. Skipping (including {len(failed_only)} 'blast_failed' results).")
+            return
+        else:
+            # File incomplete - process missing sequences
+            successfully_processed = all_processed
+            print(f"  Already processed: {len(successfully_processed)} sequences")
+            print(f"  Will retry: {len(failed_only)} 'blast_failed' sequences")
+            # Filter out successfully processed sequences (retry failed ones and missing ones)
+            sequences_to_process = [s for s in sequences if s.id not in successfully_processed]
     
-    # Filter out only successfully processed sequences (retry failed ones)
-    sequences_to_process = [s for s in sequences if s.id not in successfully_processed]
+    # If sequences_to_process wasn't set above (for incomplete files), set it now
+    if 'sequences_to_process' not in locals():
+        sequences_to_process = [s for s in sequences if s.id not in successfully_processed]
     print(f"  Sequences to process: {len(sequences_to_process)}")
     
     if len(sequences_to_process) == 0:
@@ -211,7 +250,7 @@ def blast_fasta_file(fasta_file, output_file, sample_size, num_threads=4):
         t.join()
     
     print(f"  Completed: {output_file}")
-    print(f"  Total sequences in file: {len(already_processed) + len(sequences_to_process)}")
+    print(f"  Total sequences in file: {len(successfully_processed) + len(sequences_to_process)}")
 
 def main():
     if len(sys.argv) < 2:
