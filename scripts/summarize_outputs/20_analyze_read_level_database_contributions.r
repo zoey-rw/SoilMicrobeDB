@@ -2,7 +2,8 @@
 # 20: Analyze read-level database contributions
 # Classify reads by source using read-level scoring files
 # Goal: Match each read's taxid with genome table to get source database
-#       This gives us the actual source used for each read classification
+#       For taxids unique to one source: direct attribution
+#       For taxids in multiple sources: proportional attribution based on genome counts
 #
 # Usage: Rscript scripts/summarize_outputs/20_analyze_read_level_database_contributions.r
 #
@@ -11,11 +12,42 @@
 # Output: Summary statistics showing read counts by source for each kingdom
 #         Efficiency metrics, rank distribution, unique contributions,
 #         overlap analysis, and cross-kingdom contributions
+#
+# Note: Scoring files only contain taxid-level information, not genome-level.
+#       For taxids present in multiple sources, reads are attributed proportionally
+#       based on the number of genomes from each source in the database.
 
 library(data.table)
 
 # File paths
-scores_dir <- "data/classification/02_bracken_output"
+# Check multiple possible locations (local and remote mount)
+possible_scores_dirs <- c(
+    "data/classification/02_bracken_output",
+    "/Users/zoeywerbin/remote_soil_microbe_db/data/NEON_metagenome_classification/02_bracken_output",
+    "/projectnb/frpmars/soil_microbe_db/data/NEON_metagenome_classification/02_bracken_output",
+    "data/NEON_metagenome_classification/02_bracken_output"
+)
+
+scores_dir <- NULL
+for(dir in possible_scores_dirs) {
+    if(dir.exists(dir)) {
+        score_files_check <- list.files(dir, pattern = "_+scores.output$", full.names = TRUE, recursive = TRUE)
+        # Filter to only soil_microbe_db outputs (exclude gtdb_207, pluspf, etc.)
+        score_files_check <- score_files_check[grepl("_soil_microbe_db", basename(score_files_check))]
+        if(length(score_files_check) > 0) {
+            scores_dir <- dir
+            cat("Using scores directory:", scores_dir, "\n")
+            cat("Found", length(score_files_check), "soil_microbe_db score files\n")
+            break
+        }
+    }
+}
+
+if(is.null(scores_dir)) {
+    stop("No soil_microbe_db score files found in any of the checked directories:\n", 
+         paste(possible_scores_dirs, collapse = "\n"))
+}
+
 genome_table_file <- "data/genome_database/soil_microbe_db_genome_table.csv"
 output_dir <- "data/classification/analysis_files"
 
@@ -28,17 +60,31 @@ fungal_pattern <- paste0("(", paste(fungal_phyla, collapse = "|"), ")")
 # Read genome table
 genome_table <- fread(genome_table_file, nThread = 8)
 
-# Handle many-to-many: if a taxid has multiple sources, take the most common one
-source_mapping <- genome_table[
+# Pre-calculate proportional weights for every taxid
+# This creates a static lookup table: "For taxid X, Y% goes to Source A, Z% goes to Source B"
+weights_dt <- genome_table[
     !is.na(ncbi_species_taxid),
-    .(source = names(sort(table(source), decreasing = TRUE))[1],
-      kingdom = names(sort(table(kingdom), decreasing = TRUE))[1]),
-    by = ncbi_species_taxid
+    .(n_genomes = .N, kingdom = kingdom[1]),
+    by = .(ncbi_species_taxid, source)
 ]
-setkey(source_mapping, ncbi_species_taxid)
+
+# Calculate total genomes per taxid and proportion
+weights_dt[, total_genomes := sum(n_genomes), by = ncbi_species_taxid]
+weights_dt[, proportion := n_genomes / total_genomes]
+
+# Create kingdom lookup (one row per taxid)
+taxid_to_kingdom <- weights_dt[, .(kingdom = kingdom[1]), by = ncbi_species_taxid]
+setkey(taxid_to_kingdom, ncbi_species_taxid)
+
+# Set key for efficient joins
+setkey(weights_dt, ncbi_species_taxid)
 
 # Find and process scoring files (recursively search subdirectories)
+# Note: Values in output tables are AVERAGED across samples (not summed)
+# Filter to only soil_microbe_db outputs (exclude other databases)
 score_files <- list.files(scores_dir, pattern = "_+scores.output$", full.names = TRUE, recursive = TRUE)
+score_files <- score_files[grepl("_soil_microbe_db", basename(score_files))]
+cat("Processing", length(score_files), "soil_microbe_db score files from", scores_dir, "\n")
 
 if(length(score_files) == 0) {
     stop("No scoring files found in ", scores_dir)
@@ -80,55 +126,49 @@ taxid_counts_list <- list()
 for(file_idx in seq_along(score_files)) {
     file <- score_files[file_idx]
     samp_name <- sub("_+scores.output$", "", basename(file))
-    sampleID <- sub("_+(soil_microbe_db|pluspf|gtdb_207_unfiltered|gtdb_207)$", "", samp_name)
+    # Extract sample ID (remove database suffix, should only be soil_microbe_db at this point)
+    sampleID <- sub("_+soil_microbe_db.*$", "", samp_name)
     
-    # Read file - use fill=Inf to handle lines with extra fields
-    # Expected format: sample_id,read_id,taxid,name,rank,n_kmers,consistency,confidence,multiplicity,entropy (10 fields)
-    # 
-    # NOTE: Rare data corruption: Some files may contain isolated corrupted lines where
-    # multiple taxonomic assignments are concatenated (15+ fields instead of 10).
-    # Investigation shows:
-    # - All files have identical 10-column headers
-    # - Only 1 line in 1 file (KONZ) has extra fields (data corruption, not format difference)
-    # - The corrupted line contains two complete assignments concatenated
-    # 
-    # We handle this robustly by:
-    # 1. Using fill=Inf to read all fields without error
-    # 2. Extracting only the first assignment (columns: taxid, name, rank)
-    # 3. Ignoring any duplicate assignments in extra columns
-    scores_raw <- fread(file, 
-                        nThread = 4, 
-                        fill = Inf,
-                        showProgress = FALSE)
+    # OPTIMIZED: Aggregate first, join once
+    # 1. Load only needed columns (saves massive RAM)
+    tryCatch({
+        scores_raw <- fread(file, 
+                            select = c("taxid", "rank", "name"),
+                            nThread = 4,
+                            fill = TRUE,
+                            showProgress = FALSE)
+    }, error = function(e) {
+        cat("ERROR reading file:", file, "\n")
+        cat("Error message:", e$message, "\n")
+        stop("Failed to read file: ", file)
+    })
     
-    # Extract only the first taxonomic assignment (use named columns)
-    # For corrupted lines with multiple assignments, we only use the first one
-    if(all(c("taxid", "name", "rank") %in% names(scores_raw))) {
-        scores <- scores_raw[, .(taxid = as.numeric(taxid), name = name, rank = rank)]
-    } else {
-        # Fallback: use positional columns if names don't match
-        if(ncol(scores_raw) >= 5) {
-            scores <- scores_raw[, .(taxid = as.numeric(get(names(scores_raw)[3])), 
-                                name = get(names(scores_raw)[4]), 
-                                rank = get(names(scores_raw)[5]))]
-        } else {
-            stop("Cannot parse file: ", file)
-        }
-    }
+    # 2. AGGREGATE IMMEDIATELY: Count how many times each taxid appears
+    # This turns millions of reads into thousands of unique TaxIDs
+    sample_counts <- scores_raw[
+        !is.na(taxid) & taxid > 0,
+        .(read_count = .N),
+        by = .(taxid, rank, name)
+    ]
     
-    # Remove rows with invalid taxids (NA or 0)
-    scores <- scores[!is.na(taxid) & taxid > 0]
-    
-    # Clean up
+    # Clean up raw data immediately
     rm(scores_raw)
+    gc()
     
-    # Join with source_mapping immediately (keeps memory footprint small)
-    setkey(scores, taxid)
-    scores <- source_mapping[scores, on = .(ncbi_species_taxid = taxid)]
-    setnames(scores, "ncbi_species_taxid", "taxid")
+    # 3. JOIN with weights table (handles proportional attribution automatically)
+    # weights_dt has multiple rows per taxid (one per source), so this creates
+    # the proportional expansion we need
+    attributed <- merge(sample_counts, 
+                        weights_dt, 
+                        by.x = "taxid", 
+                        by.y = "ncbi_species_taxid", 
+                        allow.cartesian = TRUE)
     
-    # Identify kingdoms (inside loop to process smaller chunks)
-    scores[, kingdom_classified := fcase(
+    # 4. Calculate weighted reads (proportional attribution)
+    attributed[, weighted_n := read_count * proportion]
+    
+    # 5. Identify kingdoms
+    attributed[, kingdom_classified := fcase(
         grepl(fungal_pattern, name, perl = TRUE) | (!is.na(kingdom) & kingdom == "Fungi"), "Fungi",
         (rank == "k" & grepl("Bacteria", name, fixed = TRUE)) |
         grepl("^k__Bacteria|;k__Bacteria", name, fixed = FALSE) |
@@ -139,45 +179,45 @@ for(file_idx in seq_along(score_files)) {
         default = "Other"
     )]
     
-    # REDUCE: Collapse to summaries immediately (turns millions of rows into ~10-100 rows)
+    # 6. REDUCE: Collapse to summaries immediately
     # Summary by source and kingdom
-    samp_summary <- scores[
+    samp_summary <- attributed[
         !is.na(source),
-        .(n_reads = .N),
+        .(n_reads = sum(weighted_n, na.rm = TRUE)),
         by = .(source, kingdom_classified)
     ]
     samp_summary[, sampleID := sampleID]
     summary_list[[file_idx]] <- samp_summary
     
     # Summary by source and rank
-    samp_rank <- scores[
+    samp_rank <- attributed[
         !is.na(source) & !is.na(rank),
-        .(n_reads = .N),
+        .(n_reads = sum(weighted_n, na.rm = TRUE)),
         by = .(source, rank)
     ]
     samp_rank[, sampleID := sampleID]
     rank_summary_list[[file_idx]] <- samp_rank
     
     # Track unique taxids per source per sample (for efficiency metrics)
-    samp_taxids <- scores[
-        !is.na(source) & !is.na(taxid),
+    samp_taxids <- attributed[
+        !is.na(source) & !is.na(taxid) & weighted_n > 0,
         .(unique_taxids = list(unique(taxid))),
         by = source
     ]
     samp_taxids[, sampleID := sampleID]
     source_taxid_list[[file_idx]] <- samp_taxids
     
-    # Track taxid counts per source for unique contributions (aggregate immediately)
-    samp_taxid_counts <- scores[
+    # Track taxid counts per source for unique contributions
+    samp_taxid_counts <- attributed[
         !is.na(source) & !is.na(taxid),
-        .(n_reads = .N),
+        .(n_reads = sum(weighted_n, na.rm = TRUE)),
         by = .(source, taxid)
     ]
     samp_taxid_counts[, sampleID := sampleID]
     taxid_counts_list[[file_idx]] <- samp_taxid_counts
     
     # Clean up
-    rm(scores, samp_summary, samp_rank, samp_taxids, samp_taxid_counts)
+    rm(sample_counts, attributed, samp_summary, samp_rank, samp_taxids, samp_taxid_counts)
     gc()
 }
 
@@ -192,17 +232,22 @@ gc()
 
 # ============================================================================
 # AGGREGATE SUMMARIES
+# Note: Values are AVERAGED across samples (not summed)
 # ============================================================================
 
 # Overall source distribution
+# Calculate average reads per sample (not total)
 all_sources <- final_summary_dt[
     ,
     .(
-        n_reads = sum(n_reads),
+        n_reads_avg = mean(n_reads),
+        n_reads_total = sum(n_reads),  # Keep total for percentage calculations
         n_unique_samples = uniqueN(sampleID)
     ),
     by = source
 ]
+# Use average for main reporting
+all_sources[, n_reads := n_reads_avg]
 
 # Get unique taxids per source across all samples
 source_taxids_all <- final_taxid_dt[
@@ -219,9 +264,10 @@ all_sources_file <- file.path(output_dir, "read_level_all_kingdoms_read_counts_b
 fwrite(all_sources, all_sources_file)
 
 # Efficiency metrics
+# Note: n_reads is averaged across samples (may be fractional for overlapping taxids due to proportional attribution)
 efficiency_metrics <- all_sources[, `:=`(
     reads_per_taxid = n_reads / n_unique_taxids,
-    reads_per_sample = n_reads / n_unique_samples,
+    reads_per_sample = n_reads,  # Already averaged, so this is the same
     taxids_per_sample = n_unique_taxids / n_unique_samples
 )]
 setorder(efficiency_metrics, -n_reads)
@@ -232,15 +278,16 @@ fwrite(efficiency_metrics[, .(source, n_reads, n_unique_taxids, n_unique_samples
        efficiency_file)
 
 # Taxonomic rank distribution
+# Average reads per sample by rank
 rank_totals <- final_rank_dt[
     ,
-    .(n_reads = sum(n_reads)),
+    .(n_reads = mean(n_reads)),
     by = .(source, rank)
 ]
 
 source_totals_rank <- final_rank_dt[
     ,
-    .(total_reads = sum(n_reads)),
+    .(total_reads = mean(n_reads)),
     by = source
 ]
 
@@ -269,15 +316,16 @@ rank_file <- file.path(output_dir, "read_level_database_rank_distribution.csv")
 fwrite(rank_distribution_wide, rank_file)
 
 # Cross-kingdom analysis
+# Average reads per sample
 cross_kingdom <- final_summary_dt[
     ,
-    .(n_reads = sum(n_reads)),
+    .(n_reads = mean(n_reads)),
     by = .(source, kingdom_classified)
 ]
 
 source_totals <- final_summary_dt[
     ,
-    .(total_reads = sum(n_reads)),
+    .(total_reads = mean(n_reads)),
     by = source
 ]
 
@@ -306,55 +354,76 @@ for(col in kingdom_cols) {
 cross_kingdom_file <- file.path(output_dir, "read_level_database_cross_kingdom.csv")
 fwrite(cross_kingdom_wide, cross_kingdom_file)
 
-# Kingdom-specific summaries
-for(kingdom_name in c("Fungi", "Bacteria", "Archaea")) {
-    kingdom_data <- final_summary_dt[kingdom_classified == kingdom_name]
-    
-    if(nrow(kingdom_data) == 0) next
-    
-    total_reads <- sum(kingdom_data$n_reads)
-    
-    source_summary <- kingdom_data[
-        ,
-        .(
-            n_reads = sum(n_reads),
-            n_unique_samples = uniqueN(sampleID),
-            pct_reads = (sum(n_reads) / total_reads) * 100
-        ),
-        by = source
-    ]
-    setorder(source_summary, -n_reads)
-    
-    kingdom_lower <- tolower(kingdom_name)
-    source_file <- file.path(output_dir, paste0("read_level_", kingdom_lower, "_read_counts_by_source.csv"))
-    fwrite(source_summary, source_file)
-    
-    # Grouped comparison
-    kingdom_data[, source_group := fcase(
-        source == "Mycocosm", "Mycocosm",
-        source == "GTDB", "GTDB",
-        source == "JGI GOLD", "JGI GOLD",
-        source == "SPIRE_MAGs", "SPIRE MAGs",
-        source == "SMAG", "SMAG",
-        source == "GEM catalog", "GEM catalog",
-        source == "RefSoil", "RefSoil",
-        default = "Other"
-    )]
-    
-    comparison <- kingdom_data[
-        ,
-        .(
-            n_reads = sum(n_reads),
-            n_unique_samples = uniqueN(sampleID),
-            pct_reads = (sum(n_reads) / total_reads) * 100
-        ),
-        by = source_group
-    ]
-    setorder(comparison, -n_reads)
-    
-    comparison_file <- file.path(output_dir, paste0("read_level_", kingdom_lower, "_read_counts_by_source_group.csv"))
-    fwrite(comparison, comparison_file)
-}
+# Kingdom-specific summaries (consolidated into single file)
+# Average reads per sample by kingdom
+# First average by source and kingdom, then sum across sources to get kingdom totals
+kingdom_source_summary <- final_summary_dt[
+    ,
+    .(
+        n_reads = mean(n_reads),
+        n_unique_samples = uniqueN(sampleID)
+    ),
+    by = .(source, kingdom_classified)
+]
+
+# Calculate kingdom totals by summing the averaged source values
+kingdom_totals <- kingdom_source_summary[
+    ,
+    .(total_reads_kingdom = sum(n_reads)),
+    by = kingdom_classified
+]
+
+# Add percentage of reads within each kingdom
+kingdom_source_summary <- kingdom_source_summary[
+    kingdom_totals,
+    on = "kingdom_classified"
+]
+kingdom_source_summary[, pct_of_kingdom_reads := (n_reads / total_reads_kingdom) * 100]
+kingdom_source_summary[, total_reads_kingdom := NULL]
+
+setorder(kingdom_source_summary, kingdom_classified, -n_reads)
+
+kingdom_source_file <- file.path(output_dir, "read_level_read_counts_by_source_and_kingdom.csv")
+fwrite(kingdom_source_summary, kingdom_source_file)
+
+# Grouped comparison by kingdom
+# Group sources into meaningful categories
+final_summary_dt[, source_group := fcase(
+    source == "GTDB", "GTDB",
+    source %in% c("SMAG", "SPIRE_MAGs", "GEM catalog"), "MAG sources",
+    source == "JGI GOLD", "JGI GOLD",
+    source == "Mycocosm", "Mycocosm",
+    source == "RefSoil", "RefSoil",
+    default = "Other"
+)]
+
+kingdom_grouped_summary <- final_summary_dt[
+    ,
+    .(
+        n_reads = mean(n_reads),
+        n_unique_samples = uniqueN(sampleID)
+    ),
+    by = .(source_group, kingdom_classified)
+]
+
+# Calculate kingdom totals for grouped summary (sum of averaged group values)
+kingdom_totals_grouped <- kingdom_grouped_summary[
+    ,
+    .(total_reads_kingdom = sum(n_reads)),
+    by = kingdom_classified
+]
+
+kingdom_grouped_summary <- kingdom_grouped_summary[
+    kingdom_totals_grouped,
+    on = "kingdom_classified"
+]
+kingdom_grouped_summary[, pct_of_kingdom_reads := (n_reads / total_reads_kingdom) * 100]
+kingdom_grouped_summary[, total_reads_kingdom := NULL]
+
+setorder(kingdom_grouped_summary, kingdom_classified, -n_reads)
+
+kingdom_grouped_file <- file.path(output_dir, "read_level_read_counts_by_source_group_and_kingdom.csv")
+fwrite(kingdom_grouped_summary, kingdom_grouped_file)
 
 # Unique contributions analysis (using genome_table, not raw reads)
 taxid_source_count <- genome_table[
@@ -391,10 +460,10 @@ unique_contributions <- rbindlist(lapply(unique(efficiency_metrics$source), func
         ))
     }
     
-    # Count reads for unique taxids from aggregated counts
+    # Count reads for unique taxids from aggregated counts (average across samples)
     unique_reads <- final_taxid_counts_dt[
         source == src & taxid %in% unique_to_source,
-        sum(n_reads)
+        mean(n_reads)
     ]
     
     total_reads_source <- efficiency_metrics[source == src, n_reads]
@@ -403,9 +472,9 @@ unique_contributions <- rbindlist(lapply(unique(efficiency_metrics$source), func
         source = src,
         n_unique_taxids = length(unique_to_source),
         n_reads_classified_by_unique_taxids = unique_reads,
-        pct_of_source_reads = ifelse(total_reads_source > 0, 
-                                     (unique_reads / total_reads_source) * 100, 
-                                     0)
+        pct_of_source_reads_from_unique_taxids = ifelse(total_reads_source > 0, 
+                                                         (unique_reads / total_reads_source) * 100, 
+                                                         0)
     )
 }))
 

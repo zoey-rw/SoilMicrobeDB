@@ -14,22 +14,23 @@ library(tidyverse)
 library(data.table)
 
 # Set up paths - check both new and old locations
-filter_results_file <- "data/classification/analysis_files/filter_results_summary.csv"
-if(!file.exists(filter_results_file)) {
-    filter_results_file <- "data/NEON_metagenome_classification/summary_files/filter_results_summary.csv"
+# Use species-level classification percentages from 06_calculate_classification_pct_by_rank.r
+classification_file <- "data/NEON_metagenome_classification/analysis_files/classification_pct_by_rank_per_sample.csv"
+if(!file.exists(classification_file)) {
+    classification_file <- "data/classification/analysis_files/classification_pct_by_rank_per_sample.csv"
 }
 
 plfa_file <- "data/classification/analysis_files/plfa_comparison.csv"
 
 # Check required files
-required_files <- c(filter_results_file, plfa_file)
+required_files <- c(classification_file, plfa_file)
 missing_files <- required_files[!file.exists(required_files)]
 if(length(missing_files) > 0) {
     stop("Required files not found:\n  ", paste(missing_files, collapse = "\n  "))
 }
 
-cat("Loading classification results from:", filter_results_file, "\n")
-filter_results <- read_csv(filter_results_file, show_col_types = FALSE)
+cat("Loading classification results from:", classification_file, "\n")
+classification_data <- read_csv(classification_file, show_col_types = FALSE)
 
 cat("Loading PLFA data from:", plfa_file, "\n")
 plfa_data <- read_csv(plfa_file, show_col_types = FALSE)
@@ -40,17 +41,17 @@ if(!"proportion_fungi" %in% names(plfa_data)) {
          paste(names(plfa_data), collapse = ", "))
 }
 
-# Filter to relevant metrics (percent_classified and percent_passing)
-classification_metrics <- filter_results %>%
-    filter(metric %in% c("percent_classified", "percent_passing")) %>%
-    select(sampleID, db_name, metric, value)
-
-# Pivot to wide format so percent_classified and percent_passing are columns
-classification_wide <- classification_metrics %>%
-    pivot_wider(names_from = metric, values_from = value, 
-                names_prefix = "pct_") %>%
-    rename(pct_classified = pct_percent_classified,
-           pct_passing = pct_percent_passing)
+# Filter to species-level, after filtering, all_domain results
+# Convert pct_classified from percentage to proportion (divide by 100)
+classification_wide <- classification_data %>%
+    filter(taxonomic_rank == "species",
+           filter_status == "after",
+           taxon_group == "all_domain") %>%
+    mutate(
+        pct_classified = pct_classified / 100,  # Convert from percentage to proportion
+        pct_passing = pct_classified  # For consistency with old format (after filtering = passing)
+    ) %>%
+    select(sampleID, db_name, pct_classified, pct_passing)
 
 cat("Classification results:\n")
 cat("  Samples:", length(unique(classification_wide$sampleID)), "\n")

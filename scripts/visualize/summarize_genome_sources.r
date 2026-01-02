@@ -108,35 +108,57 @@ fig_1a = main_df %>%
               element_text(size = 20), 
           panel.border = element_blank(), 
           strip.text = element_text(face = "bold"))  +
-    scale_fill_brewer(palette="Set2") +
+    scale_fill_manual(values = c("Archaea" = "#1B9E77", 
+                                  "Bacteria" = "#D95F02", 
+                                  "Eukaryota" = "#7570B3")) +
     scale_y_continuous(
                        breaks = c(0, 0.5, 1), 
                        labels = scales::percent(c(0, 0.5, 1))) 
 
 # Kingdom
 
+# Calculate proportions for label positioning
+label_data_1d <- main_df %>% 
+    group_by(overall, superkingdom) %>% 
+    summarise(n = n(), .groups = "drop") %>% 
+    group_by(overall) %>% 
+    mutate(prop = n / sum(n),
+           pct = round(100 * prop, 0),
+           cumprop = cumsum(prop),
+           start = lag(cumprop, default = 0),
+           # For very small left segments, position at right edge of segment
+           # For other segments, center them
+           y_pos = ifelse(prop < 0.05 & start < 0.1, start + prop * 0.95, start + prop/2),
+           hjust = ifelse(prop < 0.05 & start < 0.1, 1.0, 0.5)) %>% 
+    ungroup()
+
 fig_1d = main_df %>% 
     ggplot(aes(x= overall, fill=superkingdom,  y = after_stat(prop),
                group = factor(superkingdom))) +
     geom_bar(color = "black", position=position_fill(),  stat = "prop", show.legend = F) +
-    coord_flip() +
+    coord_flip(clip = "off") +
     theme_bw(base_size = 18) +
     xlab("") + 
-    geom_label(aes(label = paste0(round(100 * after_stat(prop)), "%")), 
-              stat = "prop", 
-              position = position_fill(vjust = 0.5),
+    geom_label(data = label_data_1d,
+              aes(x = overall, y = y_pos, label = paste0(pct, "%"), hjust = hjust),
               fill="white",
-              size = 5) + 
-    theme(plot.margin = unit(c(0,0,0,0), "pt"),
+              size = 5,
+              inherit.aes = FALSE) + 
+    theme(plot.margin = unit(c(0,5,0,25), "pt"),
           axis.title = element_text(face = "bold"), 
           axis.title.y.right = 
               element_text(size = 20), 
+          axis.text.y = element_text(margin = margin(r = 20)),
           panel.border = element_blank(), 
-          strip.text = element_text(face = "bold"))  +
-    scale_fill_brewer(palette="Set2") +
+          strip.text = element_text(face = "bold"),
+          plot.background = element_blank())  +
+    scale_fill_manual(values = c("Archaea" = "#1B9E77", 
+                                  "Bacteria" = "#D95F02", 
+                                  "Eukaryota" = "#7570B3")) +
     scale_y_continuous(name = "% genomes",
                        breaks = c(0, 0.5, 1), 
-                       labels = scales::percent(c(0, 0.5, 1))) 
+                       labels = scales::percent(c(0, 0.5, 1)),
+                       expand = expansion(mult = c(0, 0.05))) 
 
 
 # MAG
@@ -161,7 +183,8 @@ fig_1b = main_df  %>%
           panel.border = element_blank(), 
           strip.text = element_text(face = "bold")) +
     xlab(NULL)  +
-    scale_fill_brewer(palette="Paired") +
+    scale_fill_manual(values = c("Isolate genomes" = "#66C2A5", 
+                                  "Metagenome-assembled\ngenomes" = "#FC8D62")) +
     scale_y_continuous(
                        breaks = c(0, 0.5, 1), 
                        labels = scales::percent(c(0, 0.5, 1))) 
@@ -173,6 +196,7 @@ fig_1e = main_df %>%
     theme_bw(base_size = 18) +
     ylab("Proportion") + 
     xlab(NULL) + 
+    scale_x_discrete(labels = "") +
     theme(legend.position = "top",legend.direction = "vertical",
           legend.key.height=unit(.7, "cm"),
           
@@ -185,13 +209,16 @@ fig_1e = main_df %>%
               size = 5, fill="white") + 
     theme(  axis.text.y=element_blank(),
             axis.ticks.y=element_blank(),
-            plot.margin = unit( c(0,0,0,0), "pt"),
+            axis.text.x=element_blank(),
+            axis.ticks.x=element_blank(),
+            plot.margin = unit( c(0,5,0,5), "pt"),
             axis.title = element_text(face = "bold"), 
             axis.title.y.right = 
                 element_text(size = 20), 
             panel.border = element_blank(), 
             strip.text = element_text(face = "bold"))  +
-    scale_fill_brewer(palette="Paired") +
+    scale_fill_manual(values = c("Isolate genomes" = "#66C2A5", 
+                                  "Metagenome-assembled\ngenomes" = "#FC8D62")) +
     scale_y_continuous(name = "% genomes",
                        breaks = c(0, 0.5, 1), 
                        labels = scales::percent(c(0, 0.5, 1))) 
@@ -238,6 +265,7 @@ fig_1f = main_df %>%
     ylab("Genome count") + 
     #scale_y_sqrt()   +
     xlab(NULL) +
+    scale_x_discrete(labels = "") +
     geom_text(data = tot_overall,
               aes(label=paste0("n = ", total), y = total), 
               position = position_dodge(width=.9) , size=5,
@@ -245,6 +273,8 @@ fig_1f = main_df %>%
     ylim(0,75000) + 
     theme(  axis.text.y=element_blank(),
             axis.ticks.y=element_blank(),
+            axis.text.x=element_blank(),
+            axis.ticks.x=element_blank(),
             plot.margin = unit( c(0,0,0,0), "pt"),
             axis.title = element_text(face = "bold"), 
             axis.title.y.right = 
