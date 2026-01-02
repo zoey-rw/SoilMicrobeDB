@@ -80,6 +80,7 @@
   - `*_filtered.output` files (only if `_filtered_kraken.kreport` exists)
   - `*_summary.output` files (always safe, not used)
   - `*.b2` files (only if corresponding merged CSV exists)
+  - `*_kraken.output` files (only if `*_kraken.kreport` exists AND script 04 has processed the sample)
 - **Preserves**:
   - All `*_kraken.kreport` files
   - All `*_filtered_kraken.kreport` files
@@ -101,6 +102,7 @@
 - `*_filtered.output` files (only if kreport exists)
 - `*_summary.output` files (not used by any script)
 - `*.b2` files (only if merged CSV exists)
+- `*_kraken.output` files (only if `*_kraken.kreport` exists AND script 04 has processed the sample)
 
 ## Usage Examples
 

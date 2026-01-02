@@ -10,6 +10,7 @@
 #   - *_scores.output files (only if scores extracted to CSV AND CSV is valid)
 #   - *_filtered.output files (only if _filtered_kraken.kreport exists AND is valid)
 #   - *.b2 files (only if merged CSV files exist AND are valid)
+#   - *_kraken.output files (only if _kraken.kreport exists AND script 04 has run)
 #
 # Safety checks:
 #   - Files must be non-empty
@@ -23,6 +24,7 @@
 if [ -d "/projectnb/frpmars/soil_microbe_db" ]; then
     # Running on server
     BASE_DIR="/projectnb/frpmars/soil_microbe_db"
+    kraken_output_dir="$BASE_DIR/data/NEON_metagenome_classification/01_kraken_output"
     architeuthis_dir_path="$BASE_DIR/data/NEON_metagenome_classification/02_bracken_output"
     summary_dir="$BASE_DIR/data/NEON_metagenome_classification/summary_files"
     # Check both possible locations for scoring CSV (script 4 uses summary_files)
@@ -38,6 +40,7 @@ if [ -d "/projectnb/frpmars/soil_microbe_db" ]; then
     fi
 else
     # Running locally - use relative paths, check both locations
+    kraken_output_dir="data/NEON_metagenome_classification/01_kraken_output"
     architeuthis_dir_path="data/NEON_metagenome_classification/02_bracken_output"
     summary_dir="data/NEON_metagenome_classification/summary_files"
     # Check both possible locations for scoring CSV
@@ -57,8 +60,15 @@ fi
 architeuthis_dir_harddrive="/Volumes/HARDDRIVE/SoilMicrobeDB/data/classification/02_bracken_output"
 
 echo "=========================================="
-echo "Smart Cleanup of Intermediate Files"
+echo "Cleanup of Intermediate Files"
 echo "=========================================="
+echo ""
+echo "⚠️  SAFETY WARNING: This script will only delete files that are confirmed"
+echo "   to be in filter_results_summary.csv (output from script 4)."
+echo "   Files NOT in the CSV will be skipped (script 4 may not have processed them yet)."
+echo ""
+echo "   RECOMMENDATION: Ensure script 4 has completed processing all files"
+echo "   before running this cleanup script."
 echo ""
 
 # Verify critical directories exist
@@ -155,6 +165,8 @@ file_is_valid() {
 }
 
 # Function to check if scoring file is in CSV
+# IMPORTANT: This is the ONLY source of truth for whether a file should be deleted
+# The processed log is NOT used for deletion decisions - only CSV presence matters
 score_in_csv() {
     local score_file="$1"
     local samp_name=$(basename "$score_file" | sed 's/_scores\.output$//')
@@ -184,6 +196,11 @@ score_in_csv() {
     
     for csv_file in "${csv_locations[@]}"; do
         if [ -f "$csv_file" ]; then
+            # Verify CSV is valid (non-empty, not recently modified) before checking contents
+            if ! file_is_valid "$csv_file" 5; then
+                continue  # Skip this CSV if it's not valid
+            fi
+            
             # Check if samp_name appears in the CSV (normalized version)
             # samp_name values are unique identifiers, so a simple grep is safe
             # Also check for version with trailing underscore in case CSV has it
@@ -262,23 +279,24 @@ if [ -n "$score_files" ]; then
         samp_name=$(basename "$score_file" | sed 's/_scores\.output$//')
         samp_name=$(normalize_samp_name "$samp_name")
         
-        # Only delete if score is confirmed in CSV (not just in processed log)
-        # The CSV is the source of truth - processed log is just for tracking
+        # SAFETY: Only delete if score is confirmed in CSV AND CSV is valid
+        # The CSV is the ONLY source of truth - processed log is NOT used for deletion decisions
+        # This ensures files are only deleted after script 4 has successfully written them to CSV
         if score_in_csv "$score_file"; then
-            # Verify CSV file is valid before deleting score file
+            # Double-check CSV is still valid (score_in_csv already checks, but be extra safe)
             if file_is_valid "$scoring_csv" 5; then
                 file_size=$(stat -f%z "$score_file" 2>/dev/null || stat -c%s "$score_file" 2>/dev/null || echo 0)
                 rm -f "$score_file"
                 deleted_count=$((deleted_count + 1))
                 total_size_freed=$((total_size_freed + file_size))
-                echo "  ✓ Deleted: $(basename "$score_file") (score confirmed in CSV)"
+                echo "  ✓ Deleted: $(basename "$score_file") (score confirmed in CSV and CSV is valid)"
             else
                 skipped_count=$((skipped_count + 1))
-                echo "  ⊘ Skipped: $(basename "$score_file") (CSV file not valid or recently modified)"
+                echo "  ⊘ Skipped: $(basename "$score_file") (CSV file not valid or recently modified - may still be writing)"
             fi
         else
             skipped_count=$((skipped_count + 1))
-            echo "  ⊘ Skipped: $(basename "$score_file") (score not yet in CSV)"
+            echo "  ⊘ Skipped: $(basename "$score_file") (score not yet in CSV - script 4 may not have processed it yet)"
         fi
     done
 else
@@ -401,8 +419,9 @@ for dbname in "${databases[@]}"; do
                         pattern="*gtdb_207__filtered.b2"
                         pattern_alt="*gtdb_207_filtered.b2"
                     elif [ "$dbname" = "pluspf" ]; then
-                        pattern="*pluspf__filtered.b2"
+                        pattern="*pluspf*filtered.b2"
                         pattern_alt="*pluspf_filtered.b2"
+                        pattern_alt2="*pluspf__filtered.b2"
                     else
                         pattern="*${dbname}_filtered.b2"
                         pattern_alt="*${dbname}__filtered.b2"
@@ -419,8 +438,9 @@ for dbname in "${databases[@]}"; do
                         pattern="*gtdb_207__genus_filtered.b2"
                         pattern_alt="*gtdb_207_genus_filtered.b2"
                     elif [ "$dbname" = "pluspf" ]; then
-                        pattern="*pluspf__genus_filtered.b2"
+                        pattern="*pluspf*genus_filtered.b2"
                         pattern_alt="*pluspf_genus_filtered.b2"
+                        pattern_alt2="*pluspf__genus_filtered.b2"
                     else
                         pattern="*${dbname}_genus_filtered.b2"
                         pattern_alt="*${dbname}__genus_filtered.b2"
@@ -437,8 +457,9 @@ for dbname in "${databases[@]}"; do
                         pattern="*gtdb_207__domain_filtered.b2"
                         pattern_alt="*gtdb_207_domain_filtered.b2"
                     elif [ "$dbname" = "pluspf" ]; then
-                        pattern="*pluspf__domain_filtered.b2"
+                        pattern="*pluspf*domain_filtered.b2"
                         pattern_alt="*pluspf_domain_filtered.b2"
+                        pattern_alt2="*pluspf__domain_filtered.b2"
                     else
                         pattern="*${dbname}_domain_filtered.b2"
                         pattern_alt="*${dbname}__domain_filtered.b2"
@@ -455,8 +476,9 @@ for dbname in "${databases[@]}"; do
                         pattern="*gtdb_207__phylum_filtered.b2"
                         pattern_alt="*gtdb_207_phylum_filtered.b2"
                     elif [ "$dbname" = "pluspf" ]; then
-                        pattern="*pluspf__phylum_filtered.b2"
+                        pattern="*pluspf*phylum_filtered.b2"
                         pattern_alt="*pluspf_phylum_filtered.b2"
+                        pattern_alt2="*pluspf__phylum_filtered.b2"
                     else
                         pattern="*${dbname}_phylum_filtered.b2"
                         pattern_alt="*${dbname}__phylum_filtered.b2"
@@ -464,18 +486,26 @@ for dbname in "${databases[@]}"; do
                     ;;
             esac
             
-            # Find and delete matching .b2 files (check both single and double underscore patterns)
+            # Find and delete matching .b2 files (check all pattern variants including wildcard)
             # Check both local and HARDDRIVE
             b2_files=""
             if [ -d "$architeuthis_dir_path" ]; then
-                if [ -n "$pattern_alt" ] && [ "$pattern_alt" != "$pattern" ]; then
+                # Build find command with all pattern variants
+                if [ -n "$pattern_alt2" ] && [ "$pattern_alt2" != "$pattern" ] && [ "$pattern_alt2" != "$pattern_alt" ]; then
+                    # Three patterns: main, alt, and alt2
+                    b2_files="$b2_files $(find "$architeuthis_dir_path" \( -name "$pattern" -o -name "$pattern_alt" -o -name "$pattern_alt2" \) -type f 2>/dev/null)"
+                elif [ -n "$pattern_alt" ] && [ "$pattern_alt" != "$pattern" ]; then
+                    # Two patterns: main and alt
                     b2_files="$b2_files $(find "$architeuthis_dir_path" \( -name "$pattern" -o -name "$pattern_alt" \) -type f 2>/dev/null)"
                 else
+                    # Single pattern
                     b2_files="$b2_files $(find "$architeuthis_dir_path" -name "$pattern" -type f 2>/dev/null)"
                 fi
             fi
             if [ -d "$architeuthis_dir_harddrive" ]; then
-                if [ -n "$pattern_alt" ] && [ "$pattern_alt" != "$pattern" ]; then
+                if [ -n "$pattern_alt2" ] && [ "$pattern_alt2" != "$pattern" ] && [ "$pattern_alt2" != "$pattern_alt" ]; then
+                    b2_files="$b2_files $(find "$architeuthis_dir_harddrive" \( -name "$pattern" -o -name "$pattern_alt" -o -name "$pattern_alt2" \) -type f 2>/dev/null)"
+                elif [ -n "$pattern_alt" ] && [ "$pattern_alt" != "$pattern" ]; then
                     b2_files="$b2_files $(find "$architeuthis_dir_harddrive" \( -name "$pattern" -o -name "$pattern_alt" \) -type f 2>/dev/null)"
                 else
                     b2_files="$b2_files $(find "$architeuthis_dir_harddrive" -name "$pattern" -type f 2>/dev/null)"
@@ -535,6 +565,93 @@ for dbname in "${databases[@]}"; do
     done
 done
 echo ""
+
+# ============================================================================
+# 5. Clean up _kraken.output files (only if kreport exists AND script 04 has run)
+# ============================================================================
+echo "5. Checking _kraken.output files..."
+echo "   (Safe to delete if _kraken.kreport exists and script 04 has extracted scores)"
+
+if [ ! -f "$scoring_csv" ]; then
+    echo "  ⊘ Skipped _kraken.output files (script 04 not run - filter_results_summary.csv not found)"
+    echo "   These files are needed by script 02, but can be deleted after script 04 completes"
+    echo ""
+else
+    # Check if kraken output directory exists
+    if [ ! -d "$kraken_output_dir" ]; then
+        echo "  ⊘ Skipped _kraken.output files (directory not found: $kraken_output_dir)"
+        echo ""
+    else
+        # Find all _kraken.output files
+        kraken_output_files=$(find "$kraken_output_dir" -name "*_kraken.output" -type f 2>/dev/null)
+        
+        if [ -z "$kraken_output_files" ]; then
+            echo "  ✓ No _kraken.output files found (already cleaned up or not created)"
+            echo ""
+        else
+            deleted_kraken_count=0
+            skipped_kraken_count=0
+            
+            for kraken_output_file in $kraken_output_files; do
+                [ -z "$kraken_output_file" ] && continue
+                
+                # Extract sample name from kraken.output filename
+                samp_file_basename=$(basename "$kraken_output_file")
+                # Remove _kraken.output suffix (13 characters)
+                samp_name="${samp_file_basename%_kraken.output}"
+                
+                # Find corresponding kreport file
+                kreport_file="${kraken_output_dir}/${samp_name}_kraken.kreport"
+                
+                # Safety checks:
+                # 1. kreport file must exist
+                # 2. kreport file must be non-empty
+                # 3. Script 04 must have processed the scores (check if sample is in CSV)
+                if [ ! -f "$kreport_file" ]; then
+                    skipped_kraken_count=$((skipped_kraken_count + 1))
+                    continue
+                fi
+                
+                if [ ! -s "$kreport_file" ]; then
+                    skipped_kraken_count=$((skipped_kraken_count + 1))
+                    continue
+                fi
+                
+                # Check if script 04 has processed this sample
+                # Normalize samp_name for CSV lookup (remove trailing underscores)
+                normalized_samp=$(normalize_samp_name "$samp_name")
+                in_csv=false
+                if [ -f "$scoring_csv" ]; then
+                    # Check if normalized samp_name appears in CSV (quick grep check)
+                    if grep -q "$normalized_samp" "$scoring_csv" 2>/dev/null; then
+                        in_csv=true
+                    fi
+                fi
+                
+                if [ "$in_csv" = false ]; then
+                    # Sample not in CSV yet - script 04 may not have processed it
+                    skipped_kraken_count=$((skipped_kraken_count + 1))
+                    continue
+                fi
+                
+                # All safety checks passed - safe to delete
+                file_size=$(stat -f%z "$kraken_output_file" 2>/dev/null || stat -c%s "$kraken_output_file" 2>/dev/null || echo 0)
+                rm -f "$kraken_output_file"
+                deleted_kraken_count=$((deleted_kraken_count + 1))
+                total_size_freed=$((total_size_freed + file_size))
+                deleted_count=$((deleted_count + 1))
+            done
+            
+            if [ $deleted_kraken_count -gt 0 ]; then
+                echo "  ✓ Deleted $deleted_kraken_count _kraken.output file(s) (kreport exists and script 04 processed)"
+            fi
+            if [ $skipped_kraken_count -gt 0 ]; then
+                echo "  ⊘ Kept $skipped_kraken_count _kraken.output file(s) (kreport missing or script 04 not processed)"
+            fi
+            echo ""
+        fi
+    fi
+fi
 
 # ============================================================================
 # Summary

@@ -55,14 +55,33 @@ merge_and_add_lineage() {
     elif [[ "$b2_pattern" == *"${DBNAME}__"* ]]; then
         # Pattern has double underscore after DBNAME, try single underscore
         b2_pattern_alt=$(echo "$b2_pattern" | sed "s/${DBNAME}__/${DBNAME}_/")
+    elif [[ "$b2_pattern" == *"${DBNAME}*"* ]]; then
+        # Pattern has wildcard after DBNAME (e.g., *pluspf*filtered.b2)
+        # Try both single and double underscore variants
+        b2_pattern_alt=$(echo "$b2_pattern" | sed "s/${DBNAME}\*/${DBNAME}__/")
+        # Also try single underscore variant
+        b2_pattern_alt2=$(echo "$b2_pattern" | sed "s/${DBNAME}\*/${DBNAME}_/")
+        if [ -n "$b2_pattern_alt2" ] && [ "$b2_pattern_alt2" != "$b2_pattern" ]; then
+            # Use the single underscore as primary alternate, double as secondary
+            b2_pattern_alt="$b2_pattern_alt2"
+        fi
     elif [[ "$b2_pattern" == *"${DBNAME}.b2" ]]; then
         # For patterns like *gtdb_207_unfiltered.b2, add double underscore before .b2
         b2_pattern_alt=$(echo "$b2_pattern" | sed "s/${DBNAME}\.b2/${DBNAME}__.b2/")
     fi
     
     # Search for both patterns (single and double underscore) if alternate exists
+    # For wildcard patterns like *pluspf*, also try explicit underscore patterns
     if [ -n "$b2_pattern_alt" ] && [ "$b2_pattern_alt" != "$b2_pattern" ]; then
-        b2_files=$(find ${bracken_dir} \( -name "${b2_pattern}" -o -name "${b2_pattern_alt}" \) -type f 2>/dev/null | sort)
+        # Also try explicit underscore patterns for wildcard patterns
+        if [[ "$b2_pattern" == *"${DBNAME}*"* ]]; then
+            # For *pluspf*filtered.b2, also try *pluspf_filtered.b2 and *pluspf__filtered.b2
+            explicit_single=$(echo "$b2_pattern" | sed "s/${DBNAME}\*/${DBNAME}_/")
+            explicit_double=$(echo "$b2_pattern" | sed "s/${DBNAME}\*/${DBNAME}__/")
+            b2_files=$(find ${bracken_dir} \( -name "${b2_pattern}" -o -name "${b2_pattern_alt}" -o -name "${explicit_single}" -o -name "${explicit_double}" \) -type f 2>/dev/null | sort)
+        else
+            b2_files=$(find ${bracken_dir} \( -name "${b2_pattern}" -o -name "${b2_pattern_alt}" \) -type f 2>/dev/null | sort)
+        fi
     else
         b2_files=$(find ${bracken_dir} -name "${b2_pattern}" -type f 2>/dev/null | sort)
     fi
@@ -90,6 +109,12 @@ merge_and_add_lineage() {
             kreport_pattern="*${DBNAME}_domain_filtered_kraken.kreport"
         elif [ "$rank" = "phylum" ]; then
             kreport_pattern="*${DBNAME}_phylum_filtered_kraken.kreport"
+        elif [ "$rank" = "class" ]; then
+            kreport_pattern="*${DBNAME}_class_filtered_kraken.kreport"
+        elif [ "$rank" = "order" ]; then
+            kreport_pattern="*${DBNAME}_order_filtered_kraken.kreport"
+        elif [ "$rank" = "family" ]; then
+            kreport_pattern="*${DBNAME}_family_filtered_kraken.kreport"
         else
             kreport_pattern="*${DBNAME}*filtered_kraken.kreport"
         fi
@@ -247,6 +272,7 @@ merge_and_add_lineage() {
                 # Normalize sample_id to remove rank suffixes for consistency across ranks
                 # Remove patterns like: _genus, _phylum, _domain, _class, _order, _family
                 # But keep _filtered or __filtered
+                # Order matters: remove longer patterns first (e.g., _genus before _family)
                 combined[, sample_id := gsub('_(genus|phylum|domain|class|order|family)_filtered', '_filtered', sample_id)]
                 combined[, sample_id := gsub('__(genus|phylum|domain|class|order|family)_filtered', '__filtered', sample_id)]
                 
@@ -272,6 +298,7 @@ merge_and_add_lineage() {
             # Remove rank suffixes from sample_id to make them consistent across ranks
             # Remove patterns like: _genus, _phylum, _domain, _class, _order, _family
             # But keep _filtered or __filtered
+            # Order matters: remove longer patterns first
             df[, sample_id := gsub('_(genus|phylum|domain|class|order|family)_filtered', '_filtered', sample_id)]
             df[, sample_id := gsub('__(genus|phylum|domain|class|order|family)_filtered', '__filtered', sample_id)]
             
@@ -291,6 +318,7 @@ merge_and_add_lineage() {
         # Remove rank suffixes from sample_id to make them consistent across ranks
         # Remove patterns like: _genus, _phylum, _domain, _class, _order, _family
         # But keep _filtered or __filtered
+        # Order matters: remove longer patterns first
         df[, sample_id := gsub('_(genus|phylum|domain|class|order|family)_filtered', '_filtered', sample_id)]
         df[, sample_id := gsub('__(genus|phylum|domain|class|order|family)_filtered', '__filtered', sample_id)]
         
@@ -329,7 +357,7 @@ DB_PATHS[pluspf]="/projectnb/frpmars/soil_microbe_db/databases/pluspf"
 DB_TAXONOMY_DIRS[pluspf]="/projectnb/microbiome/ref_db/NCBI-taxdump"
 
 # Define taxonomic ranks to process
-ranks=("species" "genus" "domain" "phylum")
+ranks=("species" "genus" "family" "order" "class" "phylum" "domain")
 
 # Process each database at each taxonomic rank
 for DBNAME in "${!DB_PATHS[@]}"; do
@@ -348,7 +376,7 @@ for DBNAME in "${!DB_PATHS[@]}"; do
                 elif [ "$DBNAME" = "gtdb_207" ]; then
                     b2_pattern="*gtdb_207__filtered.b2"
                 elif [ "$DBNAME" = "pluspf" ]; then
-                    b2_pattern="*pluspf__filtered.b2"
+                    b2_pattern="*pluspf*filtered.b2"
                 else
                     b2_pattern="*${DBNAME}_filtered.b2"
                 fi
@@ -361,7 +389,7 @@ for DBNAME in "${!DB_PATHS[@]}"; do
                 elif [ "$DBNAME" = "gtdb_207" ]; then
                     b2_pattern="*gtdb_207__genus_filtered.b2"
                 elif [ "$DBNAME" = "pluspf" ]; then
-                    b2_pattern="*pluspf__genus_filtered.b2"
+                    b2_pattern="*pluspf*genus_filtered.b2"
                 else
                     b2_pattern="*${DBNAME}_genus_filtered.b2"
                 fi
@@ -374,7 +402,7 @@ for DBNAME in "${!DB_PATHS[@]}"; do
                 elif [ "$DBNAME" = "gtdb_207" ]; then
                     b2_pattern="*gtdb_207__domain_filtered.b2"
                 elif [ "$DBNAME" = "pluspf" ]; then
-                    b2_pattern="*pluspf__domain_filtered.b2"
+                    b2_pattern="*pluspf*domain_filtered.b2"
                 else
                     b2_pattern="*${DBNAME}_domain_filtered.b2"
                 fi
@@ -387,9 +415,48 @@ for DBNAME in "${!DB_PATHS[@]}"; do
                 elif [ "$DBNAME" = "gtdb_207" ]; then
                     b2_pattern="*gtdb_207__phylum_filtered.b2"
                 elif [ "$DBNAME" = "pluspf" ]; then
-                    b2_pattern="*pluspf__phylum_filtered.b2"
+                    b2_pattern="*pluspf*phylum_filtered.b2"
                 else
                     b2_pattern="*${DBNAME}_phylum_filtered.b2"
+                fi
+                ;;
+            "class")
+                if [ "$DBNAME" = "soil_microbe_db" ]; then
+                    b2_pattern="*${DBNAME}_class_filtered.b2"
+                elif [ "$DBNAME" = "gtdb_207_unfiltered" ]; then
+                    b2_pattern="*gtdb_207_unfiltered_class_filtered.b2"
+                elif [ "$DBNAME" = "gtdb_207" ]; then
+                    b2_pattern="*gtdb_207__class_filtered.b2"
+                elif [ "$DBNAME" = "pluspf" ]; then
+                    b2_pattern="*pluspf*class_filtered.b2"
+                else
+                    b2_pattern="*${DBNAME}_class_filtered.b2"
+                fi
+                ;;
+            "order")
+                if [ "$DBNAME" = "soil_microbe_db" ]; then
+                    b2_pattern="*${DBNAME}_order_filtered.b2"
+                elif [ "$DBNAME" = "gtdb_207_unfiltered" ]; then
+                    b2_pattern="*gtdb_207_unfiltered_order_filtered.b2"
+                elif [ "$DBNAME" = "gtdb_207" ]; then
+                    b2_pattern="*gtdb_207__order_filtered.b2"
+                elif [ "$DBNAME" = "pluspf" ]; then
+                    b2_pattern="*pluspf*order_filtered.b2"
+                else
+                    b2_pattern="*${DBNAME}_order_filtered.b2"
+                fi
+                ;;
+            "family")
+                if [ "$DBNAME" = "soil_microbe_db" ]; then
+                    b2_pattern="*${DBNAME}_family_filtered.b2"
+                elif [ "$DBNAME" = "gtdb_207_unfiltered" ]; then
+                    b2_pattern="*gtdb_207_unfiltered_family_filtered.b2"
+                elif [ "$DBNAME" = "gtdb_207" ]; then
+                    b2_pattern="*gtdb_207__family_filtered.b2"
+                elif [ "$DBNAME" = "pluspf" ]; then
+                    b2_pattern="*pluspf*family_filtered.b2"
+                else
+                    b2_pattern="*${DBNAME}_family_filtered.b2"
                 fi
                 ;;
         esac
@@ -398,7 +465,7 @@ for DBNAME in "${!DB_PATHS[@]}"; do
     done
 done
 
-echo "All databases processed at species, genus, domain, and phylum levels."
+echo "All databases processed at species, genus, family, order, class, phylum, and domain levels."
 echo ""
 echo "Note: Cleanup of individual .b2 files is handled by scripts/run_workflow/05_cleanup_intermediate_files.sh"
 echo "      This script will delete .b2 files only after verifying merged CSV files exist."

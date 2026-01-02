@@ -87,7 +87,7 @@ BATCH_COUNT=0
 # Collect all files first to avoid glob expansion issues with many files
 # This prevents shell from trying to expand a huge glob pattern
 echo "Collecting kraken.output files..."
-mapfile -t kraken_files < <(find ${kraken_dir_path} -name "*_kraken.output" -type f | sort)
+mapfile -t kraken_files < <(find ${kraken_dir_path} -name "*_kraken.output" -type f | sort -r)
 
 echo "Found ${#kraken_files[@]} total kraken.output files"
 echo "Processing in batches of $BATCH_SIZE files"
@@ -115,8 +115,6 @@ for kraken_file in "${kraken_files[@]}"; do
         continue
     fi
     
-    echo "$samp_name architeuthis loop"
-    
     KRAKEN_OUTPUT=$kraken_file
     
     ARCHITEUTHIS_FILTERED=${architeuthis_dir_path}/${samp_name}_filtered.output
@@ -134,19 +132,22 @@ for kraken_file in "${kraken_files[@]}"; do
     
     # Run architeuthis mapping filter (creates filtered.output)
     if test -e $ARCHITEUTHIS_FILTERED; then
-        echo "$ARCHITEUTHIS_FILTERED exists; skipping this run."
+        : # File exists, skip silently
     else
+        echo "Processing $samp_name: running architeuthis filter..."
         architeuthis mapping filter $KRAKEN_OUTPUT --db $DBDIR --data-dir $DB_taxonomy_dir --out $ARCHITEUTHIS_FILTERED
     fi
     
     # Run architeuthis mapping score
     # Note: _scores.output files are required for script 4 (reshape_score_reads.r)
     if test -e $ARCHITEUTHIS_SCORES && [ "$FORCE_REPROCESS_SCORES" != "true" ]; then
-        echo "$ARCHITEUTHIS_SCORES exists; skipping this run."
+        : # File exists, skip silently
     else
         if [ "$FORCE_REPROCESS_SCORES" = "true" ] && test -e $ARCHITEUTHIS_SCORES; then
-            echo "FORCE_REPROCESS_SCORES=true: Regenerating $ARCHITEUTHIS_SCORES"
+            echo "Processing $samp_name: FORCE_REPROCESS_SCORES=true, regenerating scores..."
             rm -f $ARCHITEUTHIS_SCORES
+        else
+            echo "Processing $samp_name: running architeuthis score..."
         fi
         architeuthis mapping score $KRAKEN_OUTPUT --db $DBDIR --data-dir $DB_taxonomy_dir --out $ARCHITEUTHIS_SCORES
     fi
@@ -155,7 +156,6 @@ for kraken_file in "${kraken_files[@]}"; do
     NEED_KREPORT_RECONVERSION=false
     
     if test -e $ARCHITEUTHIS_FILTERED_REPORT; then
-        echo "$ARCHITEUTHIS_FILTERED_REPORT exists; checking validity..."
         # Remove blank lines from existing file (in case it has them)
         sed -i '/^$/d' $ARCHITEUTHIS_FILTERED_REPORT
         # Check if file is still valid after removing blank lines
@@ -204,7 +204,7 @@ for kraken_file in "${kraken_files[@]}"; do
         if [ ! -s "$ARCHITEUTHIS_FILTERED" ]; then
             echo "  WARNING: $ARCHITEUTHIS_FILTERED is empty or does not exist. Cannot create kreport."
         else
-            echo "  Converting filtered.output to kreport format..."
+            echo "Processing $samp_name: converting filtered.output to kreport format..."
             # Convert back to Kraken output using pre-compiled binary
             $KRAKEN2_REPORT_BIN $DB_taxo $ARCHITEUTHIS_FILTERED $ARCHITEUTHIS_FILTERED_REPORT
             
@@ -221,7 +221,6 @@ for kraken_file in "${kraken_files[@]}"; do
                     # Verify conversion was successful by checking read counts
                     filtered_reads=$(grep -c "^C" "$ARCHITEUTHIS_FILTERED" 2>/dev/null || echo "0")
                     kreport_reads=$(awk '{sum += $2} END {print sum}' "$ARCHITEUTHIS_FILTERED_REPORT" 2>/dev/null || echo "0")
-                    echo "  Conversion complete: filtered.output has $filtered_reads reads, kreport has $kreport_reads reads"
                     
                     # Check if conversion looks reasonable
                     # Kreport read count should be similar to filtered read count (within reasonable range)
@@ -270,44 +269,51 @@ for kraken_file in "${kraken_files[@]}"; do
                 # Check and run each rank independently (ensures all ranks are generated even if some already exist)
                 # Note: Only check for .b2 files (not kreport files) - .b2 is the required format for architeuthis merge
                 if test -e $BRACKEN_OUTPUT; then
-                    echo "$BRACKEN_OUTPUT exists; skipping species-level Bracken."
+                    : # File exists, skip silently
                 else
+                    echo "Processing $samp_name: running Bracken at species level..."
                     /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT
                 fi
                 
                 if test -e $BRACKEN_OUTPUT_GENUS; then
-                    echo "$BRACKEN_OUTPUT_GENUS exists; skipping genus-level Bracken."
+                    : # File exists, skip silently
                 else
+                    echo "Processing $samp_name: running Bracken at genus level..."
                     /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT_GENUS -l G
                 fi
                 
                 if test -e $BRACKEN_OUTPUT_DOMAIN; then
-                    echo "$BRACKEN_OUTPUT_DOMAIN exists; skipping domain-level Bracken."
+                    : # File exists, skip silently
                 else
+                    echo "Processing $samp_name: running Bracken at domain level..."
                     /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT_DOMAIN -l D
                 fi
                 
                 if test -e $BRACKEN_OUTPUT_PHYLUM; then
-                    echo "$BRACKEN_OUTPUT_PHYLUM exists; skipping phylum-level Bracken."
+                    : # File exists, skip silently
                 else
+                    echo "Processing $samp_name: running Bracken at phylum level..."
                     /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT_PHYLUM -l P
                 fi
                 
                 if test -e $BRACKEN_OUTPUT_CLASS; then
-                    echo "$BRACKEN_OUTPUT_CLASS exists; skipping class-level Bracken."
+                    : # File exists, skip silently
                 else
+                    echo "Processing $samp_name: running Bracken at class level..."
                     /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT_CLASS -l C
                 fi
                 
                 if test -e $BRACKEN_OUTPUT_ORDER; then
-                    echo "$BRACKEN_OUTPUT_ORDER exists; skipping order-level Bracken."
+                    : # File exists, skip silently
                 else
+                    echo "Processing $samp_name: running Bracken at order level..."
                     /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT_ORDER -l O
                 fi
                 
                 if test -e $BRACKEN_OUTPUT_FAMILY; then
-                    echo "$BRACKEN_OUTPUT_FAMILY exists; skipping family-level Bracken."
+                    : # File exists, skip silently
                 else
+                    echo "Processing $samp_name: running Bracken at family level..."
                     /projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/Struo2/Bracken/bracken -r 150 -d $DBDIR -i $ARCHITEUTHIS_FILTERED_REPORT -o $BRACKEN_OUTPUT_FAMILY -l F
                 fi
             fi

@@ -373,13 +373,14 @@ read_and_summarize_chunked = function(file_path, samp_name, seq_depth_df,
             }
             
             total_rows = total_rows + nrow(chunk_df)
-            lines_processed = lines_processed + length(chunk_lines)
+            chunk_lines_length = length(chunk_lines)
+            lines_processed = lines_processed + chunk_lines_length
             
             # Clean up chunk from memory
             rm(chunk_df, valid_chunk, chunk_lines, chunk_text)
             gc(verbose = FALSE)
             
-            if(length(chunk_lines) < chunk_size) {
+            if(chunk_lines_length < chunk_size) {
                 break  # Last chunk
             }
             
@@ -1404,6 +1405,62 @@ lineage_dir_new = "data/NEON_metagenome_classification/summary_files"
 lineage_dir_old = "data/classification/taxonomic_rank_summaries/species"
 databases_to_check = c("soil_microbe_db", "pluspf", "gtdb_207", "gtdb_207_unfiltered")
 
+# Helper function to find scores file for a sampleID
+find_scores_file = function(samp_id, db_name, search_dirs) {
+    # Normalize samp_id: remove trailing underscores and any database suffix
+    samp_id_clean = sub("_+$", "", samp_id)
+    samp_id_clean = sub("_(gtdb_207_unfiltered|gtdb_207|soil_microbe_db|pluspf)_*$", "", samp_id_clean)
+    
+    # Construct base pattern (sampleID should be like "BARR_002-O-20170808")
+    # Try multiple patterns to account for variations
+    patterns = c(
+        paste0("^", samp_id_clean, "-COMP_", db_name, "_scores.output$"),
+        paste0("^", samp_id_clean, "-COMP_", db_name, "__scores.output$"),
+        paste0("^", samp_id_clean, "-COMP_", db_name, "_+scores.output$")
+    )
+    
+    # Also try if samp_id already includes -COMP
+    if(grepl("-COMP", samp_id_clean)) {
+        base_name = sub("-COMP.*$", "", samp_id_clean)
+        patterns = c(patterns,
+            paste0("^", samp_id_clean, "_scores.output$"),
+            paste0("^", samp_id_clean, "__scores.output$"),
+            paste0("^", samp_id_clean, "_+scores.output$")
+        )
+    }
+    
+    # Search all directories with pattern matching
+    for(dir_path in search_dirs) {
+        if(!dir.exists(dir_path)) next
+        
+        # List all scores files in this directory
+        all_scores = list.files(dir_path, pattern = "_scores.output$", full.names = TRUE)
+        
+        # Try each pattern
+        for(pattern in patterns) {
+            matching = grep(pattern, basename(all_scores), value = TRUE)
+            if(length(matching) > 0) {
+                return(file.path(dir_path, matching[1]))
+            }
+        }
+        
+        # Fallback: try fuzzy matching on sampleID (first part before -COMP or _)
+        samp_base = sub("[-_].*$", "", samp_id_clean)
+        fuzzy_pattern = paste0("^", samp_base, ".*", db_name, ".*_scores.output$")
+        matching = grep(fuzzy_pattern, basename(all_scores), value = TRUE, ignore.case = TRUE)
+        if(length(matching) > 0) {
+            # Check if it's a reasonable match (contains the sampleID pattern)
+            for(match_file in matching) {
+                if(grepl(samp_id_clean, match_file) || grepl(samp_base, match_file)) {
+                    return(file.path(dir_path, match_file))
+                }
+            }
+        }
+    }
+    
+    return(NULL)
+}
+
 for(db in databases_to_check) {
     filename = paste0(db, "_species_merged_lineage.csv")
     lineage_file = NULL
@@ -1427,7 +1484,12 @@ for(db in databases_to_check) {
                     # After script 3 normalization, all sample_ids have _filtered (rank suffixes removed)
                     # Remove _filtered (always present after normalization) then database suffix
                     samp_name = sub("_filtered$", "", samp_name)  # Remove _filtered first
-                    sub("_(soil_microbe_db|pluspf|gtdb_207_unfiltered|gtdb_207)$", "", samp_name)
+                    # Remove trailing underscores
+                    samp_name = sub("_+$", "", samp_name)
+                    # Remove database suffix (handle both with and without trailing underscores)
+                    samp_name = sub("_(soil_microbe_db|pluspf|gtdb_207_unfiltered|gtdb_207)_*$", "", samp_name)
+                    # Remove any remaining trailing underscores
+                    sub("_+$", "", samp_name)
                 })
                 
                 # Get samples in filter_results_summary for this database
@@ -1447,32 +1509,10 @@ for(db in databases_to_check) {
                         missing_without_scores = character(0)
                         
                         for(samp_id in head(missing_samples, 20)) {  # Check first 20
-                            # Try to find matching scores file
-                            # samp_name format: {sampleID}-COMP_{db}
-                            if(db == "gtdb_207_unfiltered") {
-                                expected_samp_name = paste0(samp_id, "-COMP_gtdb_207_unfiltered")
-                            } else if(db == "gtdb_207") {
-                                expected_samp_name = paste0(samp_id, "-COMP_gtdb_207")
+                            scores_file = find_scores_file(samp_id, db, dirs_to_search)
+                            if(!is.null(scores_file) && file.exists(scores_file)) {
+                                missing_with_scores = c(missing_with_scores, samp_id)
                             } else {
-                                expected_samp_name = paste0(samp_id, "-COMP_", db)
-                            }
-                            
-                            expected_scores_file = paste0(expected_samp_name, "_scores.output")
-                            expected_scores_file_alt = paste0(expected_samp_name, "__scores.output")
-                            
-                            # Check all directories (try both single and double underscore)
-                            scores_found = FALSE
-                            for(dir_path in dirs_to_search) {
-                                scores_path = file.path(dir_path, expected_scores_file)
-                                scores_path_alt = file.path(dir_path, expected_scores_file_alt)
-                                if(file.exists(scores_path) || file.exists(scores_path_alt)) {
-                                    missing_with_scores = c(missing_with_scores, samp_id)
-                                    scores_found = TRUE
-                                    break
-                                }
-                            }
-                            
-                            if(!scores_found) {
                                 missing_without_scores = c(missing_without_scores, samp_id)
                             }
                         }
@@ -1486,26 +1526,9 @@ for(db in databases_to_check) {
                             cat("    Searching for all missing files with scores...\n")
                             all_missing_with_scores = character(0)
                             for(samp_id in missing_samples) {
-                                if(db == "gtdb_207_unfiltered") {
-                                    expected_samp_name = paste0(samp_id, "-COMP_gtdb_207_unfiltered")
-                                } else if(db == "gtdb_207") {
-                                    expected_samp_name = paste0(samp_id, "-COMP_gtdb_207")
-                                } else {
-                                    expected_samp_name = paste0(samp_id, "-COMP_", db)
-                                }
-                                expected_scores_file = paste0(expected_samp_name, "_scores.output")
-                                expected_scores_file_alt = paste0(expected_samp_name, "__scores.output")
-                                
-                                for(dir_path in dirs_to_search) {
-                                    scores_path = file.path(dir_path, expected_scores_file)
-                                    scores_path_alt = file.path(dir_path, expected_scores_file_alt)
-                                    if(file.exists(scores_path)) {
-                                        all_missing_with_scores = c(all_missing_with_scores, scores_path)
-                                        break
-                                    } else if(file.exists(scores_path_alt)) {
-                                        all_missing_with_scores = c(all_missing_with_scores, scores_path_alt)
-                                        break
-                                    }
+                                scores_file = find_scores_file(samp_id, db, dirs_to_search)
+                                if(!is.null(scores_file) && file.exists(scores_file)) {
+                                    all_missing_with_scores = c(all_missing_with_scores, scores_file)
                                 }
                             }
                             
