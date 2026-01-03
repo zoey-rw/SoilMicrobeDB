@@ -72,7 +72,7 @@ source(HELPER_FUNCTIONS)
 
 # GitHub repository for reference data
 GITHUB_REPO_BASE <- Sys.getenv("SOIL_MICROBE_DB_GITHUB", 
-                                unset = "https://raw.githubusercontent.com/zoey-rw/SoilMicrobeDB/main/data/genome_database")
+                                unset = "https://raw.githubusercontent.com/zoey-rw/SoilMicrobeDB/master/data/genome_database")
 
 # GTDB mapping files
 GTDB_MAPPING_LOCAL_DIR <- file.path(GENOME_DB_DIR, "gtdb_mapping")
