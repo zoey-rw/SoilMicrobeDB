@@ -89,25 +89,11 @@ if (!file.exists(smag_config$metadata_file)) {
 
 # Load GTDB-NCBI mapping (contains all GTDB versions)
 log_message("Loading GTDB-NCBI mapping", source_name = source_name)
-if (file.exists(GTDB_NCBI_MAPPING_FILE)) {
-  ncbi_gtdb_mapping_all <- readRDS(GTDB_NCBI_MAPPING_FILE)
-} else if (grepl("^/projectnb", GTDB_NCBI_MAPPING_FILE)) {
-  # Read remote file via SSH
-  log_message("Reading GTDB mapping file from remote server via SSH", source_name = source_name)
-  remote_path <- GTDB_NCBI_MAPPING_FILE
-  ssh_cmd <- paste0("ssh zrwerbin@scc2.bu.edu 'cat ", shQuote(remote_path), "'")
-  temp_file <- tempfile(fileext = ".rds")
-  system(paste(ssh_cmd, ">", temp_file))
-  if (file.exists(temp_file) && file.size(temp_file) > 0) {
-    ncbi_gtdb_mapping_all <- readRDS(temp_file)
-    unlink(temp_file)
-    log_message("Successfully loaded GTDB mapping from remote", source_name = source_name)
-  } else {
-    stop(paste("Failed to read GTDB-NCBI mapping file from remote:", GTDB_NCBI_MAPPING_FILE))
-  }
-} else {
-  stop(paste("GTDB-NCBI mapping file not found:", GTDB_NCBI_MAPPING_FILE))
+if (!file.exists(GTDB_NCBI_MAPPING_FILE)) {
+  stop(paste("GTDB-NCBI mapping file not found:", GTDB_NCBI_MAPPING_FILE,
+             "\nPlease ensure remote server is mounted or copy file locally."))
 }
+ncbi_gtdb_mapping_all <- readRDS(GTDB_NCBI_MAPPING_FILE)
 
 # Filter to GTDB 214 and 95 (SMAG uses both versions)
 mapping_key <- ncbi_gtdb_mapping_all[ncbi_gtdb_mapping_all$GTDB_version == "GTDB214", ]

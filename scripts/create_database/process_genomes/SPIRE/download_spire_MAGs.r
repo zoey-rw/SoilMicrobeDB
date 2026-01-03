@@ -52,62 +52,29 @@ source(HELPER_FUNCTIONS)
 log_message("Starting SPIRE processing", source_name = source_name)
 
 # Check for required files
-# Try to access files - if remote, check if accessible via SSH or mount
-check_file_access <- function(file_path) {
-  if (file.exists(file_path)) {
-    return(TRUE)
-  }
-  # If remote path, try to check via SSH
-  if (grepl("^/projectnb", file_path)) {
-    # Try to read first few bytes to check accessibility
-    result <- tryCatch({
-      con <- file(file_path, "rb")
-      readBin(con, "raw", n = 1)
-      close(con)
-      TRUE
-    }, error = function(e) FALSE)
-    return(result)
-  }
-  return(FALSE)
-}
-
-if (!check_file_access(spire_config$metadata_file)) {
-  stop(paste("SPIRE metadata file not accessible:", spire_config$metadata_file,
+if (!file.exists(spire_config$metadata_file)) {
+  stop(paste("SPIRE metadata file not found:", spire_config$metadata_file,
              "\nPlease ensure remote server is mounted or copy metadata files locally."))
 }
 
-if (!check_file_access(spire_config$taxonomy_file)) {
-  stop(paste("SPIRE taxonomy file not accessible:", spire_config$taxonomy_file,
+if (!file.exists(spire_config$taxonomy_file)) {
+  stop(paste("SPIRE taxonomy file not found:", spire_config$taxonomy_file,
              "\nPlease ensure remote server is mounted or copy metadata files locally."))
 }
 
-if (!check_file_access(spire_config$microntology_file)) {
-  stop(paste("SPIRE microntology file not accessible:", spire_config$microntology_file,
+if (!file.exists(spire_config$microntology_file)) {
+  stop(paste("SPIRE microntology file not found:", spire_config$microntology_file,
              "\nPlease ensure remote server is mounted or copy metadata files locally."))
 }
 
 # Load GTDB-NCBI mapping (file containing GTDB versions 95, 207, 214)
 # Filter to GTDB 207 for SPIRE processing
 log_message("Loading GTDB-NCBI mapping (will filter to GTDB 207)", source_name = source_name)
-if (file.exists(GTDB_NCBI_MAPPING_FILE)) {
-  gtdb_ncbi_mapping_all <- readRDS(GTDB_NCBI_MAPPING_FILE)
-} else if (grepl("^/projectnb", GTDB_NCBI_MAPPING_FILE)) {
-  # Read remote file via SSH
-  log_message("Reading GTDB mapping file from remote server via SSH", source_name = source_name)
-  remote_path <- GTDB_NCBI_MAPPING_FILE
-  ssh_cmd <- paste0("ssh zrwerbin@scc2.bu.edu 'cat ", shQuote(remote_path), "'")
-  temp_file <- tempfile(fileext = ".rds")
-  system(paste(ssh_cmd, ">", temp_file))
-  if (file.exists(temp_file) && file.size(temp_file) > 0) {
-    gtdb_ncbi_mapping_all <- readRDS(temp_file)
-    unlink(temp_file)
-    log_message("Successfully loaded GTDB mapping from remote", source_name = source_name)
-  } else {
-    stop(paste("Failed to read GTDB-NCBI mapping file from remote:", GTDB_NCBI_MAPPING_FILE))
-  }
-} else {
-  stop(paste("GTDB-NCBI mapping file not found:", GTDB_NCBI_MAPPING_FILE))
+if (!file.exists(GTDB_NCBI_MAPPING_FILE)) {
+  stop(paste("GTDB-NCBI mapping file not found:", GTDB_NCBI_MAPPING_FILE,
+             "\nPlease ensure remote server is mounted or copy file locally."))
 }
+gtdb_ncbi_mapping_all <- readRDS(GTDB_NCBI_MAPPING_FILE)
 
 # Filter to GTDB 207 for SPIRE
 gtdb_ncbi_mapping <- gtdb_ncbi_mapping_all[gtdb_ncbi_mapping_all$GTDB_version == "GTDB207", ]
@@ -135,44 +102,9 @@ if (!exists("gtdb_207_metadata", envir = .GlobalEnv) || is.null(get("gtdb_207_me
       select(-ncbi_genome_category)
     assign("gtdb_207_metadata", gtdb_207_metadata, envir = .GlobalEnv)
   } else {
-    # Try remote paths via SSH
-    remote_bac <- file.path(GTDB_REMOTE_BASE, "bac120_metadata_r207.tsv")
-    remote_ar <- file.path(GTDB_REMOTE_BASE, "ar53_metadata_r207.tsv")
-    log_message("GTDB 207 metadata not found locally, attempting to load from remote via SSH", source_name = source_name)
-    
-    # Read remote files via SSH
-    temp_bac <- tempfile(fileext = ".tsv")
-    temp_ar <- tempfile(fileext = ".tsv")
-    
-    ssh_cmd_bac <- paste0("ssh zrwerbin@scc2.bu.edu 'cat ", shQuote(remote_bac), "'")
-    ssh_cmd_ar <- paste0("ssh zrwerbin@scc2.bu.edu 'cat ", shQuote(remote_ar), "'")
-    
-    system(paste(ssh_cmd_bac, ">", temp_bac))
-    system(paste(ssh_cmd_ar, ">", temp_ar))
-    
-    if (file.exists(temp_bac) && file.size(temp_bac) > 0 && file.exists(temp_ar) && file.size(temp_ar) > 0) {
-      log_message("Loading GTDB 207 metadata from remote files", source_name = source_name)
-      gtdb_207_metadata_bac <- fread(temp_bac) %>%
-        select(accession, checkm_completeness, checkm_contamination, gtdb_genome_representative, gtdb_taxonomy,
-               ncbi_date, ncbi_genbank_assembly_accession, ncbi_organism_name, ncbi_taxid, ncbi_taxonomy, ncbi_genome_category) %>%
-        mutate(source = "GTDB_207")
-      gtdb_207_metadata_ar <- fread(temp_ar) %>%
-        select(accession, checkm_completeness, checkm_contamination, gtdb_genome_representative, gtdb_taxonomy,
-               ncbi_date, ncbi_genbank_assembly_accession, ncbi_organism_name, ncbi_taxid, ncbi_taxonomy, ncbi_genome_category) %>%
-        mutate(source = "GTDB_207")
-      gtdb_207_metadata <- rbind(gtdb_207_metadata_bac, gtdb_207_metadata_ar) %>%
-        mutate(is_MAG = ifelse(ncbi_genome_category == "derived from metagenome", TRUE, FALSE)) %>%
-        select(-ncbi_genome_category)
-      assign("gtdb_207_metadata", gtdb_207_metadata, envir = .GlobalEnv)
-      unlink(c(temp_bac, temp_ar))
-      log_message("Successfully loaded GTDB 207 metadata from remote", source_name = source_name)
-    } else {
-      unlink(c(temp_bac, temp_ar))
-      stop(paste("GTDB 207 metadata files are required but not accessible. Tried:",
-                 "\n  Local:", gtdb_207_bac_file, "and", gtdb_207_ar_file,
-                 "\n  Remote:", remote_bac, "and", remote_ar,
-                 "\nPlease ensure files are available locally or remotely accessible via SSH."))
-    }
+    stop(paste("GTDB 207 metadata files are required but not found. Tried:",
+               "\n  Local:", gtdb_207_bac_file, "and", gtdb_207_ar_file,
+               "\nPlease ensure files are available locally or mount remote server."))
   }
 } else {
   gtdb_207_metadata <- get("gtdb_207_metadata", envir = .GlobalEnv)

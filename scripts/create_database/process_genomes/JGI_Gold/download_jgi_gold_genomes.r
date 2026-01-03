@@ -66,68 +66,29 @@ dir.create(JGI_GOLD_REF_DATA_DIR, showWarnings = FALSE, recursive = TRUE)
 local_gold_data <- file.path(JGI_GOLD_REF_DATA_DIR, "goldData.xlsx")
 local_ecosystem <- file.path(JGI_GOLD_REF_DATA_DIR, "GOLDs5levelEcosystemClassificationPaths.xlsx")
 
-# Function to get GOLD data file (try local, then remote copy, then download)
-get_gold_file <- function(remote_path, local_path, description, download_url = NULL) {
-  # First, check if local file exists
-  if (file.exists(local_path) && file.size(local_path) > 0) {
-    log_message(paste("Using local", description), source_name = source_name)
-    return(local_path)
-  }
-  
-  # Try to copy from remote via SSH
-  if (grepl("^/projectnb", remote_path)) {
-    log_message(paste("Attempting to copy", description, "from remote server via SSH"), source_name = source_name)
-    ssh_cmd <- paste0("scp zrwerbin@scc2.bu.edu:", shQuote(remote_path), " ", shQuote(local_path))
-    result <- system(ssh_cmd, ignore.stderr = TRUE)
-    if (result == 0 && file.exists(local_path) && file.size(local_path) > 0) {
-      log_message(paste("Successfully copied", description, "from remote"), source_name = source_name)
-      return(local_path)
-    }
-  }
-  
-  # Try to download from JGI GOLD website
-  if (!is.null(download_url)) {
-    log_message(paste("Downloading", description, "from JGI GOLD website..."), source_name = source_name)
-    tryCatch({
-      # Download using curl (more reliable for large files)
-      curl_cmd <- paste0("curl -L -o ", shQuote(local_path), 
-                         " -H 'User-Agent: Mozilla/5.0' ", shQuote(download_url))
-      result <- system(curl_cmd)
-      if (result == 0 && file.exists(local_path) && file.size(local_path) > 0) {
-        log_message(paste("Successfully downloaded", description, "to:", local_path), source_name = source_name)
-        return(local_path)
-      } else {
-        if (file.exists(local_path)) unlink(local_path)
-        stop("Downloaded file is empty or download failed")
-      }
-    }, error = function(e) {
-      if (file.exists(local_path)) unlink(local_path)
-      stop(paste("Failed to download", description, ":", e$message,
-                 "\nURL:", download_url,
-                 "\nPlease download manually from: https://gold.jgi.doe.gov/download?mode=site_excel"))
-    })
-  }
-  
-  # Provide helpful error message
-  error_msg <- paste0(description, " not found. Tried:\n",
-                      "  Local: ", local_path, "\n",
-                      "  Remote: ", remote_path)
-  if (!is.null(download_url)) {
-    error_msg <- paste0(error_msg, "\n  Download URL: ", download_url)
-  }
-  error_msg <- paste0(error_msg, 
-                       "\n\nPlease download the GOLD data file manually from:",
-                       "\n  https://gold.jgi.doe.gov/download?mode=site_excel",
-                       "\n  Save it as: ", local_path,
-                       "\n\nOr copy from remote server using:",
-                       "\n  scp zrwerbin@scc2.bu.edu:", remote_path, " ", local_path)
-  stop(error_msg)
+# Get GOLD data files
+# Use config file path if it exists, otherwise try local path
+if (file.exists(GOLD_DATA_FILE_CONFIG)) {
+  GOLD_DATA_FILE <- GOLD_DATA_FILE_CONFIG
+} else if (file.exists(local_gold_data)) {
+  GOLD_DATA_FILE <- local_gold_data
+} else {
+  stop(paste("GOLD data file not found. Tried:",
+             "\n  Config path:", GOLD_DATA_FILE_CONFIG,
+             "\n  Local path:", local_gold_data,
+             "\nPlease ensure file is available locally or mount remote server."))
 }
 
-# Get GOLD data files
-# Note: JGI GOLD website requires manual download, so we'll try remote copy first
-GOLD_DATA_FILE <- get_gold_file(GOLD_DATA_FILE_CONFIG, local_gold_data, "GOLD data file")
-GOLD_ECOSYSTEM_FILE <- get_gold_file(GOLD_ECOSYSTEM_FILE_CONFIG, local_ecosystem, "GOLD ecosystem file")
+if (file.exists(GOLD_ECOSYSTEM_FILE_CONFIG)) {
+  GOLD_ECOSYSTEM_FILE <- GOLD_ECOSYSTEM_FILE_CONFIG
+} else if (file.exists(local_ecosystem)) {
+  GOLD_ECOSYSTEM_FILE <- local_ecosystem
+} else {
+  stop(paste("GOLD ecosystem file not found. Tried:",
+             "\n  Config path:", GOLD_ECOSYSTEM_FILE_CONFIG,
+             "\n  Local path:", local_ecosystem,
+             "\nPlease ensure file is available locally or mount remote server."))
+}
 
 # Read GOLD data files (only sheets we need)
 log_message("Reading GOLD data files", source_name = source_name)
@@ -214,25 +175,11 @@ genome_info <- genome_info %>%
 
 # Load GTDB-NCBI mapping (contains all GTDB versions)
 log_message("Loading GTDB-NCBI mapping", source_name = source_name)
-if (file.exists(GTDB_NCBI_MAPPING_FILE)) {
-  ncbi_gtdb_mapping_all <- readRDS(GTDB_NCBI_MAPPING_FILE)
-} else if (grepl("^/projectnb", GTDB_NCBI_MAPPING_FILE)) {
-  # Read remote file via SSH
-  log_message("Reading GTDB mapping file from remote server via SSH", source_name = source_name)
-  remote_path <- GTDB_NCBI_MAPPING_FILE
-  ssh_cmd <- paste0("ssh zrwerbin@scc2.bu.edu 'cat ", shQuote(remote_path), "'")
-  temp_file <- tempfile(fileext = ".rds")
-  system(paste(ssh_cmd, ">", temp_file))
-  if (file.exists(temp_file) && file.size(temp_file) > 0) {
-    ncbi_gtdb_mapping_all <- readRDS(temp_file)
-    unlink(temp_file)
-    log_message("Successfully loaded GTDB mapping from remote", source_name = source_name)
-  } else {
-    stop(paste("Failed to read GTDB-NCBI mapping file from remote:", GTDB_NCBI_MAPPING_FILE))
-  }
-} else {
-  stop(paste("GTDB-NCBI mapping file not found:", GTDB_NCBI_MAPPING_FILE))
+if (!file.exists(GTDB_NCBI_MAPPING_FILE)) {
+  stop(paste("GTDB-NCBI mapping file not found:", GTDB_NCBI_MAPPING_FILE,
+             "\nPlease ensure remote server is mounted or copy file locally."))
 }
+ncbi_gtdb_mapping_all <- readRDS(GTDB_NCBI_MAPPING_FILE)
 
 # Filter to GTDB 207 for JGI GOLD (can be adjusted if needed)
 gtdb_ncbi_mapping <- ncbi_gtdb_mapping_all[ncbi_gtdb_mapping_all$GTDB_version == "GTDB207", ]
@@ -258,43 +205,9 @@ if (!exists("gtdb_207_metadata", envir = .GlobalEnv) || is.null(get("gtdb_207_me
       select(-ncbi_genome_category)
     assign("gtdb_207_metadata", gtdb_207_metadata, envir = .GlobalEnv)
   } else {
-    # Try remote paths via SSH
-    remote_bac <- file.path(GTDB_REMOTE_BASE, "bac120_metadata_r207.tsv")
-    remote_ar <- file.path(GTDB_REMOTE_BASE, "ar53_metadata_r207.tsv")
-    log_message("GTDB 207 metadata not found locally, attempting to load from remote via SSH", source_name = source_name)
-    
-    temp_bac <- tempfile(fileext = ".tsv")
-    temp_ar <- tempfile(fileext = ".tsv")
-    
-    ssh_cmd_bac <- paste0("ssh zrwerbin@scc2.bu.edu 'cat ", shQuote(remote_bac), "'")
-    ssh_cmd_ar <- paste0("ssh zrwerbin@scc2.bu.edu 'cat ", shQuote(remote_ar), "'")
-    
-    system(paste(ssh_cmd_bac, ">", temp_bac))
-    system(paste(ssh_cmd_ar, ">", temp_ar))
-    
-    if (file.exists(temp_bac) && file.size(temp_bac) > 0 && file.exists(temp_ar) && file.size(temp_ar) > 0) {
-      log_message("Loading GTDB 207 metadata from remote files", source_name = source_name)
-      gtdb_207_metadata_bac <- fread(temp_bac) %>%
-        select(accession, checkm_completeness, checkm_contamination, gtdb_genome_representative, gtdb_taxonomy,
-               ncbi_date, ncbi_genbank_assembly_accession, ncbi_organism_name, ncbi_taxid, ncbi_taxonomy, ncbi_genome_category) %>%
-        mutate(source = "GTDB_207")
-      gtdb_207_metadata_ar <- fread(temp_ar) %>%
-        select(accession, checkm_completeness, checkm_contamination, gtdb_genome_representative, gtdb_taxonomy,
-               ncbi_date, ncbi_genbank_assembly_accession, ncbi_organism_name, ncbi_taxid, ncbi_taxonomy, ncbi_genome_category) %>%
-        mutate(source = "GTDB_207")
-      gtdb_207_metadata <- rbind(gtdb_207_metadata_bac, gtdb_207_metadata_ar) %>%
-        mutate(is_MAG = ifelse(ncbi_genome_category == "derived from metagenome", TRUE, FALSE)) %>%
-        select(-ncbi_genome_category)
-      assign("gtdb_207_metadata", gtdb_207_metadata, envir = .GlobalEnv)
-      unlink(c(temp_bac, temp_ar))
-      log_message("Successfully loaded GTDB 207 metadata from remote", source_name = source_name)
-    } else {
-      unlink(c(temp_bac, temp_ar))
-      stop(paste("GTDB 207 metadata files are required but not accessible. Tried:",
-                 "\n  Local:", gtdb_207_bac_file, "and", gtdb_207_ar_file,
-                 "\n  Remote:", remote_bac, "and", remote_ar,
-                 "\nPlease ensure files are available locally or remotely accessible via SSH."))
-    }
+    stop(paste("GTDB 207 metadata files are required but not found. Tried:",
+               "\n  Local:", gtdb_207_bac_file, "and", gtdb_207_ar_file,
+               "\nPlease ensure files are available locally or mount remote server."))
   }
 } else {
   gtdb_207_metadata <- get("gtdb_207_metadata", envir = .GlobalEnv)
@@ -320,7 +233,7 @@ log_message(paste("Found", nrow(genome_info), "genomes with NCBI taxids"), sourc
 
 # Check for already downloaded genomes
 # JGI GOLD genomes are typically downloaded from NCBI, so check NCBI genome directory
-NCBI_GENOME_REMOTE_BASE <- jgi_gold_config$remote_genome_dir
+NCBI_GENOME_DIR <- jgi_gold_config$genome_dir
 NCBI_GENOME_LOCAL_DIR <- jgi_gold_config$local_genome_dir
 
 # Check both local and remote directories
@@ -329,9 +242,9 @@ if (dir.exists(NCBI_GENOME_LOCAL_DIR)) {
   already_downloaded <- read_in_genomes(NCBI_GENOME_LOCAL_DIR, pattern = "\\.fna\\.gz$")
 }
 
-# Also check remote if accessible
-if (dir.exists(NCBI_GENOME_REMOTE_BASE)) {
-  remote_downloaded <- read_in_genomes(NCBI_GENOME_REMOTE_BASE, pattern = "\\.fna\\.gz$")
+# Also check genome directory if different from local
+if (NCBI_GENOME_DIR != NCBI_GENOME_LOCAL_DIR && dir.exists(NCBI_GENOME_DIR)) {
+  remote_downloaded <- read_in_genomes(NCBI_GENOME_DIR, pattern = "\\.fna\\.gz$")
   already_downloaded <- rbind(already_downloaded, remote_downloaded)
 }
 

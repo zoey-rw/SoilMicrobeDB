@@ -1,5 +1,123 @@
 pacman::p_load(data.table, tidyverse, tidyfast, phyloseq, CHNOSZ)
 
+# ============================================================================
+# Configuration Helper Functions
+# ============================================================================
+# These functions are used by config.R and processing scripts
+
+# Source-specific directory function
+get_source_dir <- function(source_name) {
+  if (!exists("GENOME_DB_DIR")) {
+    stop("GENOME_DB_DIR not defined. Please source config.R first.")
+  }
+  file.path(GENOME_DB_DIR, source_name)
+}
+
+# Source-specific log directory function
+get_source_log_dir <- function(source_name) {
+  if (!exists("CREATE_DB_DIR")) {
+    stop("CREATE_DB_DIR not defined. Please source config.R first.")
+  }
+  log_dir <- file.path(CREATE_DB_DIR, "process_genomes", source_name, "logs")
+  dir.create(log_dir, showWarnings = FALSE, recursive = TRUE)
+  return(log_dir)
+}
+
+# Logging function
+log_message <- function(msg, source_name = "general") {
+  if (!exists("LOG_BASE_DIR")) {
+    # Fallback if config.R not sourced
+    cat(paste0("[", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "] ", msg, "\n"))
+    return(invisible(NULL))
+  }
+  
+  timestamp <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+  log_dir <- if (source_name != "general") {
+    get_source_log_dir(source_name)
+  } else {
+    LOG_BASE_DIR
+  }
+  log_file <- file.path(log_dir, paste0(source_name, "_", format(Sys.Date(), "%Y%m%d"), ".log"))
+  message <- paste0("[", timestamp, "] ", msg)
+  cat(message, "\n")
+  write(message, file = log_file, append = TRUE)
+}
+
+# Check if in test mode
+is_test_mode <- function() {
+  if (!exists("TEST_MODE") || !exists("MAX_GENOMES")) {
+    return(FALSE)
+  }
+  return(TEST_MODE || !is.na(MAX_GENOMES))
+}
+
+# Helper function to get source config
+get_source_config <- function(source_name) {
+  if (!exists("STRUO2_INPUT_DIR")) {
+    stop("STRUO2_INPUT_DIR not defined. Please source config.R first.")
+  }
+  config_name <- paste0(toupper(source_name), "_CONFIG")
+  if (exists(config_name)) {
+    return(get(config_name))
+  } else {
+    # Return default config structure
+    return(list(
+      output_file = file.path(STRUO2_INPUT_DIR, paste0(tolower(source_name), "_struo.tsv"))
+    ))
+  }
+}
+
+# Print configuration summary (useful for debugging)
+print_config <- function() {
+  if (!exists("BASE_DIR")) {
+    cat("Configuration not loaded. Please source config.R first.\n")
+    return(invisible(NULL))
+  }
+  cat("=== Database Creation Configuration ===\n")
+  cat("Base Directory:", BASE_DIR, "\n")
+  cat("Genome Database Directory:", GENOME_DB_DIR, "\n")
+  cat("Struo2 Input Directory:", STRUO2_INPUT_DIR, "\n")
+  cat("Test Mode:", TEST_MODE, "\n")
+  if (!is.na(MAX_GENOMES)) {
+    cat("Max Genomes (test):", MAX_GENOMES, "\n")
+  }
+  cat("Min Completeness:", MIN_COMPLETENESS, "%\n")
+  cat("Max Contamination:", MAX_CONTAMINATION, "%\n")
+  cat("NCBI Tax Directory:", NCBI_TAX_DIR, "\n")
+  cat("=====================================\n")
+}
+
+# Download file from GitHub if it doesn't exist locally
+# GitHub URL should point to raw file content
+download_from_github <- function(github_url, local_path, description = "file") {
+  if (file.exists(local_path) && file.size(local_path) > 0) {
+    return(local_path)
+  }
+  
+  # Create directory if it doesn't exist
+  dir.create(dirname(local_path), showWarnings = FALSE, recursive = TRUE)
+  
+  # Download from GitHub
+  tryCatch({
+    download.file(github_url, destfile = local_path, mode = "wb", quiet = TRUE)
+    if (file.exists(local_path) && file.size(local_path) > 0) {
+      message(paste("Downloaded", description, "from GitHub to:", local_path))
+      return(local_path)
+    } else {
+      stop("Downloaded file is empty")
+    }
+  }, error = function(e) {
+    if (file.exists(local_path)) unlink(local_path)
+    stop(paste("Failed to download", description, "from GitHub:", e$message,
+               "\nURL:", github_url,
+               "\nPlease download manually and place at:", local_path))
+  })
+}
+
+# ============================================================================
+# Data Processing Helper Functions
+# ============================================================================
+
 
 # gtdb_214_metadata = fread("/projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/genomes/bac120_metadata_r214.tsv") %>%
 # 	select(accession,checkm_completeness,checkm_contamination,gtdb_genome_representative,gtdb_taxonomy,ncbi_date,ncbi_genbank_assembly_accession,ncbi_organism_name,ncbi_taxid,ncbi_taxonomy) %>% mutate(source="GTDB_214")

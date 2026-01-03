@@ -88,6 +88,13 @@ data/summary_files/classification_pct_by_rank_per_sample.csv
 data/genome_database/bac120_metadata_r95.tsv
 data/genome_database/bac120_metadata_r214.tsv
 data/genome_database/bac120_metadata_r207.tsv
+data/genome_database/ar53_metadata_r207.tsv
+
+# Large reference data files (exceed GitHub's 100MB limit)
+# These must be downloaded separately or obtained from the original sources
+data/genome_database/JGI_Gold/ref_data/goldData.xlsx
+data/genome_database/JGI_Gold/ref_data/GOLDs5levelEcosystemClassificationPaths.xlsx
+data/genome_database/SPIRE/spire_v1_genome_metadata.tsv.gz
 
 ./scripts/database_development/genome_downloads/gtdb_207/lineage.txt
 ./scripts/database_development/genome_downloads/gtdb_207/pretty_lineage.txt
