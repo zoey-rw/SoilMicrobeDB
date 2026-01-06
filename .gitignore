@@ -96,6 +96,35 @@ data/genome_database/JGI_Gold/ref_data/goldData.xlsx
 data/genome_database/JGI_Gold/ref_data/GOLDs5levelEcosystemClassificationPaths.xlsx
 data/genome_database/SPIRE/spire_v1_genome_metadata.tsv.gz
 
+# Raw genome files (FASTA, GenBank formats - too large for git)
+# Common genome file formats
+*.fna
+*.fna.gz
+*.fa
+*.fa.gz
+*.fasta
+*.fasta.gz
+*.faa
+*.faa.gz
+*.gbk
+*.gbff
+*.gbff.gz
+# Genome files in specific directories
+data/genome_database/SPIRE/*.fna.gz
+data/genome_database/SPIRE/*.fa.gz
+data/genome_database/SPIRE/*.fasta.gz
+data/genome_database/GEM/*.fna.gz
+data/genome_database/GEM/*.fa.gz
+data/genome_database/GEM/*.fasta.gz
+data/genome_database/ncbi_genomes/**/*.fna.gz
+data/genome_database/ncbi_genomes/**/*.fa.gz
+data/genome_database/ncbi_genomes/**/*.fasta.gz
+data/genome_database/ncbi_genomes/**/*.gbff
+data/genome_database/ncbi_genomes/**/*.gbff.gz
+data/genome_database/Mycocosm/**/*.fasta.gz
+data/genome_database/Mycocosm/**/*.fna.gz
+data/genome_database/Mycocosm/**/*.fa.gz
+
 ./scripts/database_development/genome_downloads/gtdb_207/lineage.txt
 ./scripts/database_development/genome_downloads/gtdb_207/pretty_lineage.txt
 ./scripts/database_development/genome_downloads/jgi_gold/ref_data/GOLDs5levelEcosystemClassificationPaths.xlsx,205870479,1698783192000,283690,644
