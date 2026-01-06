@@ -58,3 +58,4 @@ data/genome_database/
 └── ncbi_genomes/          # NCBI genome downloads
 ```
 
+
