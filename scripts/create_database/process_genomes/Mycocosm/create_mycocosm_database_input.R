@@ -54,12 +54,12 @@ source(HELPER_FUNCTIONS)
 
 log_message("Starting Mycocosm processing", source_name = source_name)
 
-# Check NCBI taxonomy directory (should be mounted locally now)
-if (!dir.exists(NCBI_TAX_DIR)) {
-  stop(paste("NCBI taxonomy directory is required but not found:", NCBI_TAX_DIR,
-             "\nPlease mount the NCBI taxonomy directory using: bash mount_remote.sh",
-             "\nOr set NCBI_TAX_DIR environment variable."))
+# Use local NCBI taxonomy directory (files should be copied via copy_ncbi_taxonomy_local.sh)
+if (!file.exists(file.path(NCBI_TAX_DIR, "rankedlineage.dmp"))) {
+  stop(paste("NCBI taxonomy directory not found: ", NCBI_TAX_DIR,
+             "\nPlease copy NCBI taxonomy files using: bash scripts/create_database/copy_ncbi_taxonomy_local.sh"))
 }
+
 taxdir <- NCBI_TAX_DIR
 log_message(paste("Using NCBI taxonomy directory:", taxdir), source_name = source_name)
 

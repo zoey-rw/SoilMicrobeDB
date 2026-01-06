@@ -60,8 +60,34 @@ dir.create(GEM_LOCAL_DIR, showWarnings = FALSE, recursive = TRUE)
 # Step 1: Download and filter GEM metadata
 # ============================================================================
 
-log_message("Downloading GEM catalog metadata", source_name = source_name)
-GEM_metadata <- fread("https://portal.nersc.gov/GEM/genomes/genome_metadata.tsv")
+log_message("Loading GEM catalog metadata", source_name = source_name)
+
+# Check for local metadata file first, then try to download
+GEM_metadata_file <- file.path(GEM_LOCAL_DIR, "genome_metadata.tsv")
+GEM_metadata <- NULL
+
+if (file.exists(GEM_metadata_file)) {
+  log_message(paste("Using local GEM metadata file:", GEM_metadata_file), source_name = source_name)
+  GEM_metadata <- fread(GEM_metadata_file)
+} else {
+  log_message("Local metadata file not found, attempting to download from portal", source_name = source_name)
+  tryCatch({
+    GEM_metadata <- fread("https://portal.nersc.gov/GEM/genomes/genome_metadata.tsv")
+    # Save a local copy for future use
+    log_message(paste("Saving metadata to local file:", GEM_metadata_file), source_name = source_name)
+    write_tsv(GEM_metadata, GEM_metadata_file)
+  }, error = function(e) {
+    stop(paste("Failed to download GEM metadata and local file not found.\n",
+               "Please either:\n",
+               "  1. Download the metadata file manually and place it at:", GEM_metadata_file, "\n",
+               "  2. Ensure network access to https://portal.nersc.gov/GEM/genomes/genome_metadata.tsv\n",
+               "Error:", e$message))
+  })
+}
+
+if (is.null(GEM_metadata) || nrow(GEM_metadata) == 0) {
+  stop("GEM metadata is empty or could not be loaded")
+}
 
 log_message("Filtering for soil genomes with quality thresholds", source_name = source_name)
 soil_GEM_metadata <- GEM_metadata %>%
@@ -83,13 +109,29 @@ soil_GEM_metadata$download_links <- paste0(gem_config$download_base_url, soil_GE
 # ============================================================================
 
 log_message("Checking for existing downloaded genomes", source_name = source_name)
-soil_GEM_downloaded <- read_in_genomes(gem_config$local_genome_dir, pattern = gem_config$genome_pattern)
+soil_GEM_downloaded <- data.frame()
 
-# Check genome directory if local is empty and different directory is specified
-if (nrow(soil_GEM_downloaded) == 0 && "genome_dir" %in% names(gem_config) && 
-    gem_config$genome_dir != gem_config$local_genome_dir && dir.exists(gem_config$genome_dir)) {
-  log_message("No local genomes found, checking genome directory", source_name = source_name)
-  soil_GEM_downloaded <- read_in_genomes(gem_config$genome_dir, pattern = gem_config$genome_pattern)
+# Check local directory
+local_genomes <- read_in_genomes(gem_config$local_genome_dir, pattern = gem_config$genome_pattern)
+if (nrow(local_genomes) > 0) {
+  soil_GEM_downloaded <- rbind(soil_GEM_downloaded, local_genomes)
+  log_message(paste("Found", nrow(local_genomes), "genomes in local directory"), source_name = source_name)
+}
+
+# Check genome directory (if different from local)
+if ("genome_dir" %in% names(gem_config) && gem_config$genome_dir != gem_config$local_genome_dir) {
+  remote_genomes <- read_in_genomes(gem_config$genome_dir, pattern = gem_config$genome_pattern)
+  if (nrow(remote_genomes) > 0) {
+    soil_GEM_downloaded <- rbind(soil_GEM_downloaded, remote_genomes)
+    log_message(paste("Found", nrow(remote_genomes), "genomes in genome directory"), source_name = source_name)
+  }
+}
+
+# Remove duplicates if genomes exist in both local and remote
+if (nrow(soil_GEM_downloaded) > 0) {
+  soil_GEM_downloaded <- soil_GEM_downloaded %>%
+    distinct(filename, .keep_all = TRUE)
+  log_message(paste("Total unique genomes found:", nrow(soil_GEM_downloaded)), source_name = source_name)
 }
 
 # ============================================================================
@@ -162,17 +204,16 @@ nayfach_s5 <- readxl::read_xlsx(SUPPLEMENTARY_FILE, sheet = 6)
 # ============================================================================
 
 log_message("Merging metadata with downloaded genomes", source_name = source_name)
-soil_GEM_metadata <- merge(soil_GEM_metadata, soil_GEM_downloaded, by.x = "genome_id", by.y = "user_genome", all.x = TRUE)
+# Match genomes by filename (user_genome from read_in_genomes matches genome_id)
+soil_GEM_metadata <- soil_GEM_metadata %>%
+  mutate(filename = paste0(genome_id, ".fna.gz")) %>%
+  left_join(soil_GEM_downloaded %>% select(filename, filepath), by = "filename")
 
 # Ensure filepath exists after merge (create if missing or fill NA values)
-if (!"filepath" %in% names(soil_GEM_metadata)) {
-  soil_GEM_metadata$filepath <- file.path(gem_config$local_genome_dir, paste0(soil_GEM_metadata$genome_id, ".fna.gz"))
-} else {
-  # Fill any NA filepaths
-  na_filepath <- is.na(soil_GEM_metadata$filepath)
-  if (any(na_filepath)) {
-    soil_GEM_metadata$filepath[na_filepath] <- file.path(gem_config$local_genome_dir, paste0(soil_GEM_metadata$genome_id[na_filepath], ".fna.gz"))
-  }
+# Fill any NA filepaths (use local directory as default for missing genomes)
+na_filepath <- is.na(soil_GEM_metadata$filepath)
+if (any(na_filepath)) {
+  soil_GEM_metadata$filepath[na_filepath] <- file.path(gem_config$local_genome_dir, paste0(soil_GEM_metadata$genome_id[na_filepath], ".fna.gz"))
 }
 
 # Match to OTU and taxonomy

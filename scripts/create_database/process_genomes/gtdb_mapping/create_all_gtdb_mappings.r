@@ -126,51 +126,22 @@ read_excel_file <- function(filepath, source_name = "GTDB_mapping") {
     }
   }
   
-  # Check if it's a remote SSH path
-  if (grepl("^/projectnb", filepath)) {
-    log_message(paste("Reading Excel file from remote server via SSH:", filepath), source_name = source_name)
-    temp_file <- tempfile(fileext = ".xlsx")
-    ssh_cmd <- paste0("ssh zrwerbin@scc2.bu.edu 'cat ", shQuote(filepath), "'")
-    result <- system(paste(ssh_cmd, ">", temp_file))
-    if (result == 0 && file.exists(temp_file) && file.size(temp_file) > 0) {
-      return(temp_file)
-    } else {
-      stop(paste("Failed to read remote Excel file:", filepath))
-    }
-  }
-  
-  stop(paste("Excel file not found:", filepath))
+  stop(paste("Excel file not found:", filepath,
+             "\nPlease ensure remote server is mounted or copy file locally."))
 }
 
 # Read NCBI taxdump file (local or remote)
 read_ncbi_taxdump <- function(filepath, source_name = "GTDB_mapping") {
-  if (file.exists(filepath)) {
-    return(data.table::fread(filepath,
-                             col.names = NCBI_TAXDUMP_COLS,
-                             sep = "|") %>%
-           mutate_all(~str_replace_all(., "\t", "")) %>%
-           mutate_all(~na_if(., "")) %>%
-           select(-`NA`))
-  } else if (grepl("^/projectnb", filepath)) {
-    log_message(paste("Reading NCBI taxdump from remote:", filepath), source_name = source_name)
-    temp_file <- tempfile(fileext = ".dmp")
-    ssh_cmd <- paste0("ssh zrwerbin@scc2.bu.edu 'cat ", shQuote(filepath), "'")
-    system(paste(ssh_cmd, ">", temp_file))
-    if (file.exists(temp_file) && file.size(temp_file) > 0) {
-      result <- data.table::fread(temp_file,
-                                  col.names = NCBI_TAXDUMP_COLS,
-                                  sep = "|") %>%
-        mutate_all(~str_replace_all(., "\t", "")) %>%
-        mutate_all(~na_if(., "")) %>%
-        select(-`NA`)
-      unlink(temp_file)
-      return(result)
-    } else {
-      stop(paste("Failed to read remote NCBI taxdump:", filepath))
-    }
-  } else {
-    stop(paste("NCBI taxdump file not found:", filepath))
+  if (!file.exists(filepath)) {
+    stop(paste("NCBI taxdump file not found:", filepath,
+               "\nPlease ensure remote server is mounted or copy file locally."))
   }
+  return(data.table::fread(filepath,
+                           col.names = NCBI_TAXDUMP_COLS,
+                           sep = "|") %>%
+         mutate_all(~str_replace_all(., "\t", "")) %>%
+         mutate_all(~na_if(., "")) %>%
+         select(-`NA`))
 }
 
 # Read a single Excel sheet for a specific taxonomic rank

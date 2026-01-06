@@ -8,7 +8,6 @@
 library(tidyverse)
 library(readxl)
 
-# Load centralized configuration
 # Find the create_database directory (go up from process_genomes/SMAG)
 script_dir <- tryCatch({
   # Try to get script path from commandArgs
@@ -115,10 +114,32 @@ if (exists("gtdb_214_metadata", envir = .GlobalEnv)) {
 # The mapping already contains both NCBI 2021 and 2023 versions
 # We'll use it for higher rank fallback matching
 
-# Read in already downloaded genomes
+# Read in already downloaded genomes (check both local and remote)
 log_message("Scanning for downloaded genomes", source_name = source_name)
-smag_genome_dir <- get_source_dir("SMAG")
-smag_downloaded <- read_in_genomes(smag_genome_dir, pattern = smag_config$genome_pattern)
+smag_downloaded <- data.frame()
+
+# Check local directory
+local_genomes <- read_in_genomes(smag_config$local_genome_dir, pattern = smag_config$genome_pattern)
+if (nrow(local_genomes) > 0) {
+  smag_downloaded <- rbind(smag_downloaded, local_genomes)
+  log_message(paste("Found", nrow(local_genomes), "genomes in local directory"), source_name = source_name)
+}
+
+# Check genome directory (if different from local)
+if ("genome_dir" %in% names(smag_config) && smag_config$genome_dir != smag_config$local_genome_dir) {
+  remote_genomes <- read_in_genomes(smag_config$genome_dir, pattern = smag_config$genome_pattern)
+  if (nrow(remote_genomes) > 0) {
+    smag_downloaded <- rbind(smag_downloaded, remote_genomes)
+    log_message(paste("Found", nrow(remote_genomes), "genomes in genome directory"), source_name = source_name)
+  }
+}
+
+# Remove duplicates if genomes exist in both local and remote
+if (nrow(smag_downloaded) > 0) {
+  smag_downloaded <- smag_downloaded %>%
+    distinct(filename, .keep_all = TRUE)
+  log_message(paste("Total unique genomes found:", nrow(smag_downloaded)), source_name = source_name)
+}
 
 # Read SMAG metadata
 log_message("Reading SMAG metadata", source_name = source_name)
@@ -160,7 +181,8 @@ if (nrow(smag_hq_missing) > 0) {
     for (i in seq_len(nrow(smag_hq_missing))) {
       genome_id <- smag_hq_missing$user_genome[i]
       dl_link <- paste0(smag_config$download_base_url, genome_id, ".fa")
-      file_path <- file.path(smag_genome_dir, paste0(genome_id, ".fa"))
+      # Use local directory for downloads
+      file_path <- file.path(smag_config$local_genome_dir, paste0(genome_id, ".fa"))
       
       if (!file.exists(file_path)) {
         tryCatch({
@@ -176,8 +198,22 @@ if (nrow(smag_hq_missing) > 0) {
   log_message("All high-quality genomes already downloaded", source_name = source_name)
 }
 
-# Re-scan downloaded genomes
-smag_downloaded <- read_in_genomes(smag_genome_dir, pattern = smag_config$genome_pattern)
+# Re-scan downloaded genomes (check both local and remote)
+smag_downloaded <- data.frame()
+local_genomes <- read_in_genomes(smag_config$local_genome_dir, pattern = smag_config$genome_pattern)
+if (nrow(local_genomes) > 0) {
+  smag_downloaded <- rbind(smag_downloaded, local_genomes)
+}
+if ("genome_dir" %in% names(smag_config) && smag_config$genome_dir != smag_config$local_genome_dir) {
+  remote_genomes <- read_in_genomes(smag_config$genome_dir, pattern = smag_config$genome_pattern)
+  if (nrow(remote_genomes) > 0) {
+    smag_downloaded <- rbind(smag_downloaded, remote_genomes)
+  }
+}
+if (nrow(smag_downloaded) > 0) {
+  smag_downloaded <- smag_downloaded %>%
+    distinct(filename, .keep_all = TRUE)
+}
 
 # Merge metadata with downloaded files
 # In test mode, process genomes even if files aren't downloaded yet
@@ -192,7 +228,7 @@ if (nrow(smag_downloaded) > 0) {
     log_message("TEST MODE: Processing metadata without downloaded genome files", source_name = source_name)
     smag_hq_downloaded <- smag_hq
     # Create placeholder filepath column
-    smag_hq_downloaded$filepath <- file.path(smag_genome_dir, paste0(smag_hq_downloaded$user_genome, smag_config$genome_pattern))
+    smag_hq_downloaded$filepath <- file.path(smag_config$local_genome_dir, paste0(smag_hq_downloaded$user_genome, smag_config$genome_pattern))
   } else {
     stop("No downloaded genomes found. Please download genomes first or run in TEST_MODE.")
   }

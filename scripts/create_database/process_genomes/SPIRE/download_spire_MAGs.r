@@ -156,16 +156,52 @@ if (is_test_mode() && !is.na(MAX_GENOMES)) {
   soil_genomes <- soil_genomes %>% slice_head(n = MAX_GENOMES)
 }
 
-# Check for already downloaded genomes locally
-already_downloaded <- list.files(spire_genome_dir, full.names = TRUE, pattern = spire_config$genome_pattern)
-log_message(paste("Found", length(already_downloaded), "genomes already downloaded locally"), source_name = source_name)
+# Check for existing genomes in both local and remote directories (using helper function)
+log_message("Checking for existing genomes in local and remote directories", source_name = source_name)
 
-to_download <- soil_genomes[!basename(soil_genomes$download_path) %in% basename(already_downloaded),]
+# Check local directory
+local_genomes <- read_in_genomes(spire_config$local_genome_dir, pattern = spire_config$genome_pattern)
+if (nrow(local_genomes) > 0) {
+  log_message(paste("Found", nrow(local_genomes), "genomes in local directory"), source_name = source_name)
+}
+
+# Check genome directory (if different from local)
+remote_genomes <- data.frame()
+if ("genome_dir" %in% names(spire_config) && spire_config$genome_dir != spire_config$local_genome_dir) {
+  remote_genomes <- read_in_genomes(spire_config$genome_dir, pattern = spire_config$genome_pattern)
+  if (nrow(remote_genomes) > 0) {
+    log_message(paste("Found", nrow(remote_genomes), "genomes in genome directory"), source_name = source_name)
+  }
+}
+
+# Combine local and remote genomes
+all_existing_genomes <- rbind(local_genomes, remote_genomes)
+if (nrow(all_existing_genomes) > 0) {
+  all_existing_genomes <- all_existing_genomes %>%
+    distinct(filename, .keep_all = TRUE)
+}
+
+log_message(paste("Total unique genomes found:", nrow(all_existing_genomes), "(local:", nrow(local_genomes), ", remote:", nrow(remote_genomes), ")"), source_name = source_name)
+
+# Match existing genomes to soil_genomes by filename
+soil_genomes$filename <- basename(soil_genomes$download_path)
+soil_genomes$filepath <- ifelse(
+  soil_genomes$filename %in% all_existing_genomes$filename,
+  all_existing_genomes$filepath[match(soil_genomes$filename, all_existing_genomes$filename)],
+  soil_genomes$download_path
+)
+
+# Only download genomes that don't exist in either local or remote
+to_download <- soil_genomes[!soil_genomes$filename %in% all_existing_genomes$filename,]
 
 if (nrow(to_download) > 0) {
+  # Check if remote mount is configured (genome_dir != local_genome_dir)
+  has_remote_mount <- "genome_dir" %in% names(spire_config) && 
+                      spire_config$genome_dir != spire_config$local_genome_dir
+  
   # In test mode, limit downloads to MAX_GENOMES
   if (is_test_mode() && !is.na(MAX_GENOMES)) {
-    n_to_download <- min(nrow(to_download), MAX_GENOMES - length(already_downloaded))
+    n_to_download <- min(nrow(to_download), MAX_GENOMES - nrow(all_existing_genomes))
     if (n_to_download > 0) {
       to_download <- to_download[1:n_to_download,]
       log_message(paste("TEST MODE: Downloading", nrow(to_download), "genomes (limited by MAX_GENOMES)"), source_name = source_name)
@@ -173,8 +209,42 @@ if (nrow(to_download) > 0) {
       log_message("TEST MODE: Already have MAX_GENOMES genomes, skipping downloads", source_name = source_name)
       to_download <- to_download[0,]
     }
+  } else if (has_remote_mount) {
+    # Remote mount is configured - assume genomes are there and skip downloads
+    # Create filepaths pointing to remote mount for genomes not found locally
+    log_message(paste("Remote mount configured (", spire_config$genome_dir, 
+                      "). Found", nrow(all_existing_genomes), 
+                      "genomes. Assuming remaining", nrow(to_download), 
+                      "genomes are available on remote mount. Skipping downloads."), source_name = source_name)
+    
+    # Update filepaths for genomes not found to point to remote mount
+    missing_filenames <- soil_genomes$filename[!soil_genomes$filename %in% all_existing_genomes$filename]
+    soil_genomes$filepath[soil_genomes$filename %in% missing_filenames] <- 
+      file.path(spire_config$genome_dir, missing_filenames)
+    
+    to_download <- to_download[0,]
   } else {
-    log_message(paste("Downloading", nrow(to_download), "missing genomes"), source_name = source_name)
+    # No remote mount configured - check if we're on server
+    # If on server, assume genomes exist and create filepaths, skip downloads
+    is_on_server <- any(dir.exists(c(
+      "/projectnb/talbot-lab-data/zrwerbin/soil_genome_db",
+      "/projectnb2/talbot-lab-data/zrwerbin/soil_genome_db",
+      "/projectnb/frpmars/soil_microbe_db"
+    )))
+    
+    if (is_on_server) {
+      log_message(paste("On server but remote mount not explicitly configured. Assuming", nrow(to_download), 
+                        "genomes are available. Creating filepaths and skipping downloads."), source_name = source_name)
+      # Create filepaths pointing to expected server location
+      missing_filenames <- soil_genomes$filename[!soil_genomes$filename %in% all_existing_genomes$filename]
+      expected_server_path <- "/projectnb/talbot-lab-data/zrwerbin/soil_genome_db/genomes/spire_genomes"
+      soil_genomes$filepath[soil_genomes$filename %in% missing_filenames] <- 
+        file.path(expected_server_path, missing_filenames)
+      to_download <- to_download[0,]
+    } else {
+      # Not on server and no remote mount - proceed with downloads
+      log_message(paste("No remote mount configured and not on server. Downloading", nrow(to_download), "missing genomes"), source_name = source_name)
+    }
   }
   
   if (nrow(to_download) > 0) {
@@ -191,7 +261,7 @@ if (nrow(to_download) > 0) {
     }
   }
 } else {
-  log_message("All selected genomes already downloaded locally", source_name = source_name)
+  log_message("All selected genomes found in local or remote directories", source_name = source_name)
 }
 
 # Map to NCBI taxids using GTDB 207 metadata (required)
@@ -268,16 +338,18 @@ soil_genomes_ncbi <- soil_genomes_ncbi %>%
 
 log_message(paste("Processing", nrow(soil_genomes_ncbi), "genomes with NCBI taxids"), source_name = source_name)
 
-# Prepare output
+# Prepare output - use filepath from soil_genomes (which includes remote paths if available)
 ready_genomes_spire <- soil_genomes_ncbi %>%
+  left_join(soil_genomes %>% select(genome_id, filepath), by = "genome_id") %>%
   mutate(source = "SPIRE_MAGs",
          is_published = "Y",
          ncbi_organism_name = paste0(GTDB_taxon, "_", genome_id),
-         ncbi_species_taxid = as.numeric(NCBI_TaxID)) %>%
+         ncbi_species_taxid = as.numeric(NCBI_TaxID),
+         fasta_file_path = ifelse(is.na(filepath), download_path, filepath)) %>%
   select(ncbi_species_taxid,
          accession = genome_id,
          ncbi_organism_name,
-         fasta_file_path = download_path,
+         fasta_file_path,
          source,
          is_published) %>%
   arrange(ncbi_species_taxid)

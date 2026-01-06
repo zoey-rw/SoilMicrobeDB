@@ -58,11 +58,105 @@ TEST_MODE <- as.logical(Sys.getenv("TEST_MODE", unset = "FALSE"))
 MIN_COMPLETENESS <- 95
 MAX_CONTAMINATION <- 5
 
-# Helper functions path - use absolute path to avoid issues
-HELPER_FUNCTIONS <- normalizePath(file.path(CREATE_DB_DIR, "helper_functions.r"), mustWork = FALSE)
+# Helper functions path - use consolidated helper functions from scripts directory
+# SCRIPTS_DIR is already defined above
+HELPER_FUNCTIONS <- normalizePath(file.path(SCRIPTS_DIR, "helper_functions.r"), mustWork = FALSE)
 
 # Load helper functions (must be loaded after directories are defined)
+if (!file.exists(HELPER_FUNCTIONS)) {
+  stop("Helper functions not found at: ", HELPER_FUNCTIONS)
+}
 source(HELPER_FUNCTIONS)
+
+# ============================================================================
+# Remote Mount Detection Helper
+# ============================================================================
+# Helper function to find remote genome directories
+# Checks common mount locations and returns the first accessible one
+find_remote_genome_dir <- function(subdir_name) {
+  # Common remote mount base paths (in order of preference)
+  possible_bases <- c(
+    file.path(Sys.getenv("HOME"), "remote_talbot_lab_data", "soil_genome_db", "genomes"),
+    "/projectnb/talbot-lab-data/zrwerbin/soil_genome_db/genomes",
+    "/projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/genomes",
+    file.path(Sys.getenv("HOME"), "remote_soil_microbe_db", "data", "genome_database", "genomes"),
+    "/projectnb/frpmars/soil_microbe_db/data/genome_database/genomes"
+  )
+  
+  # Possible directory name variations (e.g., "spire_genomes", "SPIRE", "spire_MAGs", "spire")
+  possible_subdirs <- c(
+    subdir_name,
+    tolower(subdir_name),
+    toupper(subdir_name),
+    gsub("_genomes", "", subdir_name),
+    gsub("_genomes", "_MAGs", subdir_name),
+    # Additional variations
+    gsub("_genomes", "", tolower(subdir_name)),
+    paste0(tolower(gsub("_genomes", "", subdir_name)), "_genomes"),
+    paste0(toupper(gsub("_genomes", "", subdir_name)), "_genomes")
+  )
+  
+  # Check each possible base path
+  for (base_path in possible_bases) {
+    if (!dir.exists(base_path)) next
+    
+    # First, check if genomes are directly in base_path (no subdirectory)
+    tryCatch({
+      test_files <- list.files(base_path, pattern = "\\.(fna|fa|fasta|gz)$", full.names = FALSE)
+      if (length(test_files) > 0) {
+        # Genomes are directly in base_path - return it
+        return(base_path)
+      }
+    }, error = function(e) {
+      # Can't read base_path, skip it
+    })
+    
+    # Then check subdirectories
+    for (subdir in unique(possible_subdirs)) {
+      remote_dir <- file.path(base_path, subdir)
+      if (dir.exists(remote_dir)) {
+        # Test if we can actually read from it
+        tryCatch({
+          test_files <- list.files(remote_dir, pattern = "\\.(fna|fa|fasta|gz)$", full.names = FALSE)
+          if (length(test_files) > 0) {
+            return(remote_dir)
+          }
+          # Even if no files match pattern, if directory exists and is readable, use it
+          # (files might be in subdirectories)
+          list.files(remote_dir)  # Test readability
+          return(remote_dir)
+        }, error = function(e) {
+          # Mount exists but has I/O errors, skip it
+        })
+      }
+    }
+    
+    # Also check what subdirectories actually exist in base_path
+    tryCatch({
+      existing_subdirs <- list.dirs(base_path, full.names = FALSE, recursive = FALSE)
+      # Look for any that might match (case-insensitive partial match)
+      subdir_lower <- tolower(gsub("_genomes", "", subdir_name))
+      for (existing in existing_subdirs) {
+        if (grepl(subdir_lower, tolower(existing), fixed = TRUE)) {
+          remote_dir <- file.path(base_path, existing)
+          if (dir.exists(remote_dir)) {
+            tryCatch({
+              list.files(remote_dir)  # Test readability
+              return(remote_dir)
+            }, error = function(e) {
+              # Skip if not readable
+            })
+          }
+        }
+      }
+    }, error = function(e) {
+      # Can't list directories, skip this base_path
+    })
+  }
+  
+  # Return NULL if no remote mount found
+  return(NULL)
+}
 
 # ============================================================================
 # Reference Data Files
@@ -102,8 +196,8 @@ GTDB_207_BAC_FILE <- Sys.getenv("GTDB_207_BAC_FILE", unset = file.path(GENOME_DB
 GTDB_207_AR_FILE <- Sys.getenv("GTDB_207_AR_FILE", unset = file.path(GENOME_DB_DIR, "ar53_metadata_r207.tsv"))
 
 # NCBI taxonomy directory
-# Set via environment variable or use default local directory
-NCBI_TAX_DIR <- Sys.getenv("NCBI_TAX_DIR", unset = file.path(GENOME_DB_DIR, "ncbi_taxonomy"))
+# Use local directory only (files should be copied via copy_ncbi_taxonomy_local.sh)
+NCBI_TAX_DIR <- file.path(GENOME_DB_DIR, "ncbi_taxonomy")
 
 # Load helper functions (must be loaded after directories are defined)
 source(HELPER_FUNCTIONS)
@@ -112,11 +206,37 @@ source(HELPER_FUNCTIONS)
 # These can be overridden or extended by individual scripts
 
 # SMAG-specific settings
+# SMAG genome directory - check for remote mount, fallback to local
+SMAG_LOCAL_DIR <- get_source_dir("SMAG")
+SMAG_GENOME_DIR_ENV <- Sys.getenv("SMAG_GENOME_DIR", unset = NA)
+if (is.na(SMAG_GENOME_DIR_ENV)) {
+  remote_smag <- find_remote_genome_dir("smag_genomes")
+  if (!is.null(remote_smag)) {
+    SMAG_GENOME_DIR <- remote_smag
+  } else {
+    # Check if we're on server
+    server_base_exists <- any(sapply(c(
+      "/projectnb/talbot-lab-data/zrwerbin/soil_genome_db",
+      "/projectnb2/talbot-lab-data/zrwerbin/soil_genome_db",
+      "/projectnb/frpmars/soil_microbe_db"
+    ), dir.exists))
+    if (server_base_exists) {
+      SMAG_GENOME_DIR <- "/projectnb/talbot-lab-data/zrwerbin/soil_genome_db/genomes/smag_genomes"
+    } else {
+      SMAG_GENOME_DIR <- SMAG_LOCAL_DIR
+    }
+  }
+} else {
+  SMAG_GENOME_DIR <- SMAG_GENOME_DIR_ENV
+}
+
 SMAG_CONFIG <- list(
-  metadata_file = file.path(get_source_dir("SMAG"), "Supplementary Data 2.xlsx"),
+  metadata_file = file.path(SMAG_LOCAL_DIR, "Supplementary Data 2.xlsx"),
   download_base_url = "https://smag.microbmalab.cn/industrialshow/download/fileDownload?fileKey=SMAG/MAG/",
   output_file = file.path(STRUO2_INPUT_DIR, "SMAG_struo.tsv"),
-  genome_pattern = ".fa"
+  genome_pattern = ".fa",
+  genome_dir = SMAG_GENOME_DIR,
+  local_genome_dir = SMAG_LOCAL_DIR
 )
 
 # SPIRE-specific settings
@@ -166,8 +286,30 @@ if (is.na(SPIRE_MICRONTOLOGY_PATH)) {
   SPIRE_MICRONTOLOGY_PATH <- local_micro
 }
 
-# Genome directory (for checking existing downloads)
-SPIRE_GENOME_DIR <- Sys.getenv("SPIRE_GENOME_DIR", unset = SPIRE_LOCAL_DIR)
+# Genome directory - check for remote mount, fallback to local
+SPIRE_GENOME_DIR_ENV <- Sys.getenv("SPIRE_GENOME_DIR", unset = NA)
+if (is.na(SPIRE_GENOME_DIR_ENV)) {
+  remote_spire <- find_remote_genome_dir("spire_genomes")
+  if (!is.null(remote_spire)) {
+    SPIRE_GENOME_DIR <- remote_spire
+  } else {
+    # Check if we're on server - if so, use server path even if we can't read it yet
+    server_bases <- c(
+      "/projectnb/talbot-lab-data/zrwerbin/soil_genome_db",
+      "/projectnb2/talbot-lab-data/zrwerbin/soil_genome_db",
+      "/projectnb/frpmars/soil_microbe_db"
+    )
+    server_base_exists <- any(sapply(server_bases, dir.exists))
+    if (server_base_exists) {
+      # Use first server path (genomes should be there even if we can't verify)
+      SPIRE_GENOME_DIR <- "/projectnb/talbot-lab-data/zrwerbin/soil_genome_db/genomes/spire_genomes"
+    } else {
+      SPIRE_GENOME_DIR <- SPIRE_LOCAL_DIR
+    }
+  }
+} else {
+  SPIRE_GENOME_DIR <- SPIRE_GENOME_DIR_ENV
+}
 
 SPIRE_CONFIG <- list(
   metadata_file = SPIRE_METADATA_PATH,
@@ -177,7 +319,8 @@ SPIRE_CONFIG <- list(
   output_file = file.path(STRUO2_INPUT_DIR, "spire_MAGs_struo.tsv"),
   genome_pattern = "\\.fna\\.gz$",
   soil_habitat_keywords = c("soil", "rhizo", "forest", "cropland", "terrestrial", "litter", "agriculture"),
-  genome_dir = SPIRE_GENOME_DIR
+  genome_dir = SPIRE_GENOME_DIR,
+  local_genome_dir = SPIRE_LOCAL_DIR
 )
 
 # GTDB 207-specific settings
@@ -189,8 +332,14 @@ GTDB_207_CONFIG <- list(
 MYCOCOSM_LOCAL_DIR <- get_source_dir("Mycocosm")
 dir.create(MYCOCOSM_LOCAL_DIR, showWarnings = FALSE, recursive = TRUE)
 
-# Genome directory - can be set via environment variable for custom locations
-MYCOCOSM_GENOME_DIR <- Sys.getenv("MYCOCOSM_GENOME_DIR", unset = MYCOCOSM_LOCAL_DIR)
+# Genome directory - check for remote mount, fallback to local
+MYCOCOSM_GENOME_DIR_ENV <- Sys.getenv("MYCOCOSM_GENOME_DIR", unset = NA)
+if (is.na(MYCOCOSM_GENOME_DIR_ENV)) {
+  remote_myco <- find_remote_genome_dir("mycocosm_genomes")
+  MYCOCOSM_GENOME_DIR <- if (!is.null(remote_myco)) remote_myco else MYCOCOSM_LOCAL_DIR
+} else {
+  MYCOCOSM_GENOME_DIR <- MYCOCOSM_GENOME_DIR_ENV
+}
 
 MYCOCOSM_CONFIG <- list(
   catalog_url = "https://mycocosm.jgi.doe.gov/ext-api/mycocosm/catalog/download-group?flt=&seq=all&pub=all&grp=fungi&srt=released&ord=desc",
@@ -236,16 +385,26 @@ if (is.na(JGI_GOLD_ECOSYSTEM_FILE)) {
   JGI_GOLD_ECOSYSTEM_FILE <- local_ecosystem
 }
 
-# NCBI genome directory (shared with RefSoil)
-NCBI_GENOME_DIR <- Sys.getenv("NCBI_GENOME_DIR", unset = file.path(GENOME_DB_DIR, "ncbi_genomes"))
+# NCBI genome directory (shared with RefSoil and JGI GOLD) - check for remote mount
+NCBI_GENOME_DIR_ENV <- Sys.getenv("NCBI_GENOME_DIR", unset = NA)
+if (is.na(NCBI_GENOME_DIR_ENV)) {
+  remote_ncbi <- find_remote_genome_dir("ncbi_genomes")
+  NCBI_GENOME_DIR <- if (!is.null(remote_ncbi)) remote_ncbi else file.path(GENOME_DB_DIR, "ncbi_genomes")
+} else {
+  NCBI_GENOME_DIR <- NCBI_GENOME_DIR_ENV
+}
 dir.create(NCBI_GENOME_DIR, showWarnings = FALSE, recursive = TRUE)
+
+# JGI GOLD uses NCBI genome directory (can be remote)
+JGI_GOLD_LOCAL_GENOME_DIR <- file.path(GENOME_DB_DIR, "ncbi_genomes")
+dir.create(JGI_GOLD_LOCAL_GENOME_DIR, showWarnings = FALSE, recursive = TRUE)
 
 JGI_GOLD_CONFIG <- list(
   data_file = JGI_GOLD_DATA_FILE,
   ecosystem_file = JGI_GOLD_ECOSYSTEM_FILE,
   output_file = file.path(STRUO2_INPUT_DIR, "jgi_gold_struo.tsv"),
   genome_dir = NCBI_GENOME_DIR,
-  local_genome_dir = NCBI_GENOME_DIR
+  local_genome_dir = JGI_GOLD_LOCAL_GENOME_DIR
 )
 
 # GEM/Nayfach-specific settings
@@ -267,12 +426,35 @@ if (is.na(GEM_SUPPLEMENTARY_FILE)) {
   GEM_SUPPLEMENTARY_FILE <- local_supp
 }
 
+# GEM genome directory - check for remote mount, fallback to local
+GEM_GENOME_DIR_ENV <- Sys.getenv("GEM_GENOME_DIR", unset = NA)
+if (is.na(GEM_GENOME_DIR_ENV)) {
+  remote_gem <- find_remote_genome_dir("gem_genomes")
+  if (!is.null(remote_gem)) {
+    GEM_GENOME_DIR <- remote_gem
+  } else {
+    # Check if we're on server
+    server_base_exists <- any(sapply(c(
+      "/projectnb/talbot-lab-data/zrwerbin/soil_genome_db",
+      "/projectnb2/talbot-lab-data/zrwerbin/soil_genome_db",
+      "/projectnb/frpmars/soil_microbe_db"
+    ), dir.exists))
+    if (server_base_exists) {
+      GEM_GENOME_DIR <- "/projectnb/talbot-lab-data/zrwerbin/soil_genome_db/genomes/gem_genomes"
+    } else {
+      GEM_GENOME_DIR <- GEM_LOCAL_DIR
+    }
+  }
+} else {
+  GEM_GENOME_DIR <- GEM_GENOME_DIR_ENV
+}
+
 GEM_CONFIG <- list(
   output_file = file.path(STRUO2_INPUT_DIR, "nayfach_MAGs_struo.tsv"),
   supplementary_file = GEM_SUPPLEMENTARY_FILE,
   download_base_url = "https://portal.nersc.gov/GEM/genomes/fna/",
   genome_pattern = "\\.fna\\.gz$",
-  genome_dir = GEM_LOCAL_DIR,
+  genome_dir = GEM_GENOME_DIR,
   local_genome_dir = GEM_LOCAL_DIR
 )
 
@@ -297,11 +479,15 @@ if (is.na(REFSOIL_DATA_FILE)) {
   REFSOIL_DATA_FILE <- local_data
 }
 
+# RefSoil uses NCBI genome directory (can be remote)
+REFSOIL_LOCAL_GENOME_DIR <- file.path(GENOME_DB_DIR, "ncbi_genomes")
+dir.create(REFSOIL_LOCAL_GENOME_DIR, showWarnings = FALSE, recursive = TRUE)
+
 REFSOIL_CONFIG <- list(
   data_file = REFSOIL_DATA_FILE,
   output_file = file.path(STRUO2_INPUT_DIR, "refsoil_struo.tsv"),
   genome_dir = NCBI_GENOME_DIR,
-  local_genome_dir = NCBI_GENOME_DIR
+  local_genome_dir = REFSOIL_LOCAL_GENOME_DIR
 )
 
 # Helper functions are now in helper_functions.r (loaded above)

@@ -242,6 +242,11 @@ log_message(paste("Found", nrow(genome_info), "genomes with NCBI taxids"), sourc
 NCBI_GENOME_DIR <- refsoil_config$genome_dir
 NCBI_GENOME_LOCAL_DIR <- refsoil_config$local_genome_dir
 
+# Use genome_dir as the primary directory (may be same as local)
+if (is.null(NCBI_GENOME_DIR) || is.na(NCBI_GENOME_DIR)) {
+  NCBI_GENOME_DIR <- NCBI_GENOME_LOCAL_DIR
+}
+
 # Check both local and remote directories
 already_downloaded <- data.frame()
 if (dir.exists(NCBI_GENOME_LOCAL_DIR)) {
@@ -332,10 +337,14 @@ if (nrow(to_download) > 0) {
 
 # Prepare output with NCBI taxonomy information
 log_message("Adding NCBI taxonomy information", source_name = source_name)
-if (!dir.exists(NCBI_TAX_DIR)) {
-  stop(paste("NCBI taxonomy directory is required but not found:", NCBI_TAX_DIR,
-             "\nPlease ensure NCBI taxonomy files are available."))
+
+# Use local NCBI taxonomy directory (files should be copied via copy_ncbi_taxonomy_local.sh)
+if (!file.exists(file.path(NCBI_TAX_DIR, "nodes.dmp"))) {
+  stop(paste("NCBI taxonomy directory not found: ", NCBI_TAX_DIR,
+             "\nPlease copy NCBI taxonomy files using: bash scripts/create_database/copy_ncbi_taxonomy_local.sh"))
 }
+
+log_message(paste("Using NCBI taxonomy directory:", NCBI_TAX_DIR), source_name = source_name)
 
 # Update file paths to check if files actually exist (some downloads may have failed)
 genome_info <- genome_info %>%
@@ -349,14 +358,96 @@ log_message(paste("Genomes with local files:", sum(genome_info$file_exists), "of
 nodes <- getnodes(taxdir = NCBI_TAX_DIR)
 genome_info$rank <- CHNOSZ::getrank(genome_info$ncbi_taxid, NCBI_TAX_DIR, nodes = nodes)
 
-log_message("Reading NCBI taxonomy", source_name = source_name)
-tryCatch({
-  ncbi_taxonomy <- tax_id_to_ranked_lineage(genome_info$ncbi_taxid, NCBI_TAX_DIR) %>%
+# Optimized taxonomy reading: use grep for small numbers of tax IDs
+unique_tax_ids <- unique(genome_info$ncbi_taxid)
+n_tax_ids <- length(unique_tax_ids)
+
+log_message(paste("Reading NCBI taxonomy for", n_tax_ids, "unique tax IDs"), source_name = source_name)
+
+# For small numbers of tax IDs (test mode), use grep to extract only needed lines
+# This is much faster than reading the entire 315MB file
+if (n_tax_ids <= 100 || is_test_mode()) {
+  log_message("Using optimized grep-based extraction (fast for small tax ID sets)", source_name = source_name)
+  
+  ranked_lineage_file <- file.path(NCBI_TAX_DIR, "rankedlineage.dmp")
+  
+  if (!file.exists(ranked_lineage_file)) {
+    stop(paste("rankedlineage.dmp not found at:", ranked_lineage_file))
+  }
+  
+  # Use awk to match first field exactly (tax_id is first field in rankedlineage.dmp)
+  # This is much faster than reading the entire 315MB file
+  log_message("Extracting relevant lines from taxonomy file using awk...", source_name = source_name)
+  
+  # Create a temporary file with tax IDs (one per line) for awk to read
+  temp_taxid_file <- tempfile()
+  writeLines(as.character(unique_tax_ids), temp_taxid_file)
+  
+  # Use awk to match first field exactly against the list of tax IDs
+  # Read tax IDs from file and match first field ($1) exactly
+  awk_cmd <- paste0("awk -F'\t' 'FNR==NR {ids[$1]; next} $1 in ids' ", 
+                    shQuote(temp_taxid_file), " ", shQuote(ranked_lineage_file))
+  tax_lines <- system(awk_cmd, intern = TRUE)
+  
+  # Clean up temp file
+  unlink(temp_taxid_file)
+  
+  if (length(tax_lines) == 0) {
+    # Fallback: try simpler grep approach (matches anywhere in line, less precise)
+    log_message("Awk extraction returned no results, trying grep fallback...", source_name = source_name)
+    temp_taxid_file <- tempfile()
+    writeLines(as.character(unique_tax_ids), temp_taxid_file)
+    grep_cmd <- paste0("grep -F -f ", shQuote(temp_taxid_file), " ", shQuote(ranked_lineage_file))
+    tax_lines <- system(grep_cmd, intern = TRUE)
+    unlink(temp_taxid_file)
+  }
+  
+  if (length(tax_lines) == 0) {
+    stop("No matching taxonomy entries found. Check if tax IDs are valid.")
+  }
+  
+  log_message(paste("Found", length(tax_lines), "matching taxonomy entries"), source_name = source_name)
+  
+  # Parse the extracted lines
+  # rankedlineage.dmp format: tax_id\t|\ttax_name\t|\tspecies\t|\t... (tab-pipe-tab delimited)
+  # Use data.table::fread for efficient parsing, but only on the small subset
+  temp_tax_file <- tempfile()
+  writeLines(tax_lines, temp_tax_file)
+  
+  # Read the subset using fread (fast even with pipe delimiters)
+  ncbi_taxonomy <- fread(temp_tax_file, sep = "\t", data.table = FALSE, 
+                         col.names = c("tax_id", "tax_name", "species", "genus", "family", 
+                                      "order", "class", "phylum", "kingdom", "superkingdom", "extra"),
+                         fill = TRUE) %>%
+    as_tibble() %>%
+    select(-extra) %>%
+    # Clean up fields (remove leading/trailing whitespace and empty strings)
+    mutate(across(everything(), ~trimws(.x))) %>%
+    mutate(across(c(species, genus, family, order, class, phylum, kingdom, superkingdom), 
+                  ~ifelse(.x == "" | is.na(.x), NA_character_, .x))) %>%
+    mutate(tax_id = as.numeric(tax_id))
+  
+  unlink(temp_tax_file)
+  
+  # Join with requested tax IDs (some may not be found)
+  ncbi_tax_ids_df <- data.frame(query_tax_id = as.numeric(unique_tax_ids))
+  ncbi_taxonomy <- ncbi_taxonomy %>%
+    right_join(ncbi_tax_ids_df, by = c("tax_id" = "query_tax_id")) %>%
     arrange(tax_id)
-}, error = function(e) {
-  log_message(paste("Error reading taxonomy file:", e$message), source_name = source_name)
-  stop(paste("Failed to read NCBI taxonomy file. Error:", e$message))
-})
+  
+  log_message("NCBI taxonomy extraction complete", source_name = source_name)
+} else {
+  # For large numbers, use the standard function (reads entire file but handles all cases)
+  log_message("Using standard taxonomy reading (for large tax ID sets)", source_name = source_name)
+  ncbi_taxonomy <- tryCatch({
+    tax_id_to_ranked_lineage(genome_info$ncbi_taxid, NCBI_TAX_DIR) %>%
+      arrange(tax_id)
+  }, error = function(e) {
+    log_message(paste("Error reading taxonomy file:", e$message), source_name = source_name)
+    stop(paste("Failed to read NCBI taxonomy file. Error:", e$message))
+  })
+  log_message("NCBI taxonomy read complete", source_name = source_name)
+}
 
 genome_info <- genome_info %>% arrange(ncbi_taxid) %>% mutate(ncbi_taxid = as.numeric(ncbi_taxid))
 
@@ -410,4 +501,3 @@ log_message(paste("Writing", nrow(ready_genomes_refsoil), "genomes to output fil
 write_tsv(ready_genomes_refsoil, refsoil_config$output_file)
 
 log_message(paste("RefSoil processing complete. Output written to:", refsoil_config$output_file), source_name = source_name)
-

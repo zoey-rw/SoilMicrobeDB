@@ -31,7 +31,9 @@ Scripts must be run in a specific order due to dependencies on shared files and 
 
 **Dependencies**: 
 - NCBI taxdump files (2021 and 2023 versions)
-- Internet access to download GTDB Excel mapping files
+- Internet access to download GTDB Excel mapping files (GTDB 214, 95, and 207)
+  - The script automatically downloads these Excel files from GTDB website
+  - GTDB 95/214 data is **required** to generate the mapping file
 
 **Output**: `data/genome_database/gtdb_mapping/GTDB_NCBI_key.rds`
 
@@ -43,7 +45,7 @@ The following scripts can be run in any order **after** the GTDB mapping file is
 
 - **SMAG**: `process_genomes/SMAG/download_SMAGs.r`
   - Uses: `GTDB_NCBI_key.rds` (all GTDB versions)
-  - Optionally uses: GTDB 214 metadata (if available in global environment)
+  - May use: GTDB 214 metadata TSV files (if available in global environment, used as Strategy 1 mapping)
   
 - **SPIRE**: `process_genomes/SPIRE/download_spire_MAGs.r`
   - Uses: `GTDB_NCBI_key.rds` (filters to GTDB 207)
@@ -51,7 +53,7 @@ The following scripts can be run in any order **after** the GTDB mapping file is
   
 - **GEM/Nayfach**: `process_genomes/GEM/download_nayfach_MAGs.r`
   - Uses: `GTDB_NCBI_key.rds` (all GTDB versions)
-  - Uses: GTDB 95 and 214 metadata files (optional, for Strategy 1 mapping)
+  - May use: GTDB 95 and 214 metadata TSV files (if available, used as Strategy 1 direct taxonomy mapping)
   
 - **GTDB 207**: `process_genomes/GTDB_207/create_GTDB_download_list.r`
   - Uses: GTDB 207 metadata files
@@ -94,10 +96,11 @@ The following scripts can be run in any order **after** the GTDB mapping file is
 - **Rationale**: Provides direct taxonomy matching for genomes using GTDB 207 taxonomy
 - **Note**: These files are large and should be placed in `data/genome_database/` or accessed via mounted remote server
 
-#### GTDB 95/214 Metadata Files (Optional)
+#### GTDB 95/214 Metadata Files
 - **Files**: `bac120_metadata_r95.tsv`, `ar53_metadata_r95.tsv`, `bac120_metadata_r214.tsv`, `ar53_metadata_r214.tsv`
-- **Used by**: GEM (optional, for Strategy 1 mapping), SMAG (optional, checks global environment)
-- **Rationale**: Provides additional precision for taxonomy matching, but mapping key is sufficient for most cases
+- **Required for**: Creating the GTDB mapping file (Step 1) - the mapping script downloads GTDB 95/214 Excel files automatically
+- **Used by**: GEM (as Strategy 1 direct taxonomy mapping), SMAG (checks global environment for Strategy 1 mapping)
+- **Note**: If the mapping file is complete, these TSV files should not change outputs. Testing with larger genome sets is needed to verify that the mapping file contains all necessary information.
 
 #### JGI GOLD Data Files
 - **Files**: `goldData.xlsx`, `GOLDs5levelEcosystemClassificationPaths.xlsx`
