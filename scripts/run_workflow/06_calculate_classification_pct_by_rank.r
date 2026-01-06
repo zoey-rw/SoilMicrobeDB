@@ -19,7 +19,7 @@ library(tidyverse)
 library(data.table)
 library(future.apply)
 library(pavian)
-source("scripts/custom_pavian.r")
+source("scripts/helper_functions.r")
 source("https://raw.githubusercontent.com/bhattlab/kraken2_classification/master/scripts/process_classification.R")
 
 # TEST MODE: Set to a sample ID or vector of sample IDs to test (e.g., "ABBY_001-M-20170607-COMP")

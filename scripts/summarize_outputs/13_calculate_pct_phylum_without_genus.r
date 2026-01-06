@@ -15,7 +15,7 @@
 library(tidyverse)
 library(data.table)
 library(pavian)
-source("scripts/custom_pavian.r")
+source("scripts/helper_functions.r")
 
 fungal_phyla <- c("Ascomycota", "Basidiomycota", "Blastocladiomycota",
                  "Chytridiomycota", "Cryptomycota", "Mucoromycota",

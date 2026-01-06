@@ -67,16 +67,101 @@ blast_files <- list(
 blast_headers <- c("read_id", "accession", "title", "evalue", "bitscore", "identity", 
                    "align_length", "query_start", "query_end", "subject_start", "subject_end")
 
+# Function to extract organism name from BLAST title (vectorized)
+extract_organism_name_from_title <- function(title) {
+    # Remove NCBI boilerplate patterns
+    clean_title <- str_remove(title, "^gi\\|[0-9]+\\|[a-z]+\\|[A-Z0-9_.]+\\|\\s*")
+    clean_title <- str_remove(clean_title, "^(PREDICTED:|[A-Z]{1,2}_[0-9]+\\.[0-9]+ |[A-Z0-9]+ )")
+    
+    # Extract binomial (Genus species)
+    binomial <- str_extract(clean_title, "([A-Z][a-z]+ [a-z]+)")
+    
+    # If no binomial, try after "MAG:" or "uncultured" patterns
+    mag_match <- str_extract(clean_title, "(MAG:|uncultured|genome assembly, chromosome|strain|isolate)\\s+([A-Z][a-z]+ [a-z]+)")
+    mag_binomial <- if_else(!is.na(mag_match), str_extract(mag_match, "([A-Z][a-z]+ [a-z]+)"), NA_character_)
+    binomial <- if_else(!is.na(binomial), binomial, mag_binomial)
+    
+    # If still no binomial, try genus
+    genus_start <- str_extract(clean_title, "^([A-Z][a-z]+)")
+    genus_after <- str_extract(clean_title, "(?<=[:\\s]|^)([A-Z][a-z]+)(?=\\s)")
+    genus <- if_else(!is.na(genus_start), genus_start, genus_after)
+    binomial <- if_else(!is.na(binomial), binomial, genus)
+    
+    return(binomial)
+}
+
+# Expanded list of common fungal genera (partial list - many more exist)
+common_fungal_genera <- c(
+    "Saccharomyces", "Candida", "Aspergillus", "Penicillium", "Fusarium", 
+    "Trichoderma", "Neurospora", "Schizosaccharomyces", "Cryptococcus", 
+    "Ustilago", "Magnaporthe", "Botrytis", "Alternaria", "Colletotrichum",
+    "Verticillium", "Phytophthora", "Pythium", "Rhizopus", "Mucor",
+    "Mortierella", "Glomus", "Agaricus", "Coprinus", "Pleurotus",
+    "Lentinula", "Ganoderma", "Trametes", "Phanerochaete", "Schizophyllum",
+    "Armillaria", "Heterobasidion", "Serpula", "Coniophora", "Postia",
+    "Fomitopsis", "Piptoporus", "Laetiporus", "Grifola", "Meripilus",
+    "Rhizophagus", "Xylographa", "Orbilia", "Arthroderma", "Elaphomyces",
+    "Hygrocybe", "Anguillospora", "Lipomyces", "Leotia", "Glarea", "Thuemenidium",
+    "Puccinia", "Uromyces", "Melampsora", "Cronartium", "Gymnosporangium",
+    "Blumeria", "Erysiphe", "Podosphaera", "Uncinula", "Microsphaera",
+    "Cladosporium", "Epicoccum", "Stemphylium", "Drechslera", "Bipolaris",
+    "Cochliobolus", "Pyrenophora", "Leptosphaeria", "Phaeosphaeria", "Mycosphaerella",
+    "Venturia", "Guignardia", "Diaporthe", "Phomopsis", "Gnomonia",
+    "Sclerotinia", "Monilinia", "Botryotinia", "Dumontinia", "Ciboria",
+    "Geotrichum", "Trichosporon", "Malassezia", "Pityrosporum", "Exophiala",
+    "Sporothrix", "Ophiostoma", "Ceratocystis", "Grosmannia", "Leptographium",
+    "Beauveria", "Metarhizium", "Cordyceps", "Isaria", "Lecanicillium",
+    "Acremonium", "Fusarium", "Gibberella", "Nectria", "Hypocrea",
+    "Trichoderma", "Chaetomium", "Sordaria", "Podospora", "Neurospora"
+)
+
+# Create pattern for common fungal genera
+fungal_genera_pattern <- paste0("\\b(", paste(common_fungal_genera, collapse = "|"), ")\\b")
+
 # Functions
-categorize_blast_hit <- function(title) {
-    case_when(
+categorize_blast_hit <- function(title, smdb_is_fungi = NA) {
+    # First check for explicit keywords
+    result <- case_when(
         grepl(human_pattern, title, ignore.case = TRUE) ~ "Human",
         grepl(fungal_keywords, title, ignore.case = TRUE) ~ "Fungi",
         grepl(bacteria_pattern, title, ignore.case = TRUE) ~ "Bacteria",
         grepl(plant_pattern, title, ignore.case = TRUE) ~ "Plant",
         grepl(animal_pattern, title, ignore.case = TRUE) ~ "Animal",
-        TRUE ~ "Other/Unknown"
+        TRUE ~ NA_character_
     )
+    
+    # If not categorized yet, try extracting organism name and checking against common fungal genera
+    org_name <- extract_organism_name_from_title(title)
+    result <- if_else(
+        is.na(result) & !is.na(org_name) & grepl(fungal_genera_pattern, org_name, ignore.case = TRUE),
+        "Fungi",
+        result
+    )
+    
+    # For reads that SMDB classified as fungi, use more lenient categorization
+    # If still not categorized and SMDB says it's a fungus, and it doesn't clearly match
+    # bacteria/plant/animal/human, treat as potentially fungal
+    is_not_other_kingdom <- !grepl(bacteria_pattern, title, ignore.case = TRUE) &
+                            !grepl(plant_pattern, title, ignore.case = TRUE) &
+                            !grepl(animal_pattern, title, ignore.case = TRUE) &
+                            !grepl(human_pattern, title, ignore.case = TRUE)
+    
+    has_binomial <- !is.na(org_name) & grepl("^[A-Z][a-z]+ [a-z]+", org_name)
+    
+    result <- if_else(
+        is.na(result) & 
+        !is.na(smdb_is_fungi) & 
+        smdb_is_fungi & 
+        is_not_other_kingdom & 
+        has_binomial,
+        "Fungi",
+        result
+    )
+    
+    # Default to Other/Unknown if still not categorized
+    result <- if_else(is.na(result), "Other/Unknown", result)
+    
+    return(result)
 }
 
 check_db_correct <- function(blast_category, db_name, db_rank) {
@@ -86,16 +171,16 @@ check_db_correct <- function(blast_category, db_name, db_rank) {
         is.na(db_name) ~ NA,
         blast_category == "Fungi" & (
             grepl(fungal_pattern, db_name, perl = TRUE) |
-            (db_rank == "k" & grepl("\\bFungi\\b", db_name)) |
+            (db_rank == "k" & grepl("Fungi", db_name, ignore.case = TRUE)) |
             (db_rank == "p" & grepl(fungal_pattern, db_name, perl = TRUE))
         ) ~ TRUE,
         blast_category == "Bacteria" & (
-            grepl("\\bBacteria\\b|\\bbacteria\\b", db_name) |
-            (db_rank == "k" & grepl("\\bBacteria\\b", db_name))
+            grepl("Bacteria|bacteria", db_name) |
+            (db_rank == "k" & grepl("Bacteria", db_name, ignore.case = TRUE))
         ) ~ TRUE,
-        blast_category == "Human" & grepl("\\bHomo sapiens\\b|\\bHomo_sapiens\\b", db_name, ignore.case = TRUE) ~ TRUE,
-        blast_category == "Plant" & grepl("\\bplant\\b|\\bPlant\\b", db_name, ignore.case = TRUE) ~ TRUE,
-        blast_category == "Animal" & grepl("\\banimal\\b|\\bAnimal\\b", db_name, ignore.case = TRUE) ~ TRUE,
+        blast_category == "Human" & grepl("Homo sapiens|Homo_sapiens", db_name, ignore.case = TRUE) ~ TRUE,
+        blast_category == "Plant" & grepl("plant|Plant", db_name, ignore.case = TRUE) ~ TRUE,
+        blast_category == "Animal" & grepl("animal|Animal", db_name, ignore.case = TRUE) ~ TRUE,
         TRUE ~ FALSE
     )
 }
@@ -118,9 +203,11 @@ all_blast_data <- map_df(names(blast_files), function(conflict_name) {
                 accession %in% c("no_hits", "blast_failed") ~ accession,
                 is.na(accession) ~ "missing",
                 TRUE ~ "success"
-            ),
-            across(c(bitscore, identity, align_length, evalue), as.numeric)
-        )
+            )
+        ) %>%
+        # Convert numeric columns - handle character values (e.g., "no_hits" rows have empty strings)
+        mutate(across(any_of(c("bitscore", "identity", "align_length", "evalue", "query_start", "query_end", "subject_start", "subject_end")), 
+                      ~ suppressWarnings(as.numeric(.x))))
 }, .id = NULL)
 
 # Deduplicate: keep best result per read_id (success > no_hits > blast_failed)
@@ -144,19 +231,18 @@ all_blast_data <- all_blast_data %>%
     select(-result_priority, -bitscore_rank)
 
 # Separate successful hits from no_hits/failed
+# First join with comparison to get smdb_is_fungi for better categorization
 all_results <- all_blast_data %>%
     filter(result_type == "success") %>%
+    left_join(comparison, by = "read_id") %>%
     mutate(
-        blast_category = categorize_blast_hit(title),
+        blast_category = categorize_blast_hit(title, smdb_is_fungi),
         reliable_hit = (align_length >= 60 & bitscore >= 50) | (bitscore >= 100),
-        unreliable_hit = !reliable_hit
-    ) %>%
-        left_join(comparison, by = "read_id") %>%
-        mutate(
-            gtdb_correct = check_db_correct(blast_category, gtdb_name, gtdb_rank),
-            smdb_correct = check_db_correct(blast_category, smdb_name, smdb_rank),
-            pluspf_correct = check_db_correct(blast_category, pluspf_name, pluspf_rank)
-        )
+        unreliable_hit = !reliable_hit,
+        gtdb_correct = check_db_correct(blast_category, gtdb_name, gtdb_rank),
+        smdb_correct = check_db_correct(blast_category, smdb_name, smdb_rank),
+        pluspf_correct = check_db_correct(blast_category, pluspf_name, pluspf_rank)
+    )
     
 # Track no_hits separately for analysis
 no_hits_data <- all_blast_data %>%

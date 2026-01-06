@@ -6,9 +6,8 @@
 
 library(tidyverse)
 library(data.table)
-source("scripts/custom_pavian.r")
-source("https://raw.githubusercontent.com/bhattlab/kraken2_classification/master/scripts/process_classification.R")
 source("scripts/helper_functions.r")
+source("https://raw.githubusercontent.com/bhattlab/kraken2_classification/master/scripts/process_classification.R")
 
 parse_sample_id <- function(filename) {
     is_filtered <- grepl("_filtered_kraken.kreport", filename)

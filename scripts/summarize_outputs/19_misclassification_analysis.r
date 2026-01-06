@@ -577,7 +577,7 @@ if(file.exists(seq_depth_file)) {
 
 # Calculate from kreport if needed
 if(is.null(total_reads) || is.na(total_reads)) {
-    source("scripts/custom_pavian.r")
+    source("scripts/helper_functions.r")
     source("https://raw.githubusercontent.com/bhattlab/kraken2_classification/master/scripts/process_classification.R")
     
     kreport_dirs <- c("data/NEON_metagenome_classification/01_kraken_output",
