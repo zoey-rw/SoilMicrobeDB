@@ -1,20 +1,176 @@
 pacman::p_load(data.table, tidyverse, tidyfast, phyloseq, CHNOSZ)
 
+# ============================================================================
+# Configuration Helper Functions (for database creation)
+# ============================================================================
+# These functions are used by config.R and processing scripts in create_database/
 
-# gtdb_214_metadata = fread("/projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/genomes/bac120_metadata_r214.tsv") %>%
-# 	select(accession,checkm_completeness,checkm_contamination,gtdb_genome_representative,gtdb_taxonomy,ncbi_date,ncbi_genbank_assembly_accession,ncbi_organism_name,ncbi_taxid,ncbi_taxonomy) %>% mutate(source="GTDB_214")
-#
-#
-# gtdb_95_metadata = fread("/projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/genomes/bac120_metadata_r95.tsv") %>%
-# 	select(accession,checkm_completeness,checkm_contamination,gtdb_genome_representative,gtdb_taxonomy,ncbi_date,ncbi_genbank_assembly_accession,ncbi_organism_name,ncbi_taxid,ncbi_taxonomy) %>% mutate(source="GTDB_95")
+# Source-specific directory function
+get_source_dir <- function(source_name) {
+  if (!exists("GENOME_DB_DIR")) {
+    stop("GENOME_DB_DIR not defined. Please source config.R first.")
+  }
+  file.path(GENOME_DB_DIR, source_name)
+}
 
-gtdb_207_metadata_bac = fread("data/genome_database/bac120_metadata_r207.tsv") %>%
-	select(accession,checkm_completeness,checkm_contamination,gtdb_genome_representative,gtdb_taxonomy,ncbi_date,ncbi_genbank_assembly_accession,ncbi_organism_name,ncbi_taxid,ncbi_taxonomy, ncbi_genome_category) %>% mutate(source="GTDB_207")
-gtdb_207_metadata_ar = fread("data/genome_database/ar53_metadata_r207.tsv") %>%
-	select(accession,checkm_completeness,checkm_contamination,gtdb_genome_representative,gtdb_taxonomy,ncbi_date,ncbi_genbank_assembly_accession,ncbi_organism_name,ncbi_taxid,ncbi_taxonomy, ncbi_genome_category) %>% mutate(source="GTDB_207")
-gtdb_207_metadata = rbind(gtdb_207_metadata_bac, gtdb_207_metadata_ar) %>% 
-    mutate(is_MAG=ifelse(ncbi_genome_category=="derived from metagenome", T, F)) %>% select(-ncbi_genome_category)
+# Source-specific log directory function
+get_source_log_dir <- function(source_name) {
+  if (!exists("CREATE_DB_DIR")) {
+    stop("CREATE_DB_DIR not defined. Please source config.R first.")
+  }
+  log_dir <- file.path(CREATE_DB_DIR, "process_genomes", source_name, "logs")
+  dir.create(log_dir, showWarnings = FALSE, recursive = TRUE)
+  return(log_dir)
+}
 
+# Logging function
+log_message <- function(msg, source_name = "general") {
+  if (!exists("LOG_BASE_DIR")) {
+    # Fallback if config.R not sourced
+    cat(paste0("[", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "] ", msg, "\n"))
+    return(invisible(NULL))
+  }
+  
+  timestamp <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+  log_dir <- if (source_name != "general") {
+    get_source_log_dir(source_name)
+  } else {
+    LOG_BASE_DIR
+  }
+  log_file <- file.path(log_dir, paste0(source_name, "_", format(Sys.Date(), "%Y%m%d"), ".log"))
+  message <- paste0("[", timestamp, "] ", msg)
+  cat(message, "\n")
+  write(message, file = log_file, append = TRUE)
+}
+
+# Check if in test mode
+is_test_mode <- function() {
+  if (!exists("TEST_MODE") || !exists("MAX_GENOMES")) {
+    return(FALSE)
+  }
+  return(TEST_MODE || !is.na(MAX_GENOMES))
+}
+
+# Helper function to get source config
+get_source_config <- function(source_name) {
+  if (!exists("STRUO2_INPUT_DIR")) {
+    stop("STRUO2_INPUT_DIR not defined. Please source config.R first.")
+  }
+  config_name <- paste0(toupper(source_name), "_CONFIG")
+  if (exists(config_name)) {
+    return(get(config_name))
+  } else {
+    # Return default config structure
+    return(list(
+      output_file = file.path(STRUO2_INPUT_DIR, paste0(tolower(source_name), "_struo.tsv"))
+    ))
+  }
+}
+
+# Print configuration summary (useful for debugging)
+print_config <- function() {
+  if (!exists("BASE_DIR")) {
+    cat("Configuration not loaded. Please source config.R first.\n")
+    return(invisible(NULL))
+  }
+  cat("=== Database Creation Configuration ===\n")
+  cat("Base Directory:", BASE_DIR, "\n")
+  cat("Genome Database Directory:", GENOME_DB_DIR, "\n")
+  cat("Struo2 Input Directory:", STRUO2_INPUT_DIR, "\n")
+  cat("Test Mode:", TEST_MODE, "\n")
+  if (!is.na(MAX_GENOMES)) {
+    cat("Max Genomes (test):", MAX_GENOMES, "\n")
+  }
+  cat("Min Completeness:", MIN_COMPLETENESS, "%\n")
+  cat("Max Contamination:", MAX_CONTAMINATION, "%\n")
+  cat("NCBI Tax Directory:", NCBI_TAX_DIR, "\n")
+  cat("=====================================\n")
+}
+
+# Download file from GitHub if it doesn't exist locally
+# GitHub URL should point to raw file content
+download_from_github <- function(github_url, local_path, description = "file") {
+  if (file.exists(local_path) && file.size(local_path) > 0) {
+    return(local_path)
+  }
+  
+  # Create directory if it doesn't exist
+  dir.create(dirname(local_path), showWarnings = FALSE, recursive = TRUE)
+  
+  # Download from GitHub
+  tryCatch({
+    download.file(github_url, destfile = local_path, mode = "wb", quiet = TRUE)
+    if (file.exists(local_path) && file.size(local_path) > 0) {
+      message(paste("Downloaded", description, "from GitHub to:", local_path))
+      return(local_path)
+    } else {
+      stop("Downloaded file is empty")
+    }
+  }, error = function(e) {
+    if (file.exists(local_path)) unlink(local_path)
+    stop(paste("Failed to download", description, "from GitHub:", e$message,
+               "\nURL:", github_url,
+               "\nPlease download manually and place at:", local_path))
+  })
+}
+
+# ============================================================================
+# GTDB Metadata Loading
+# ============================================================================
+
+# Load GTDB 207 metadata (required for taxonomy matching)
+# Check if we're in a context where BASE_DIR and GENOME_DB_DIR are defined
+gtdb_207_metadata <- NULL
+if (exists("GENOME_DB_DIR")) {
+  gtdb_207_bac_file <- file.path(GENOME_DB_DIR, "bac120_metadata_r207.tsv")
+  gtdb_207_ar_file <- file.path(GENOME_DB_DIR, "ar53_metadata_r207.tsv")
+  
+  if (file.exists(gtdb_207_bac_file) && file.exists(gtdb_207_ar_file)) {
+    gtdb_207_metadata_bac <- fread(gtdb_207_bac_file) %>%
+      select(accession,checkm_completeness,checkm_contamination,gtdb_genome_representative,gtdb_taxonomy,ncbi_date,ncbi_genbank_assembly_accession,ncbi_organism_name,ncbi_taxid,ncbi_taxonomy, ncbi_genome_category) %>% mutate(source="GTDB_207")
+    gtdb_207_metadata_ar <- fread(gtdb_207_ar_file) %>%
+      select(accession,checkm_completeness,checkm_contamination,gtdb_genome_representative,gtdb_taxonomy,ncbi_date,ncbi_genbank_assembly_accession,ncbi_organism_name,ncbi_taxid,ncbi_taxonomy, ncbi_genome_category) %>% mutate(source="GTDB_207")
+    gtdb_207_metadata <- rbind(gtdb_207_metadata_bac, gtdb_207_metadata_ar) %>% 
+      mutate(is_MAG=ifelse(ncbi_genome_category=="derived from metagenome", T, F)) %>% select(-ncbi_genome_category)
+  }
+}
+
+# Fallback to local data path if GENOME_DB_DIR not available or files not found
+if (is.null(gtdb_207_metadata)) {
+  local_bac_path <- "data/genome_database/bac120_metadata_r207.tsv"
+  local_ar_path <- "data/genome_database/ar53_metadata_r207.tsv"
+  
+  if (file.exists(local_bac_path) && file.exists(local_ar_path)) {
+    gtdb_207_metadata_bac <- fread(local_bac_path) %>%
+      select(accession,checkm_completeness,checkm_contamination,gtdb_genome_representative,gtdb_taxonomy,ncbi_date,ncbi_genbank_assembly_accession,ncbi_organism_name,ncbi_taxid,ncbi_taxonomy, ncbi_genome_category) %>% mutate(source="GTDB_207")
+    gtdb_207_metadata_ar <- fread(local_ar_path) %>%
+      select(accession,checkm_completeness,checkm_contamination,gtdb_genome_representative,gtdb_taxonomy,ncbi_date,ncbi_genbank_assembly_accession,ncbi_organism_name,ncbi_taxid,ncbi_taxonomy, ncbi_genome_category) %>% mutate(source="GTDB_207")
+    gtdb_207_metadata <- rbind(gtdb_207_metadata_bac, gtdb_207_metadata_ar) %>% 
+      mutate(is_MAG=ifelse(ncbi_genome_category=="derived from metagenome", T, F)) %>% select(-ncbi_genome_category)
+  }
+}
+
+# Fallback to old hardcoded paths if local paths not available
+if (is.null(gtdb_207_metadata)) {
+  old_bac_path <- "/projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/genomes/bac120_metadata_r207.tsv"
+  old_ar_path <- "/projectnb2/talbot-lab-data/zrwerbin/soil_genome_db/genomes/ar53_metadata_r207.tsv"
+  
+  if (file.exists(old_bac_path) && file.exists(old_ar_path)) {
+    gtdb_207_metadata_bac <- fread(old_bac_path) %>%
+      select(accession,checkm_completeness,checkm_contamination,gtdb_genome_representative,gtdb_taxonomy,ncbi_date,ncbi_genbank_assembly_accession,ncbi_organism_name,ncbi_taxid,ncbi_taxonomy, ncbi_genome_category) %>% mutate(source="GTDB_207")
+    gtdb_207_metadata_ar <- fread(old_ar_path) %>%
+      select(accession,checkm_completeness,checkm_contamination,gtdb_genome_representative,gtdb_taxonomy,ncbi_date,ncbi_genbank_assembly_accession,ncbi_organism_name,ncbi_taxid,ncbi_taxonomy, ncbi_genome_category) %>% mutate(source="GTDB_207")
+    gtdb_207_metadata <- rbind(gtdb_207_metadata_bac, gtdb_207_metadata_ar) %>% 
+      mutate(is_MAG=ifelse(ncbi_genome_category=="derived from metagenome", T, F)) %>% select(-ncbi_genome_category)
+  }
+}
+
+# Note: gtdb_207_metadata may still be NULL if files are not accessible
+# Individual scripts should check and load via SSH if needed
+
+# ============================================================================
+# Kraken Data Processing Functions
+# ============================================================================
 
 # Reads kraken output file, splits taxid vector if needed, and removes duplicated reads
 fread_kraken_reads = function(file.path = NULL, db_name = "db_name", sampleID = "HARV_001-M-13-7-20131122"){
@@ -42,9 +198,10 @@ df_return = reads_in %>%
 return(df_return)
 }
 
+# ============================================================================
+# Taxonomy Processing Functions
+# ============================================================================
 
-# split_taxonomy_ncbi = function(df_in, col = "taxLineage"){
-# 	input_data = df_in %>% select(!!col)
 split_taxonomy_ncbi = function(input_data){
 
 	root <- str_extract(input_data, "(?<=\\|r_)[^|]+|^r_[^|]+")
@@ -59,18 +216,84 @@ split_taxonomy_ncbi = function(input_data){
 	subspecies <- str_extract(input_data, "(?<=\\|s1_)[^|]+|^s1_[^|]+")
 
 	lineage_df = cbind.data.frame(root, domain, kingdom, phylum, class, order, family, genus, species, subspecies)
-#
-# 	lineage_df = df_in %>% select(!!col) %>% separate(col,into =
-# 																											 	c("root","domain",
-# 																											 		#"kingdom",
-# 																											 		"phylum","class","order","family","genus","species","subspecies"),
-# 																											 fill = "right",
-# 																											sep="\\|") %>%
-# 	 mutate(across(c("root","domain","kingdom","phylum","class","order","family","genus","species","subspecies"), function(x) { gsub("s1_|s_|g_|f_|o_|c_|p_|k_|d_|r_","",x) }))
 	return(lineage_df)
-#	return(cbind.data.frame(df_in, lineage_df))
 }
 
+tax_id_to_ranked_lineage <- function( ncbi_tax_ids , ncbi_tax_dir =  "dir_path/to/ncbi_taxonomy_files/"){
+	# Optimized version: reads entire file with data.table (fast) and filters in memory
+	# function based on https://www.biostars.org/p/317073/
+	library(data.table)
+	library(tidyverse)
+	
+	## get rankedlineage file index
+	ranked_lineage_file_index  <- grep("rankedlineage.dmp" , list.files(ncbi_tax_dir , full.names = T))
+
+	## check if the file present
+	if(length(ranked_lineage_file_index) != 1){
+		stop("rankedlineage.dmp not found in given tax directory" )
+	}
+
+	## get the file and load it
+	ranked_lineage_file <- list.files(ncbi_tax_dir , full.names = T)[ranked_lineage_file_index]
+	
+	# Read entire file with data.table (fast) - rankedlineage.dmp has 20 columns (tab-delimited with pipe separators)
+	# We only need columns 1, 3, 5, 7, 9, 11, 13, 15, 17, 19 (every other column starting from 1)
+	ranked_lineage_all <- fread(ranked_lineage_file, sep = "\t", data.table = TRUE, fill = TRUE, showProgress = FALSE)
+	
+	# Select every other column (the actual data columns, skipping pipe separators)
+	col_indices <- seq(from = 1, to = min(20, ncol(ranked_lineage_all)), by = 2)
+	ranked_lineage_all <- ranked_lineage_all[, ..col_indices]
+	setnames(ranked_lineage_all, c("tax_id", "tax_name", "species", "genus", "family", 
+	                                "order", "class", "phylum", "kingdom", "superkingdom"))
+	
+	# Convert tax IDs to numeric for filtering
+	unique_tax_ids <- unique(as.numeric(ncbi_tax_ids))
+	
+	# Filter to only needed tax IDs (data.table is very fast for this)
+	ranked_lineage <- ranked_lineage_all[as.numeric(tax_id) %in% unique_tax_ids] %>%
+		as_tibble() %>%
+		mutate(across(everything(), ~trimws(.x))) %>%
+		mutate(across(c(species, genus, family, order, class, phylum, kingdom, superkingdom), 
+		              ~ifelse(.x == "" | is.na(.x), NA_character_, .x))) %>%
+		mutate(tax_id = as.numeric(tax_id))
+
+	# Join with requested tax IDs (some may not be found in taxonomy file)
+	ncbi_tax_ids <- as.numeric(ncbi_tax_ids) %>% as_tibble() %>% `colnames<-`(c("query_tax_id"))
+	mapped <- ranked_lineage %>%
+		right_join(ncbi_tax_ids , by = c("tax_id" = "query_tax_id")) %>%
+		arrange(tax_id)
+
+	return(mapped)
+}
+
+clean_ncbi <- function(NCBI_taxon_name_in) {
+
+	# Remove prefixes
+	NCBI_taxon_name = gsub("s__|g__|f__|o__|c__|p__","", NCBI_taxon_name_in)
+
+	# Remove percent matches
+	NCBI_taxon_name =  gsub("%$","", NCBI_taxon_name)
+	NCBI_taxon_name =  gsub(" [[:digit:]][[:digit:]][[:digit:]].[[:digit:]]$","", NCBI_taxon_name)
+	NCBI_taxon_name =  gsub(" [[:digit:]][[:digit:]].[[:digit:]][[:digit:]]$","", NCBI_taxon_name)
+	NCBI_taxon_name =  gsub(" [[:digit:]][[:digit:]].[[:digit:]]$","", NCBI_taxon_name)
+	NCBI_taxon_name =  gsub(" [[:digit:]].[[:digit:]][[:digit:]]$","", NCBI_taxon_name)
+	NCBI_taxon_name =  gsub(" [[:digit:]].[[:digit:]]$","", NCBI_taxon_name)
+
+	# Remove parentheses if they follow an assignment
+	NCBI_taxon_name <- gsub("\\b([[:alnum:]]+)\\s*\\([^)]*\\)", "\\1", NCBI_taxon_name)
+
+	# Remove parentheses
+	NCBI_taxon_name =  gsub("\\(|\\)","", NCBI_taxon_name)
+
+	# Remove parentheses
+	NCBI_taxon_name =  gsub("\\[|\\]","", NCBI_taxon_name)
+
+	NCBI_taxon_name
+}
+
+# ============================================================================
+# Data Manipulation Functions
+# ============================================================================
 
 # from https://alistaire.rbind.io/blog/coalescing-joins/
 coalesce_join <- function(x, y,
@@ -98,37 +321,27 @@ coalesce_join <- function(x, y,
 	dplyr::bind_cols(joined, coalesced)[cols]
 }
 
-
-clean_ncbi <- function(NCBI_taxon_name_in) {
-
-	# Remove prefixes
-	NCBI_taxon_name = gsub("s__|g__|f__|o__|c__|p__","", NCBI_taxon_name_in)
-
-	# Remove percent matches
-	NCBI_taxon_name =  gsub("%$","", NCBI_taxon_name)
-	NCBI_taxon_name =  gsub(" [[:digit:]][[:digit:]][[:digit:]].[[:digit:]]$","", NCBI_taxon_name)
-	NCBI_taxon_name =  gsub(" [[:digit:]][[:digit:]].[[:digit:]][[:digit:]]$","", NCBI_taxon_name)
-	NCBI_taxon_name =  gsub(" [[:digit:]][[:digit:]].[[:digit:]]$","", NCBI_taxon_name)
-	NCBI_taxon_name =  gsub(" [[:digit:]].[[:digit:]][[:digit:]]$","", NCBI_taxon_name)
-	NCBI_taxon_name =  gsub(" [[:digit:]].[[:digit:]]$","", NCBI_taxon_name)
-
-	# Remove parentheses if they follow an assignment
-	NCBI_taxon_name <- gsub("\\b([[:alnum:]]+)\\s*\\([^)]*\\)", "\\1", NCBI_taxon_name)
-
-	# Remove parentheses
-	NCBI_taxon_name =  gsub("\\(|\\)","", NCBI_taxon_name)
-
-	# Remove parentheses
-	NCBI_taxon_name =  gsub("\\[|\\]","", NCBI_taxon_name)
-
-	NCBI_taxon_name
-}
-
 read_in_genomes <- function(directory, pattern = ".fa"){
+
+# Return empty data frame if directory doesn't exist
+if (!dir.exists(directory)) {
+  return(data.frame(filepath = character(0), 
+                    filename = character(0), 
+                    user_genome = character(0),
+                    stringsAsFactors = FALSE))
+}
 
 files_downloaded = list.files(directory,
 														 full.names = T, #include.dirs = T,
 														 recursive = T, pattern = pattern)
+
+# Return empty data frame if no files found
+if (length(files_downloaded) == 0) {
+  return(data.frame(filepath = character(0), 
+                    filename = character(0), 
+                    user_genome = character(0),
+                    stringsAsFactors = FALSE))
+}
 
 names(files_downloaded) = basename(files_downloaded)
 files_downloaded <- stack(files_downloaded)
@@ -138,34 +351,9 @@ files_downloaded$user_genome = gsub(pattern,"",files_downloaded$filename)
 return(files_downloaded)
 }
 
-
-
-tax_id_to_ranked_lineage <- function( ncbi_tax_ids , ncbi_tax_dir =  "dir_path/to/ncbi_taxonomy_files/"){
-	# function from https://www.biostars.org/p/317073/
-	library(data.table)
-	library(tidyverse)
-	## get rankedlineage file index
-	ranked_lineage_file_index  <- grep("rankedlineage.dmp" , list.files(ncbi_tax_dir , full.names = T))
-
-	## check if the file present
-	if(length(ranked_lineage_file_index) != 1){
-		stop("rankedlineagess.dmp not found in given tax directory" )
-	}
-
-	## get the file and load it
-	ranked_lineage_file <- list.files(ncbi_tax_dir , full.names = T)[ranked_lineage_file_index]
-	ranked_lineage <- fread(ranked_lineage_file , data.table = F) %>%
-		as_tibble() %>%
-		select(seq(from = 1, to = 20 , by = 2)) %>%
-		`colnames<-`(c("tax_id","tax_name","species","genus","family","order","class","phylum","kingdom","superkingdom"))
-
-	ncbi_tax_ids <- as.numeric(ncbi_tax_ids) %>% as_tibble() %>% `colnames<-`(c("query_tax_id"))
-	mapped <- ranked_lineage %>%
-		right_join(ncbi_tax_ids , by = c("tax_id" = "query_tax_id"))
-
-	return(mapped)
-}
-
+# ============================================================================
+# Classification Result Functions
+# ============================================================================
 
 source("https://raw.githubusercontent.com/bhattlab/kraken2_classification/422f4e10d6fbb0ddffe790e3d091bb239f4f3418/scripts/process_classification.R")
 add_result_columns <- function(df){
@@ -209,7 +397,6 @@ add_result_columns <- function(df){
 	df = df %>% mutate(fungal =	ifelse(if_any(fungal_cols(), ~str_detect(., "Fungi")), 1, 0))
 	df = df %>% mutate(human =	ifelse(if_any(human_cols(), ~str_detect(., "sapiens")), 1, 0))
 	df = df %>% mutate(plant =	ifelse(if_any(plant_cols(), ~str_detect(., "Plantae|plant")), 1, 0))
-#	df = df %>% mutate(plant =	ifelse(grepl("Plantae", kingdom_PlusPFP8), 1, 0))
 
 	df$prokaryote[is.na(df$prokaryote)] <- 0
 	df$viral[is.na(df$viral)] <- 0
@@ -236,7 +423,241 @@ add_result_columns <- function(df){
  return(df)
 }
 
+# ============================================================================
+# Kraken Report Functions 
+# ============================================================================
 
+fread_report = function(myfile, sampleID = NULL, db_name = NULL, keep_taxRanks = c("D", "K",
+																																									 "P", "C", "O", "F", "G", "S")){
+	keep_taxRanks = c("D", "K",
+										"P", "C", "O", "F", "G", "S","S1")
+	report = data.table::fread(myfile, sep = "\t")
+	if(ncol(report)<8) {
+		col_vec <-  c("percentage", "cladeReads", "taxonReads",
+									 	"taxRank", "taxID", "name")
+	} else {
+		col_vec <- c("percentage", "cladeReads", "taxonReads", "nKmers","n_unique_kmers",
+									 	"taxRank", "taxID", "name")
+	}
+
+colnames(report) <- col_vec
+
+if ('n_unique_kmers'  %in% colnames(report)){
+	report$kmerpercentage <- round(report$n_unique_kmers/sum(report$n_unique_kmers,na.rm=T),6) * 100
+}
+
+report$depth <- nchar(gsub("\\S.*", "", report$name))/2
+report$name <- gsub("^ *", "", report$name)
+report$name <- paste(tolower(report$taxRank), report$name,
+										 sep = "_")
+
+report = report %>%
+	mutate(db_name = !!db_name, sampleID = !!sampleID,
+				 taxID = as.double(taxID))
+return(report)
+}
+
+read_report3 <- function(myfile,collapse=TRUE,keep_taxRanks=c("D","K","P","C","O","F","G","S"),min.depth=0,filter_taxon=NULL,
+												 has_header=NULL,add_taxRank_columns=FALSE) {
+
+	first.line <- readLines(myfile,n=1)
+	isASCII <-  function(txt) all(charToRaw(txt) <= as.raw(127))
+	if (!isASCII(first.line)) {
+		dmessage(myfile," is no valid report - not all characters are ASCII")
+		return(NULL)
+	}
+	if (is.null(has_header)) {
+		has_header <- grepl("^[a-zA-Z]",first.line)
+	}
+
+	if (has_header) {
+		report <- utils::read.table(myfile,sep="\t",header = T,
+																quote = "",stringsAsFactors=FALSE, comment.char="#")
+		colnames(report)[colnames(report)=="clade_perc"] <- "percentage"
+		colnames(report)[colnames(report)=="perc"] <- "percentage"
+
+		colnames(report)[colnames(report)=="n_reads_clade"] <- "cladeReads"
+		colnames(report)[colnames(report)=="n.clade"] <- "cladeReads"
+
+		colnames(report)[colnames(report)=="n_reads_taxo"] <- "taxonReads"
+		colnames(report)[colnames(report)=="n.stay"] <- "taxonReads"
+
+		colnames(report)[colnames(report)=="rank"] <- "taxRank"
+		colnames(report)[colnames(report)=="tax_rank"] <- "taxRank"
+
+		colnames(report)[colnames(report)=="taxonid"] <- "taxID"
+		colnames(report)[colnames(report)=="tax"] <- "taxID"
+
+	} else {
+		report <- utils::read.table(myfile,sep="\t",header = F,
+																col.names = c("percentage","cladeReads","taxonReads","taxRank","taxID","name"),
+																quote = "",stringsAsFactors=FALSE, comment.char="#")
+	}
+
+	report$depth <- nchar(gsub("\\S.*","",report$name))/2
+	report$name <- gsub("^ *","",report$name)
+	report$name <- paste(tolower(report$taxRank),report$name,sep="_")
+
+	kraken.tree <- pavian:::build_kraken_tree(report)
+
+	report$taxLineage = report$name
+	rows_to_consider <- rep(FALSE,nrow(report))
+
+	report$percentage <- round(report$cladeReads/sum(report$taxonReads),6) * 100
+
+	for (column in c("taxonReads", "cladeReads"))
+		if (all(floor(report[[column]]) == report[[column]]))
+			report[[column]] <- as.integer(report[[column]])
+
+	if ('n_unique_kmers'  %in% colnames(report))
+		report$kmerpercentage <- round(report$n_unique_kmers/sum(report$n_unique_kmers,na.rm=T),6) * 100
+
+	rownames(report) <- NULL
+
+	report
+}
+
+summarize_report_custom <- function(my_report) {
+	protist_taxids <- c("-_Diplomonadida"=5738,
+											"-_Amoebozoa"=554915,
+											"-_Alveolata"=33630)
+	rownames(my_report)[rownames(my_report) == "r_root"] <- "-_root"
+	my_report <- my_report[!duplicated(my_report$name),]
+	row.names(my_report) <- my_report[["name"]]
+	unidentified_reads <- my_report["u_unclassified","cladeReads"]
+	identified_reads <- my_report["r_root","cladeReads"]
+	artificial_reads <- pavian:::zero_if_na1(my_report["s_synthetic construct",
+																										 "cladeReads"])
+	human_reads <- pavian:::zero_if_na1(my_report["s_Homo sapiens", "cladeReads"])
+	chordate_reads <- pavian:::zero_if_na1(my_report["p_Chordata", "cladeReads"])
+	root_reads <- pavian:::zero_if_na1(my_report["r_root", "taxonReads"])
+	out <- data.frame(number_of_raw_reads = unidentified_reads + identified_reads,
+										classified_reads = identified_reads, chordate_reads = chordate_reads,
+										artificial_reads = artificial_reads, unclassified_reads = unidentified_reads,
+										microbial_reads = identified_reads - chordate_reads -
+											artificial_reads - root_reads, bacterial_reads = pavian:::zero_if_na1(my_report["d_Bacteria",
+																																																			"cladeReads"]) + pavian:::zero_if_na1(my_report["k_Bacteria",
+																																																																											"cladeReads"]), viral_reads = pavian:::zero_if_na1(my_report["d_Viruses",
+																																																																																																									 "cladeReads"]) + pavian:::zero_if_na1(my_report["k_Viruses",
+																																																																																																									 																								"cladeReads"]), fungal_reads = pavian:::zero_if_na1(my_report["k_Fungi",
+																																																																																																									 																																																							"cladeReads"]), protozoan_reads = sum(pavian:::zero_if_na1(my_report[names(protist_taxids),
+																																																																																																									 																																																																																									 "cladeReads"])))
+}
+
+fread_report2 <- function (myfile, db_name=NULL, sampleID = NULL, collapse = FALSE, keep_taxRanks = c("D", "K",
+																										 "P", "C", "O", "F", "G", "S","S1"), min.depth = 0, filter_taxon = NULL,
+					has_header = NULL, add_taxRank_columns = FALSE)
+{
+	first.line <- readLines(myfile, n = 1)
+	isASCII <- function(txt) all(charToRaw(txt) <= as.raw(127))
+	if (!isASCII(first.line)) {
+		dmessage(myfile, " is no valid report - not all characters are ASCII")
+		return(NULL)
+	}
+	if (is.null(has_header)) {
+		has_header <- grepl("^[a-zA-Z]", first.line)
+	}
+	if (has_header) {
+		report <- utils::read.table(myfile, sep = "\t", header = T,
+																quote = "", stringsAsFactors = FALSE, comment.char = "#")
+		colnames(report)[colnames(report) == "clade_perc"] <- "percentage"
+		colnames(report)[colnames(report) == "perc"] <- "percentage"
+		colnames(report)[colnames(report) == "n_reads_clade"] <- "cladeReads"
+		colnames(report)[colnames(report) == "n.clade"] <- "cladeReads"
+		colnames(report)[colnames(report) == "n_reads_taxo"] <- "taxonReads"
+		colnames(report)[colnames(report) == "n.stay"] <- "taxonReads"
+		colnames(report)[colnames(report) == "rank"] <- "taxRank"
+		colnames(report)[colnames(report) == "tax_rank"] <- "taxRank"
+		colnames(report)[colnames(report) == "taxonid"] <- "taxID"
+		colnames(report)[colnames(report) == "tax"] <- "taxID"
+	}
+	else {
+		report <- utils::read.table(myfile, sep = "\t", header = F,
+																quote = "", stringsAsFactors = FALSE,
+																comment.char = "#")
+		if(ncol(report)<8) {
+			col_vec <-  c("percentage", "cladeReads", "taxonReads",
+										"taxRank", "taxID", "name")
+		} else {
+			col_vec <- c("percentage", "cladeReads", "taxonReads", "nKmers","n_unique_kmers",
+									 "taxRank", "taxID", "name")
+		}
+
+		colnames(report) <- col_vec
+	}
+	report$depth <- nchar(gsub("\\S.*", "", report$name))/2
+	report$name <- gsub("^ *", "", report$name)
+	report$name <- paste(tolower(report$taxRank), report$name,
+											 sep = "_")
+	kraken.tree <- pavian:::build_kraken_tree(report)
+	report <- pavian:::collapse.taxRanks(kraken.tree, keep_taxRanks = keep_taxRanks,
+															filter_taxon = filter_taxon)
+	if (add_taxRank_columns) {
+		report[, keep_taxRanks] <- NA
+	}
+	report$taxLineage = report$name
+	rows_to_consider <- rep(FALSE, nrow(report))
+	for (i in seq_len(nrow(report))) {
+		if (i > 1 && report[i, "depth"] > min.depth) {
+			idx <- report$depth < report[i, "depth"] & rows_to_consider
+			if (!any(idx)) {
+				(next)()
+			}
+			current.taxRank <- report[i, "taxRank"]
+			my_row <- max(which(idx))
+			report[i, "taxLineage"] <- paste(report[my_row, "taxLineage"],
+																			 report[i, "taxLineage"], sep = "|")
+			if (add_taxRank_columns) {
+				if (report[my_row, "taxRank"] %in% keep_taxRanks) {
+					taxRanks.cp <- keep_taxRanks[seq(from = 1,
+																					 to = which(keep_taxRanks == report[my_row,
+																					 																	 "taxRank"]))]
+					report[i, taxRanks.cp] <- report[my_row, taxRanks.cp]
+				}
+				report[i, report[i, "taxRank"]] <- report[i,
+																									"name"]
+			}
+		}
+		rows_to_consider[i] <- TRUE
+	}
+	report <- report[report$depth >= min.depth, ]
+	report$percentage <- round(report$cladeReads/sum(report$taxonReads),
+														 6) * 100
+	for (column in c("taxonReads", "cladeReads")) if (all(floor(report[[column]]) ==
+																												report[[column]]))
+		report[[column]] <- as.integer(report[[column]])
+	if ("n_unique_kmers" %in% colnames(report))
+		report$kmerpercentage <- round(report$n_unique_kmers/sum(report$n_unique_kmers,
+																														 na.rm = T), 6) * 100
+	rownames(report) <- NULL
+
+	report = report %>%
+		mutate(db_name = !!db_name, sampleID = !!sampleID,
+					 taxID = as.double(taxID))
+	report
+}
+
+# From: https://rdrr.io/github/larssnip/microclass/src/R/krkFun.R#sym-krk2kmer
+krk2kmer <- function(krk.tbl){
+	krk.tbl %>%
+		select(db_name, sampleID, sequenceID, classified_details) %>%
+		mutate(tax_count = str_remove(classified_details, "\\|:\\| ")) %>%
+		mutate(tax_id = str_remove_all(tax_count, ":[0-9]+")) %>%
+		mutate(count = str_remove_all(tax_count, "[0-9]+:")) %>%
+		select(-tax_count) %>%
+		mutate(tax_id = str_split(tax_id, pattern = " ")) %>%
+		mutate(count = str_split(count, pattern = " ")) %>%
+		unnest(c(tax_id, count)) %>%
+		mutate(tax_id = as.double(tax_id), count = as.integer(count)) %>%
+		group_by(db_name, sampleID, sequenceID, tax_id) %>%
+		summarise(tax_count = sum(count)) %>%
+		ungroup() -> kmer.tbl
+	return(kmer.tbl)
+}
+
+# ============================================================================
+# Kmer and Taxonomy Report Functions
+# ============================================================================
 
 # from https://github.com/larssnip/microclass/blob/3f3ac0ad10650957168e1d9d903e8eea138aae36/R/krkFun.R#L273
 kmer_report <- function(kmer.tbl, taxonomy.tbl){
@@ -292,7 +713,6 @@ kmer_report <- function(kmer.tbl, taxonomy.tbl){
 	return(rep.tbl)
 }
 
-
 kraken2_taxonomy <- function(inspect.file){
 	rank.order <- c("R", "D", "K", "P", "C", "O", "F", "G", "S")
 	read_kraken2_report(inspect.file) %>%
@@ -322,6 +742,9 @@ kraken2_taxonomy <- function(inspect.file){
 	return(insp.tbl)
 }
 
+# ============================================================================
+# NEON Data Functions
+# ============================================================================
 
 # create sample information data.frame from NEON sample names
 parseNEONsampleIDs <- function(sampleID){
@@ -343,8 +766,90 @@ parseNEONsampleIDs <- function(sampleID){
 	return(df)
 }
 
+# Load NEON soil chemistry data
+# Checks local path first, then falls back to project path
+load_soilChem <- function(neon_soil_file = NULL) {
+    if(is.null(neon_soil_file)) {
+        local_path <- "data/environmental_data/neon_soil_data_2023.rds"
+        project_path <- "/projectnb/dietzelab/zrwerbin/N-cycle/neon_soil_data_2023.rds"
+        
+        if(file.exists(local_path)) {
+            neon_soil_file <- local_path
+        } else if(file.exists(project_path)) {
+            neon_soil_file <- project_path
+        } else {
+            stop("neon_soil_data_2023.rds not found in:\n  ", local_path, "\n  ", project_path)
+        }
+    }
+    return(readRDS(neon_soil_file))
+}
 
-# Functions from helper_functions2.r (correlation and biome assignment functions)
+# Extract genomic sample mapping (sampleID to genomicsSampleID) from soilChem
+# Can take soilChem as input or load it if not provided
+load_genSampleExample <- function(soilChem = NULL, neon_soil_file = NULL) {
+    if(is.null(soilChem)) {
+        soilChem <- load_soilChem(neon_soil_file)
+    }
+    if(!"sls_metagenomicsPooling" %in% names(soilChem)) {
+        stop("sls_metagenomicsPooling not found in soilChem")
+    }
+    genomicSamples <- soilChem$sls_metagenomicsPooling %>%
+        tidyr::separate(genomicsPooledIDList, into = c("first", "second", "third"), sep = "\\|", fill = "right") %>%
+        dplyr::select(genomicsSampleID, first, second, third)
+    genSampleExample <- genomicSamples %>%
+        tidyr::pivot_longer(cols = c("first", "second", "third"), values_to = "sampleID") %>%
+        dplyr::select(sampleID, genomicsSampleID) %>%
+        drop_na()
+    return(genSampleExample)
+}
+
+# Load and process soil cores with transformations
+# Applies transformations: isForest classification, biome recoding, and compositeSampleID addition
+# Checks local path first, then falls back to project path
+load_soilCores <- function(neon_soil_file = NULL) {
+    if(is.null(neon_soil_file)) {
+        local_path <- "data/environmental_data/neon_soil_data_2023.rds"
+        project_path <- "/projectnb/dietzelab/zrwerbin/N-cycle/neon_soil_data_2023.rds"
+        
+        if(file.exists(local_path)) {
+            neon_soil_file <- local_path
+        } else if(file.exists(project_path)) {
+            neon_soil_file <- project_path
+        } else {
+            stop("neon_soil_data_2023.rds not found in:\n  ", local_path, "\n  ", project_path)
+        }
+    }
+    soilData <- readRDS(neon_soil_file)
+    soilCores <- soilData$sls_soilCoreCollection
+    
+    # Apply transformations from source.R
+    soilCores <- soilCores %>% 
+        mutate(isForest = ifelse(grepl("Forest", nlcdClass), 
+                                 "forest habitat", "non forest habitat")) %>% 
+        mutate(biome = recode(nlcdClass, "mixedForest" = "Forest",
+                             "evergreenForest" = "Forest",
+                             "deciduousForest" = "Forest",
+                             "emergentHerbaceousWetlands" = "Wetlands",
+                             "woodyWetlands" = "Wetlands",
+                             "dwarfScrub" = "Shrubland",
+                             "shrubScrub" = "Shrubland",
+                             "sedgeHerbaceous" = "Herbaceous",
+                             "grasslandHerbaceous" = "Herbaceous",
+                             "pastureHay" = "Agricultural",
+                             "cultivatedCrops" = "Agricultural"))
+    
+    # Add compositeSampleID from genomicSamples
+    if("sls_metagenomicsPooling" %in% names(soilData)) {
+        genSampleExample <- load_genSampleExample(soilChem = soilData)
+        soilCores$compositeSampleID <- genSampleExample[match(soilCores$sampleID, genSampleExample$sampleID),]$genomicsSampleID
+    }
+    
+    return(soilCores)
+}
+
+# ============================================================================
+# Analysis Helper Functions
+# ============================================================================
 
 # Define functions to compute correlations (this could be rewritten as one function with a second argument for variable)
 cor_fun_pH <- function(df) cor.test(df$percentage, 
@@ -429,7 +934,6 @@ get_tax_level_abun <- function(ps, tax_rank_list = c("phylum","class","order","f
     return(out.list)
 }
 
-
 assign_biome_presence = function(test_df) {
 	
 	# get counts of samples per biome 
@@ -457,110 +961,9 @@ assign_biome_presence = function(test_df) {
 	return(df_out)
 }
 
-# Load NEON soil chemistry data
-# Checks local path first, then falls back to project path
-load_soilChem <- function(neon_soil_file = NULL) {
-    if(is.null(neon_soil_file)) {
-        local_path <- "data/environmental_data/neon_soil_data_2023.rds"
-        project_path <- "/projectnb/dietzelab/zrwerbin/N-cycle/neon_soil_data_2023.rds"
-        
-        if(file.exists(local_path)) {
-            neon_soil_file <- local_path
-        } else if(file.exists(project_path)) {
-            neon_soil_file <- project_path
-        } else {
-            stop("neon_soil_data_2023.rds not found in:\n  ", local_path, "\n  ", project_path)
-        }
-    }
-    return(readRDS(neon_soil_file))
-}
-
-# Extract genomic sample mapping (sampleID to genomicsSampleID) from soilChem
-# Can take soilChem as input or load it if not provided
-load_genSampleExample <- function(soilChem = NULL, neon_soil_file = NULL) {
-    if(is.null(soilChem)) {
-        soilChem <- load_soilChem(neon_soil_file)
-    }
-    if(!"sls_metagenomicsPooling" %in% names(soilChem)) {
-        stop("sls_metagenomicsPooling not found in soilChem")
-    }
-    genomicSamples <- soilChem$sls_metagenomicsPooling %>%
-        tidyr::separate(genomicsPooledIDList, into = c("first", "second", "third"), sep = "\\|", fill = "right") %>%
-        dplyr::select(genomicsSampleID, first, second, third)
-    genSampleExample <- genomicSamples %>%
-        tidyr::pivot_longer(cols = c("first", "second", "third"), values_to = "sampleID") %>%
-        dplyr::select(sampleID, genomicsSampleID) %>%
-        drop_na()
-    return(genSampleExample)
-}
-
-# Load and process soil cores with transformations
-# Applies transformations: isForest classification, biome recoding, and compositeSampleID addition
-# Checks local path first, then falls back to project path
-load_soilCores <- function(neon_soil_file = NULL) {
-    if(is.null(neon_soil_file)) {
-        local_path <- "data/environmental_data/neon_soil_data_2023.rds"
-        project_path <- "/projectnb/dietzelab/zrwerbin/N-cycle/neon_soil_data_2023.rds"
-        
-        if(file.exists(local_path)) {
-            neon_soil_file <- local_path
-        } else if(file.exists(project_path)) {
-            neon_soil_file <- project_path
-        } else {
-            stop("neon_soil_data_2023.rds not found in:\n  ", local_path, "\n  ", project_path)
-        }
-    }
-    soilData <- readRDS(neon_soil_file)
-    soilCores <- soilData$sls_soilCoreCollection
-    
-    # Apply transformations from source.R
-    soilCores <- soilCores %>% 
-        mutate(isForest = ifelse(grepl("Forest", nlcdClass), 
-                                 "forest habitat", "non forest habitat")) %>% 
-        mutate(biome = recode(nlcdClass, "mixedForest" = "Forest",
-                             "evergreenForest" = "Forest",
-                             "deciduousForest" = "Forest",
-                             "emergentHerbaceousWetlands" = "Wetlands",
-                             "woodyWetlands" = "Wetlands",
-                             "dwarfScrub" = "Shrubland",
-                             "shrubScrub" = "Shrubland",
-                             "sedgeHerbaceous" = "Herbaceous",
-                             "grasslandHerbaceous" = "Herbaceous",
-                             "pastureHay" = "Agricultural",
-                             "cultivatedCrops" = "Agricultural"))
-    
-    # Add compositeSampleID from genomicSamples
-    if("sls_metagenomicsPooling" %in% names(soilData)) {
-        genSampleExample <- load_genSampleExample(soilChem = soilData)
-        soilCores$compositeSampleID <- genSampleExample[match(soilCores$sampleID, genSampleExample$sampleID),]$genomicsSampleID
-    }
-    
-    return(soilCores)
-}
-
-# From testing 
-# (commented out example code - kept for reference)
-# Combine abundance and metadata into one dataframe 
-# merged_df = merge(species_abundances, 
-# 									soil_metadata, by.x = "sampleID", by.y = "genomicsSampleID")
-# 
-# merged_df_nest = merged_df %>% 
-# 	select(-c(sampleID)) %>% 
-# 	group_by(db_name, taxon) %>% nest
-# 
-# test_df = merged_df_nest[,3][[1]][[2]]
-# 
-# 
-# # Filter by correlation strength
-# data_nest_biome <- merged_df_nest[1:100,] %>% 
-# 	mutate(biome_presence = map(data, assign_biome_presence)) 
-# 
-# df_biome = data_nest_biome %>% 
-# 	select(-data) %>% unnest(cols = c(biome_presence)) %>% ungroup 
-# 	
-# df_biome_wide = df_biome %>% 
-# 	select(-c(biome_count, prevalence)) %>% 
-# 	pivot_wider(names_from = nlcdClass, values_from = present_in_biome)
+# ============================================================================
+# Remote File Access Functions
+# ============================================================================
 
 # Read files from remote server over SSH
 # Uses SSH config at ~/.ssh/config (will prompt for password if needed)
