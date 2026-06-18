@@ -11,9 +11,9 @@ The tutorial below is for locally downloading this database to classify samples 
 4. Estimate relative abundances of taxa
 
 **Resource requirements:** 
-- **Storage:** Downloading the complete SoilMicrobeDB (Step 1) requires approximately **289 GB** of disk space. This includes all Kraken2 classification files (~289 GB) and Bracken abundance estimation files (~400 MB). The Bracken files are included in the full download and are small relative to the main database files.
+- **Storage:** The classification + abundance workflow (Steps 2–4) requires approximately **282 GB** of disk space, downloaded in Step 1 (the `hash.k2d` index alone is ~280 GB, plus the taxonomy files and the small `database150mers.kmer_distrib` Bracken file). The complete `kraken/` prefix in the bucket is ~406 GB because it also contains **build-only** files — `database.kraken`, `database150mers.kraken`, and the two `*.accession2taxid` maps (~116 GB total) — that are needed only to rebuild or extend the database (Step 5), not to run it. The Step 1 download command below excludes those by default.
 - **RAM:** Classification (Step 2) benefits from substantial RAM (~300 GB for optimal performance), though the `--memory-mapping` flag allows operation with lower RAM by accessing the database from disk. Steps 3 and 4 are not RAM-intensive.
-- **Note:** If you only need classification without abundance estimation, you can skip the Bracken files, but they represent a small fraction of the total size (~400 MB out of 289 GB).
+- **Note:** The only Bracken file read at run time (`database150mers.kmer_distrib`, ~88 MB) is included in the default Step 1 download. To rebuild or extend the database (Step 5), download the full prefix without the `--exclude` flags to also fetch the build-only files.
 
 The recommended approach to using SoilMicrobeDB is to leverage the Struo2 pipeline for database development (Youngblut et al. 2022), with full installation details available here. Struo2 allows for customizing the database through additional genomes, and the pipeline includes the Kraken and Bracken software used in Steps 2 and 4. Step 3's false-positive filtering software (Architeuthis) must be installed separately (outlined in below in section 0.1).
 
@@ -32,8 +32,8 @@ conda install -c conda-forge -c bioconda architeuthis
 mkdir -p ./test_sample ./test_output/{01_kraken,02_architeuthis,03_bracken}
 
 # Download test sample files from S3 (or use your own files)
-aws s3 cp --no-sign-request s3://kraken2-soil-microbe-database/test_sample_R1.fastq.gz ./test_sample/
-aws s3 cp --no-sign-request s3://kraken2-soil-microbe-database/test_sample_R2.fastq.gz ./test_sample/
+aws s3 cp --no-sign-request s3://soil-microbe-database/database_v1/test_sample_R1.fastq.gz ./test_sample/
+aws s3 cp --no-sign-request s3://soil-microbe-database/database_v1/test_sample_R2.fastq.gz ./test_sample/
 
 samp_dir=./test_sample
 samp_name="$(basename -- "$samp_dir")"
@@ -49,8 +49,9 @@ bracken_dir_path=./test_output/03_bracken
 # Create local database directory
 mkdir -p /databases/SoilMicrobeDB/kraken2
 
-# Download Kraken2 database files from S3
-aws s3 sync --no-sign-request s3://kraken2-soil-microbe-database/kraken/ /databases/SoilMicrobeDB/kraken2/
+# Download Kraken2 database files from S3 (excludes build-only files; see §1)
+aws s3 sync --no-sign-request s3://soil-microbe-database/database_v1/kraken/ /databases/SoilMicrobeDB/kraken2/ \
+  --exclude "*.kraken" --exclude "*.accession2taxid"
 
 # Set database variables
 DBNAME=SoilMicrobeDB
@@ -139,8 +140,8 @@ To ensure setup is completed smoothly, we provide a single "test" sample (forwar
 mkdir -p ./test_sample
 
 # Download test sample files from S3
-aws s3 cp --no-sign-request s3://kraken2-soil-microbe-database/test_sample_R1.fastq.gz ./test_sample/
-aws s3 cp --no-sign-request s3://kraken2-soil-microbe-database/test_sample_R2.fastq.gz ./test_sample/
+aws s3 cp --no-sign-request s3://soil-microbe-database/database_v1/test_sample_R1.fastq.gz ./test_sample/
+aws s3 cp --no-sign-request s3://soil-microbe-database/database_v1/test_sample_R2.fastq.gz ./test_sample/
 
 # Confirm the expected files exist before proceeding
 ls -lh ./test_sample
@@ -166,7 +167,7 @@ Download the SoilMicrobeDB from the AWS S3 bucket using the AWS command line too
 First, list the contents of the S3 bucket to verify access:
 
 ```bash
-aws s3 ls --no-sign-request s3://kraken2-soil-microbe-database/
+aws s3 ls --no-sign-request s3://soil-microbe-database/database_v1/
 ```
 
 Create a local directory for the database and download the Kraken2 files:
@@ -175,11 +176,16 @@ Create a local directory for the database and download the Kraken2 files:
 # Create local database directory (adjust path as needed for your system)
 mkdir -p /databases/SoilMicrobeDB/kraken2
 
-# Download all Kraken2 database files from the kraken/ subdirectory
-aws s3 sync --no-sign-request s3://kraken2-soil-microbe-database/kraken/ /databases/SoilMicrobeDB/kraken2/
+# Download Kraken2 database files for classification + abundance (~282 GB).
+# The --exclude flags skip build-only files (~116 GB) not needed to run classification
+# or Bracken: the bracken-build intermediates (database.kraken, database150mers.kraken)
+# and the NCBI accession2taxid maps. database150mers.kmer_distrib, which Bracken DOES
+# need at run time, is NOT a *.kraken file and is kept. To rebuild/extend the DB, see §5.
+aws s3 sync --no-sign-request s3://soil-microbe-database/database_v1/kraken/ /databases/SoilMicrobeDB/kraken2/ \
+  --exclude "*.kraken" --exclude "*.accession2taxid"
 ```
 
-**Using an external drive:** The database (~289 GB) can be stored on an external drive (e.g., a 1TB USB drive). This is useful if you don't have sufficient space on your main drive. To use an external drive:
+**Using an external drive:** The classification database (~282 GB) can be stored on an external drive (e.g., a 1TB USB drive). This is useful if you don't have sufficient space on your main drive. To use an external drive:
 
 1. Mount or connect your external drive and note its mount point (e.g., `/Volumes/MyDrive` on macOS or `/media/username/drive` on Linux)
 2. Create the database directory on the external drive:
@@ -192,12 +198,13 @@ aws s3 sync --no-sign-request s3://kraken2-soil-microbe-database/kraken/ /databa
    ```
 3. Download to the external drive location:
    ```bash
-   aws s3 sync --no-sign-request s3://kraken2-soil-microbe-database/kraken/ /Volumes/MyDrive/SoilMicrobeDB/kraken2/
+   aws s3 sync --no-sign-request s3://soil-microbe-database/database_v1/kraken/ /Volumes/MyDrive/SoilMicrobeDB/kraken2/ \
+     --exclude "*.kraken" --exclude "*.accession2taxid"
    ```
 4. Update the `DBDIR` variable to point to the external drive location
 5. **Important:** Use the `--memory-mapping` flag when running Kraken2 (already included in the tutorial commands) to access the database from disk rather than loading it entirely into RAM. This is especially important for external drives.
 
-**Performance considerations:** External drives (especially USB 3.0+ or Thunderbolt) work well with Kraken2's memory-mapping mode. Classification may be slower than with an internal SSD, but the workflow will function correctly. Ensure the drive is properly mounted and has sufficient free space (~289 GB).
+**Performance considerations:** External drives (especially USB 3.0+ or Thunderbolt) work well with Kraken2's memory-mapping mode. Classification may be slower than with an internal SSD, but the workflow will function correctly. Ensure the drive is properly mounted and has sufficient free space (~282 GB).
 
 #### 1.1 Transferring database from remote server to external drive
 
@@ -259,7 +266,7 @@ scp -r user@server:/path/to/database/kraken2 /Volumes/MyDrive/SoilMicrobeDB/
 - Verify after transfer: Check that all essential files are present (see file list below)
 
 **Estimated transfer time:**
-- Gigabit Ethernet (1 Gbps): ~40-60 minutes for 289 GB
+- Gigabit Ethernet (1 Gbps): ~40-60 minutes for ~282 GB
 - 100 Mbps connection: ~6-8 hours
 - WiFi (varies): 8-24+ hours depending on signal strength
 
@@ -281,10 +288,10 @@ Verify the database structure. The `$DBDIR` directory should contain:
 - `seqid2taxid.map` - sequence ID to taxonomy ID mapping
 - `taxonomy/` - directory containing taxonomy files (names.dmp, nodes.dmp, etc.)
 
-**Additional files for abundance estimation (Step 4):**
-- `database150mers.kraken` - Bracken database file for 150bp reads
-- `database150mers.kmer_distrib` - Bracken k-mer distribution file
-- `database.kraken` - Bracken database file
+**Additional file for abundance estimation (Step 4):**
+- `database150mers.kmer_distrib` - Bracken k-mer distribution file (the only Bracken file read at run time, for 150bp reads)
+
+> **Not downloaded by default:** `database.kraken` and `database150mers.kraken` are `bracken-build` intermediates and are **not** read when running Bracken — they are excluded by the Step 1 download. You only need them to rebuild the Bracken database for a different read length (see §5).
 
 **Outputs**
 - A Kraken2-formatted database directory at `$DBDIR` containing the `.k2d` files, `taxonomy/` subdirectory, and Bracken database files.
@@ -403,7 +410,15 @@ To create the database from a genome list, or update the existing SoilMicrobeDB 
 
 ```bash
 # Download the genome table file
-aws s3 cp --no-sign-request s3://kraken2-soil-microbe-database/soil_microbe_db_genome_table.csv ./
+aws s3 cp --no-sign-request s3://soil-microbe-database/database_v1/soil_microbe_db_genome_table.csv ./
+```
+
+To rebuild or extend the database (rather than only run classification), you also need the build-only files that the Step 1 download excludes. Fetch them into your existing database directory with:
+
+```bash
+aws s3 sync --no-sign-request s3://soil-microbe-database/database_v1/kraken/ /databases/SoilMicrobeDB/kraken2/ \
+  --exclude "*" --include "database.kraken" --include "database150mers.kraken" \
+  --include "taxonomy/nucl_gb.accession2taxid" --include "taxonomy/nucl_wgs.accession2taxid"
 ```
 
 To add new genomes, create a second TSV with the same format (genome name, taxonomy ID, and filepath). Genome names must be unique, and taxonomy IDs should be consistent with NCBI taxonomy structure. Then, specify the path to this new genome TSV file within the configuration file.
@@ -417,8 +432,9 @@ This database can also be integrated into cloud computing workflows using an Ama
 A detailed tutorial, provided by Robyn Wright, walks through the process of setting up an AMI for use with Kraken2. Follow the instructions, replacing the database download portion ("Get the Kraken2 database") with the following command:
 
 ```bash
-# Download the Kraken2 database files from S3
-aws s3 sync --no-sign-request s3://kraken2-soil-microbe-database/kraken/ /path/to/local/kraken2/
+# Download the Kraken2 database files from S3 (classification set; see §1 for the --exclude rationale)
+aws s3 sync --no-sign-request s3://soil-microbe-database/database_v1/kraken/ /path/to/local/kraken2/ \
+  --exclude "*.kraken" --exclude "*.accession2taxid"
 ```
 
 Then, proceed with steps 0 and 2-4 of this tutorial to conduct analyses.
