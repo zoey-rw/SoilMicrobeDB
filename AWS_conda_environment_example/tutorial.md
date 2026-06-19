@@ -26,7 +26,7 @@ cd Struo2
 conda env create --name struo2_conda -f conda_env.yaml
 conda activate struo2_conda
 mamba install -c bioconda kraken2
-conda install -c conda-forge -c bioconda architeuthis
+conda install -c conda-forge -c bioconda architeuthis taxonkit
 
 # 0.2) Inputs/outputs
 mkdir -p ./test_sample ./test_output/{01_kraken,02_architeuthis,03_bracken}
@@ -101,8 +101,10 @@ Install quality-filter software (Architeuthis):
 
 ```bash
 conda activate struo2_conda
-conda install -c conda-forge -c bioconda architeuthis
+conda install -c conda-forge -c bioconda architeuthis taxonkit
 ```
+
+> Architeuthis shells out to `taxonkit` for taxonomy lookups during the Step 3 filter, so install it alongside Architeuthis. Without it on your `PATH`, Step 3 fails with `no taxonkit installation could be found`.
 
 (Optional) build `kraken2-report` from the Kraken2 source (needed in Step 3 if `kraken2-report` is not already available on your PATH):
 
